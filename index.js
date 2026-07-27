@@ -6077,6 +6077,12 @@ console.info(
     { value: 'pc', label: '桌面' },
     { value: 'mobile', label: '手机' },
   ];
+  /* 版式跟明暗/布局不一样，它不换样式表 —— 档案那套整份挂在
+     html[data-claude-archive] 下面，切换只是改一个属性，当场生效。 */
+  const STYLES = [
+    { value: 'classic', label: '经典（照官网）' },
+    { value: 'archive', label: '档案（标本册）' },
+  ];
 
   function read(key, allowed, fallback) {
     try {
@@ -6096,6 +6102,24 @@ console.info(
       return false;
     }
   }
+
+  /* 版式属性必须在模块求值时就设上，不能等面板挂载。
+     面板要轮询等酒馆的设置容器出现，最长 60 秒；真挂不上的时候（容器换了
+     选择器、或者用户根本没开设置面板）属性就永远设不上，档案版式等于没装。
+     这里先设一次，面板挂上之后再接管。 */
+  (function applyStoredStyle() {
+    try {
+      const root = document.documentElement;
+      if (read('style', ['classic', 'archive'], 'classic') === 'archive') {
+        root.dataset.claudeArchive = 'on';
+      }
+      if (read('ghost', ['on', 'off'], 'off') === 'on') {
+        root.dataset.claudeArchiveGhost = 'on';
+      }
+    } catch (error) {
+      console.warn('[Claude Web] 版式属性设置失败：', error);
+    }
+  })();
 
   function resolveLayout(choice) {
     if (choice !== 'auto') return choice;
@@ -6173,6 +6197,14 @@ console.info(
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
           <select id="claude-web-layout" class="text_pole"></select>
+
+          <label for="claude-web-style" style="margin-top:8px">版式</label>
+          <select id="claude-web-style" class="text_pole"></select>
+
+          <label class="checkbox_label" style="margin-top:8px;display:flex;align-items:center;gap:6px">
+            <input id="claude-web-ghost" type="checkbox">
+            <span>档案版式：消息右上角显示巨大编号</span>
+          </label>
 
           <div id="claude-web-hint"
                style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
@@ -6470,6 +6502,34 @@ console.info(
       );
       panel.querySelector('#claude-web-reload')
         ?.addEventListener('click', () => window.location.reload(), { once: true });
+    });
+
+    /* 版式。不换样式表，只改 documentElement 上的属性 —— 档案那套整份
+       挂在 html[data-claude-archive="on"] 下，属性一改当场生效，不用刷新。 */
+    const styleSelect = panel.querySelector('#claude-web-style');
+    const ghostBox = panel.querySelector('#claude-web-ghost');
+    fillSelect(styleSelect, STYLES, read('style', ['classic', 'archive'], 'classic'));
+    ghostBox.checked = read('ghost', ['on', 'off'], 'off') === 'on';
+
+    const applyStyle = () => {
+      const root = document.documentElement;
+      if (styleSelect.value === 'archive') root.dataset.claudeArchive = 'on';
+      else delete root.dataset.claudeArchive;
+      if (ghostBox.checked) root.dataset.claudeArchiveGhost = 'on';
+      else delete root.dataset.claudeArchiveGhost;
+      /* 巨大编号只在档案版式里有意义，经典版式下把复选框灰掉，
+         免得勾了没反应让人以为坏了。 */
+      ghostBox.disabled = styleSelect.value !== 'archive';
+    };
+    applyStyle();
+
+    styleSelect.addEventListener('change', () => {
+      if (!write('style', styleSelect.value)) return;
+      applyStyle();
+    });
+    ghostBox.addEventListener('change', () => {
+      if (!write('ghost', ghostBox.checked ? 'on' : 'off')) return;
+      applyStyle();
     });
 
     mountPresets(panel);
