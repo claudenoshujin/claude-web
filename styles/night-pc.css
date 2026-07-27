@@ -4551,3 +4551,161 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   }
   html body #sheld, html body #form_sheld { transition:none !important; }
 }
+
+/* ===================== 令牌层 =====================
+ *
+ * 见 方案-令牌层与预设系统-20260727.md。
+ *
+ * 这个文件**拼在所有 CSS 的最后**，所以它对 --cl-* 的重定义会赢过
+ * theme-day.css / theme-night.css 里的原始定义。自定义属性是在**使用时**
+ * 从层叠里取值的，不看文本顺序，所以后面重定义一次就能全局生效。
+ *
+ * 分层：
+ *   调色板 --cw-paper-* / --cw-ink-* / --cw-clay-*   预设只改这层
+ *   语义   --cw-surface-* / --cw-text-* / --cw-rule-* 组件读这层
+ *   尺寸   --cw-measure / --cw-meta-col / ...         三档密度改这层
+ *   字体   --cw-font-*                                预设不给改
+ *   兼容   --cl-*                                     旧 CSS 靠它继续跑
+ *
+ * 迁移期的做法：不动任何一行旧 CSS，只把 --cl-* 的**来源**换成 --cw-*。
+ * 这样旧代码照常工作，而换预设能立刻影响整套界面 —— 不用等 4000 行迁完。
+ */
+
+:root {
+  --cw-paper-0: #1f1f1e;
+  --cw-paper-1: #2c2c2a;
+  --cw-paper-2: #2c2c2a;
+  --cw-paper-3: #373734;
+  --cw-ink-0: #f8f8f6;
+  --cw-ink-1: #b8b6ae;
+  --cw-ink-2: #97958c;
+  --cw-ink-3: #44423d;
+  --cw-clay: #d97757;
+  --cw-line: rgba(226,225,218,.15);
+  --cw-line-strong: rgba(226,225,218,.25);
+  --cw-hero: #c3c2b7;
+  --cw-icon: #ffffff;
+  --cw-clay-soft: #3a2a22;
+  --cw-clay-strong: #c6613f;
+  --cw-code-surface: #131211;
+  --cw-code-ink: #e6a58c;
+  --cw-em: #c3c2b7;
+  --cw-selection: #5a3a2c;
+  --cw-scrollbar: #44423d;
+  --cw-scrollbar-hover: #55534c;
+  --cw-shadow-dialog: 0 12px 36px rgba(0,0,0,.55);
+  --cw-shadow-composer: 0 12px 34px rgba(0,0,0,.38);
+  --cw-shadow-floating: 0 16px 42px rgba(0,0,0,.44);
+  --cw-topbar-surface: rgba(31,31,30,.98);
+  --cw-body-weight: 400;
+  --cw-color-scheme: dark;
+}
+
+:root {
+  /* ---------- 语义层：组件只准读这一层 ---------- */
+  --cw-surface-page    : var(--cw-paper-0);
+  --cw-surface-raised  : var(--cw-paper-1);
+  --cw-surface-input   : var(--cw-paper-2);
+  --cw-surface-hover   : var(--cw-paper-3);
+
+  --cw-text-body       : var(--cw-ink-0);
+  --cw-text-secondary  : var(--cw-ink-1);
+  --cw-text-muted      : var(--cw-ink-2);
+  --cw-text-faint      : var(--cw-ink-3);
+
+  --cw-rule-hairline   : var(--cw-line);
+  --cw-rule-strong     : var(--cw-line-strong);
+  --cw-rule-hand       : var(--cw-ink-3);
+
+  --cw-mark            : var(--cw-clay);
+  --cw-mark-hover      : var(--cw-clay-strong);
+  --cw-mark-field      : var(--cw-clay-soft);
+
+  /* 字符网格用它配合 opacity，不要直接给它带透明度的值 ——
+     深色预设下要单独调密度和不透明度，分开更好控。 */
+  --cw-grid-char       : var(--cw-ink-0);
+  --cw-grid-opacity    : .075;
+  --cw-grid-step       : 34px;
+
+  /* ---------- 尺寸层：三档密度改这里 ----------
+     断点和 module-*.css 现有的 700px 对齐；中档是新加的，
+     Codex 的 C-2 断点普查出来之后再校准这三组数。 */
+  --cw-measure     : 58ch;
+  --cw-meta-col    : 46px;
+  --cw-gutter      : 26px;
+  --cw-msg-gap     : 24px;
+  --cw-body-size   : 15px;
+  --cw-body-lead   : 1.9;
+  --cw-plate-title : 27px;
+  --cw-folio-size  : 26px;
+
+  /* ---------- 字体层：预设不给改 ----------
+     衬线正文 + 无衬线界面 + 等宽编号，这三条是这套设计的骨头。 */
+  --cw-font-voice : var(--cl-serif);
+  --cw-font-ui    : var(--cl-sans);
+  --cw-font-mono  : ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (max-width:700px) {
+  :root {
+    --cw-measure     : 100%;
+    --cw-meta-col    : 36px;
+    --cw-gutter      : 16px;
+    --cw-msg-gap     : 20px;
+    --cw-body-size   : 15px;
+    --cw-body-lead   : 1.85;
+    --cw-plate-title : 24px;
+    --cw-folio-size  : 22px;
+    --cw-grid-step   : 28px;
+  }
+}
+
+@media (min-width:1101px) {
+  :root {
+    --cw-measure     : 62ch;
+    --cw-meta-col    : 56px;
+    --cw-gutter      : 40px;
+    --cw-msg-gap     : 28px;
+    --cw-body-size   : 16px;
+    --cw-plate-title : 30px;
+    --cw-folio-size  : 30px;
+  }
+}
+
+/* ===================== 兼容层 =====================
+ *
+ * 把旧的 --cl-* 改成从 --cw-* 取值。**值必须和原来一模一样**，
+ * 这一步的验收标准是视觉回归零差异（Codex C-3）。
+ *
+ * 迁移一个文件、就把该文件用到的 --cl-* 换成 --cw-*，
+ * 然后从下面删掉对应的行。全删完这一段就消失。
+ */
+:root {
+  --cl-color-scheme    : var(--cw-color-scheme);
+  --cl-canvas          : var(--cw-paper-0);
+  --cl-surface         : var(--cw-paper-1);
+  --cl-soft            : var(--cw-paper-2);
+  --cl-soft-hover      : var(--cw-paper-3);
+  --cl-line            : var(--cw-line);
+  --cl-line-strong     : var(--cw-line-strong);
+  --cl-hero            : var(--cw-hero);
+  --cl-ink             : var(--cw-ink-0);
+  --cl-muted           : var(--cw-ink-2);
+  --cl-control-muted   : var(--cw-ink-1);
+  --cl-icon            : var(--cw-icon);
+  --cl-rail-ink        : var(--cw-icon);
+  --cl-accent          : var(--cw-clay);
+  --cl-accent-soft     : var(--cw-clay-soft);
+  --cl-code            : var(--cw-code-surface);
+  --cl-em-color        : var(--cw-em);
+  --cl-code-ink        : var(--cw-code-ink);
+  --cl-send-hover      : var(--cw-clay-strong);
+  --cl-selection       : var(--cw-selection);
+  --cl-scrollbar       : var(--cw-scrollbar);
+  --cl-scrollbar-hover : var(--cw-scrollbar-hover);
+  --cl-dialog-shadow   : var(--cw-shadow-dialog);
+  --cl-composer-shadow : var(--cw-shadow-composer);
+  --cl-floating-shadow : var(--cw-shadow-floating);
+  --cl-topbar-surface  : var(--cw-topbar-surface);
+  --cl-body-weight     : var(--cw-body-weight);
+}
