@@ -2839,7 +2839,14 @@ console.info(
   /* 拉取 + 补齐 + 排序。补齐和排序规则照抄 1.18 getRecentChats 的尾巴，
      否则侧栏顺序会和欢迎页对不上。 */
   async function buildRecentEntries() {
-    const { main } = await loadDeleteModules();
+    /* 不 await loadDeleteModules()。
+       渲染列表其实只需要两样东西：一次带 CSRF 头的 fetch，和 getContext() 里的
+       characters / groups —— 宿主模块一个都用不上。第一版在这里等模块注入完成，
+       而注入要塞 <script type="module"> 再等它跑完，真机上表现成
+       「进页面后侧栏空着，过一会儿才冒出来」。
+       hostRequestHeaders 在拿不到 main.getRequestHeaders 时会自己去取
+       csrf-token，所以传一个空快照也能正常工作。 */
+    const main = hostModulesSnapshot?.main ?? {};
     const settings = readRecentChatsSettings();
     const pinned = readPinnedChats();
     const records = await fetchRecentChatRecords(main, settings.maxDisplayed, Object.values(pinned));
@@ -3429,6 +3436,10 @@ console.info(
 
   async function hostRequestHeaders(main) {
     if (typeof main?.getRequestHeaders === 'function') return main.getRequestHeaders();
+    /* getContext() 一开始就有，不用等宿主模块注入完 —— 侧栏首屏能不能立刻
+       拉到近期对话，就差这一步。拿不到再退回去取 csrf-token。 */
+    const context = getContext();
+    if (typeof context?.getRequestHeaders === 'function') return context.getRequestHeaders();
     const response = await hostWindow.fetch(new hostWindow.URL('csrf-token', hostModuleRoot().root));
     if (!response.ok) throw new Error(`无法取得 CSRF token（HTTP ${response.status}）。`);
     const data = await response.json();
@@ -5753,10 +5764,66 @@ console.info(
 
           <div id="claude-web-hint"
                style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+
+          <hr style="margin:10px 0;opacity:.25">
+          <button id="claude-web-update" class="menu_button">检查更新</button>
+          <div id="claude-web-update-hint"
+               style="margin-top:6px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
         </div>
       </div>
     `;
     return wrapper;
+  }
+
+  /* 酒馆自带的更新入口藏在「管理扩展」里，而且要勾上 Notify on extension updates
+     才会主动提示，很容易以为没更新。这里直接调它的更新接口：
+       POST /api/extensions/update  { extensionName }
+     extensionName 用的是文件夹名，不带 third-party/ 前缀 —— 服务端的 basePath
+     本来就是第三方扩展目录（1.18 的 src/endpoints/extensions.js 已核实），
+     而且它会 sanitize 掉斜杠，带前缀反而找不到。 */
+  async function runUpdate(button, hint) {
+    const folder = (() => {
+      try {
+        const base = typeof CLAUDE_EXTENSION_BASE !== 'undefined'
+          ? CLAUDE_EXTENSION_BASE
+          : new URL('.', import.meta.url).href;
+        return decodeURIComponent(new URL(base).pathname.replace(/\/+$/, '').split('/').pop() || '');
+      } catch {
+        return 'claude-web';
+      }
+    })();
+
+    const context = window.SillyTavern?.getContext?.();
+    const headers = typeof context?.getRequestHeaders === 'function'
+      ? context.getRequestHeaders()
+      : { 'Content-Type': 'application/json' };
+
+    button.disabled = true;
+    hint.textContent = `正在检查 ${folder}…`;
+    try {
+      const response = await fetch('/api/extensions/update', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ extensionName: folder }),
+      });
+      if (!response.ok) {
+        hint.textContent = `更新接口返回 HTTP ${response.status}。手动装的（不是按地址装的）没法自动更新。`;
+        return;
+      }
+      const data = await response.json();
+      if (data?.isUpToDate) {
+        hint.textContent = `已经是最新的（${data.shortCommitHash ?? ''}）。`;
+        return;
+      }
+      hint.innerHTML = `已更新到 ${data?.shortCommitHash ?? '新版本'}。`
+        + ' <button id="claude-web-update-reload" class="menu_button" style="margin-left:6px">刷新生效</button>';
+      hint.querySelector('#claude-web-update-reload')
+        ?.addEventListener('click', () => window.location.reload(), { once: true });
+    } catch (error) {
+      hint.textContent = `更新失败：${error && error.message}`;
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function fillSelect(select, options, current) {
@@ -5809,6 +5876,12 @@ console.info(
       );
       panel.querySelector('#claude-web-reload')
         ?.addEventListener('click', () => window.location.reload(), { once: true });
+    });
+
+    const updateButton = panel.querySelector('#claude-web-update');
+    const updateHint = panel.querySelector('#claude-web-update-hint');
+    updateButton.addEventListener('click', () => {
+      void runUpdate(updateButton, updateHint);
     });
   }
 
