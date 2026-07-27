@@ -5152,6 +5152,10 @@ html[data-claude-archive="on"] {
   --ar-mute  : var(--cw-text-muted);
   --ar-clay  : var(--cw-mark);
   --ar-grid  : color-mix(in srgb, var(--cw-mark) 34%, var(--cw-surface-raised));
+
+  /* 巨大编号的浓度。参考图里页码大到成为构图的一部分，太淡就只是脏了一块。
+     单独抽成变量：这一处最容易过头，调它不用翻整份文件。 */
+  --ar-ghost : .13;
 }
 
 /* 深色下奶油和陶土都要压一档 —— 给浅底当底色的亮度，搬到深底上当前景
@@ -5160,6 +5164,8 @@ html[data-claude-archive="on"][data-claude-integrated-theme="night"] {
   --ar-mark : color-mix(in srgb, var(--cw-text-body) 90%, var(--cw-surface-page));
   --ar-clay : color-mix(in srgb, var(--cw-mark) 86%, #000);
   --ar-grid : color-mix(in srgb, var(--cw-mark) 26%, var(--cw-surface-raised));
+  /* 浅字压在深底上比反过来显眼，同样的浓度在夜间会更跳，收一档。 */
+  --ar-ghost: .10;
 }
 
 /* ---------- 页面底部的印刷网点 ---------- */
@@ -5338,7 +5344,7 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::aft
   letter-spacing:-.05em !important;
   line-height:1 !important;
   color:var(--ar-mark) !important;
-  opacity:.055 !important;
+  opacity:var(--ar-ghost) !important;
   pointer-events:none !important;
   user-select:none !important;
   z-index:0 !important;
