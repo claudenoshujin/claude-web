@@ -2722,6 +2722,16 @@ console.info(
     hero.innerHTML = '<span class="asterisk"></span>';
     hero.append(hostDocument.createTextNode(heroLine));
     chat.prepend(hero);
+    /* 欢迎态下 #chat 是 flex:0 1 auto + overflow-y:auto，而酒馆载入时会把
+       聊天区滚到底。容器被压得比问候语矮时，滚到底的结果就是「顶部被切掉一截」。
+       扩展形态尤其容易撞上：样式表走 <link> 是异步加载的，酒馆有可能在我们的
+       CSS 生效之前就完成了那次滚动。插完问候语主动拉回顶部。 */
+    chat.scrollTop = 0;
+    hostWindow.requestAnimationFrame(() => {
+      if (!destroyed && chat.isConnected && hostDocument.body.classList.contains(WELCOME_CLASS)) {
+        chat.scrollTop = 0;
+      }
+    });
   }
 
   /* 侧栏品牌区 + Recents。只在完整版包里跑。 */
