@@ -3433,6 +3433,9 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
 
   html body.clawd-welcome #chat {
     flex:0 1 auto !important;
+    /* 欢迎态下容器不许被压到比问候语还矮 —— 压矮了配合下面的 overflow-y:auto
+       和酒馆的「载入时滚到底」，表现就是问候语顶部被切掉一截。 */
+    min-height:min-content !important;
     overflow-y:auto !important;
     padding-bottom:8px !important;
     background:transparent !important;
