@@ -4857,7 +4857,10 @@ html[data-claude-archive="on"] #chat > .mes .mesAvatarWrapper {
 html[data-claude-archive="on"] #chat > .mes .ch_name {
   grid-column:1 !important;
   grid-row:1 !important;
-  align-self:stretch !important;
+  /* start 而不是 stretch：卡片只包住编号+署名+时间，高度不跟正文走。
+     拉满在样张里看不出问题，因为那里最长的一条也才三四行；
+     真机一条几百字，拉满就是一根几百像素的纯色长条。 */
+  align-self:start !important;
 
   display:flex !important;
   flex-direction:column !important;
@@ -4955,15 +4958,27 @@ html[data-claude-archive="on"] #chat > .mes .mes_buttons {
 }
 html[data-claude-archive="on"] #chat > .mes:hover .mes_buttons { opacity:1 !important; }
 
-/* ---------- 正文 ---------- */
-html[data-claude-archive="on"] #chat > .mes .mes_text,
-html[data-claude-archive="on"] #chat > .mes .mes_reasoning_details {
+/* ---------- 正文 ----------
+   选择器写成这么长有原因：项目里有一条
+     html body #chat > .mes[is_user="false"] :is(.mes_text,.mes_reasoning)
+       { max-width:100% !important }
+   优先级 (1,3,2)。档案版式原来写的是
+     html[data-claude-archive="on"] #chat > .mes .mes_text
+   只有 (1,3,1)，少一个元素选择器就输了 —— 于是角色消息铺满整行，
+   用户消息（is_user="true" 不匹配那条）反而守着 60ch。
+   两栏一长一短、正文盖住大编号，都是这一条造成的。
+   这里补上 body 和 [mesid]，压到 (1,4,2)。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_text, .mes_reasoning_details, .mes_reasoning) {
   grid-column:3 !important;
   max-width:var(--ar-measure) !important;
+  width:auto !important;
   margin:0 !important;
   padding:0 !important;
   background:transparent !important;
   border:0 !important;
+  /* 样张里正文是 16.5px/1.92，之前只搬了行高没搬字号。 */
+  font-size:16.5px !important;
+  line-height:1.92 !important;
 }
 html[data-claude-archive="on"] #chat > .mes .mes_text { grid-row:1 !important; }
 html[data-claude-archive="on"] #chat > .mes .mes_text p {
@@ -5010,15 +5025,17 @@ html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name .timestamp,
 html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name .mesIDDisplay {
   color:rgba(255,253,248,.7) !important;
 }
-html[data-claude-archive="on"] #chat > .mes[is_user="true"] .mes_text {
+/* 优先级要跟上面那条正文规则齐平，否则会被它覆盖回去。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"] .mes_text {
   /* 和角色消息同宽。原来乘 .82 是想让用户块显得收敛一点，
-     实际效果是两栏正文右边缘各停在一个地方，页面没有基准线。
+     实际效果是两栏正文右边缘各停一个地方，整页没有基准线。
      border-box：max-width 连 padding 一起算，块的外边缘才和角色正文对齐。 */
   max-width:var(--ar-measure) !important;
   box-sizing:border-box !important;
   padding:16px 20px !important;
   background:var(--ar-block) !important;
   font-size:15.5px !important;
+  line-height:1.8 !important;
 }
 html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_user="true"]::after {
   content:none !important;
