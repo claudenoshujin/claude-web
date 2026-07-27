@@ -1527,7 +1527,8 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   box-shadow:none !important;
 }
 #chat > .mes[type="assistant_message"] {
-  width:min(100%,820px) !important;
+  /* 变量放第一个参数 —— 见 module-welcome.css 里同样的注释。 */
+  width:min(var(--cw-column),100%) !important;
   margin:4px auto 20px !important;
   padding:10px 8px !important;
   align-items:flex-start !important;
@@ -2958,9 +2959,11 @@ button.clawd-signoff-button.clawd-button-press {
 
 /* ===== v1.2 desktop column + type scale ===== */
 @media (min-width:701px) {
-  #chat > .mes { max-width:820px; margin-left:auto !important; margin-right:auto !important; }
-  #chat > .typing_indicator { max-width:820px; margin-left:auto !important; margin-right:auto !important; }
-  #send_form { max-width:820px; }
+  /* 内容岛宽度走令牌。1280px 上取值仍是 820px（64vw=819.2，被下限接住），
+     更宽的屏上跟着长到 1120px —— 这是普查 E11 在官网量到的行为。 */
+  #chat > .mes { max-width:var(--cw-column); margin-left:auto !important; margin-right:auto !important; }
+  #chat > .typing_indicator { max-width:var(--cw-column); margin-left:auto !important; margin-right:auto !important; }
+  #send_form { max-width:var(--cw-column); }
 }
 .mes_text { font-size:16px !important; }
 .mes_reasoning { font-size:13px !important; }
@@ -3496,7 +3499,13 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     /* 官网实测标题到输入框 53px；结合 #chat 的 8px 底距，这里留 8px。 */
     margin:0 auto 8px;
     padding:0 20px;
-    max-width:min(100%, 820px);
+    /* 跟对话列同宽，不用普查里的 --cw-hero-width（官网量到 860px）。
+       理由：欢迎标题和它下面的消息列是同一条视觉轴，差 40px 会看出来错位。
+       官网那 40px 是它自己的排版，不是我们要复刻的对齐关系。 */
+    /* 变量写在 min() 的第一个参数上。写成 min(100%, var(--cw-column)) 时
+       cssstyle 解析不出来，整条声明被丢掉（回归工具量到 max-width:none）。
+       同一份 CSS 里 min(var(--cw-composer),100%) 就正常，差别只有顺序。 */
+    max-width:min(var(--cw-column), 100%);
     font-family:var(--cl-serif);
     font-size:clamp(26px, 3.1vw, 40px);
     font-weight:300;
@@ -3559,8 +3568,8 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
      欢迎页是官网那种大气泡，对话页保持紧凑，两套分开。
      底色比页面亮一档 —— 官网靠明度差把输入框从背景里提出来，不靠边框。 */
   html body.clawd-welcome #form_sheld :is(#send_form, form) {
-    /* 官网实测：宽 672px、圆角 20px */
-    max-width:min(672px, 100%) !important;
+    /* 官网实测：宽 672px、圆角 20px。672 现在由 --cw-composer 的下限提供。 */
+    max-width:min(var(--cw-composer), 100%) !important;
     margin:0 auto !important;
     padding:12px 14px 10px !important;
     border-radius:20px !important;
@@ -3737,7 +3746,8 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     flex-wrap:wrap;
     gap:8px;
     margin:14px auto 0;
-    max-width:min(672px, 100%);
+    /* 快捷按钮排跟输入框同宽，两者要对齐，所以共用一个令牌。 */
+    max-width:min(var(--cw-composer), 100%);
     padding-left:var(--cl-rail,288px);
     box-sizing:border-box;
   }
@@ -5010,6 +5020,13 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   --cw-column      : clamp(820px, 64vw, 1120px);   /* E11 对话列，1280→820 */
   --cw-composer    : clamp(672px, 52.5vw, 920px);  /* E8/E10 输入框，1280→672 */
   --cw-hero-width  : clamp(860px, 67vw, 1120px);   /* E7 欢迎标题，1280→860 */
+  /* 【没有接进任何规则，是有意的】
+     侧栏宽度已经有更好的机制：clawd-interaction.js 里的 applyRailWidth 支持
+     拖拽调宽，把结果写进 documentElement 的 inline style 和 localStorage。
+     inline style 压过任何 :root 规则，所以只要用户拖过一次，这个 clamp 就
+     再也不起作用；没拖过的人才会用到它。
+     真接上去的结果是：默认宽度会随窗口变，但拖一下就永久锁死 —— 两套宽度
+     逻辑打架，还不如只留拖拽这一套。保留这个令牌只作为普查结论的记录。 */
   --cw-rail-width  : clamp(280px, 21.9vw, 340px);  /* E1 侧栏，1280→280 */
   --cw-drawer      : clamp(720px, 56.3vw, 900px);  /* E3 设置抽屉，1280→720 */
 
