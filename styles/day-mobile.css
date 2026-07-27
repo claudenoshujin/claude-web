@@ -5233,6 +5233,23 @@ html[data-claude-archive="on"] #chat > .mes .ch_name {
   padding:46px 12px 14px 12px !important;
   margin:0 !important;
 
+  /* 卡片本身不带背景也不带 mask —— mask 会连同子元素一起裁掉，
+     而 .mes_buttons 就在 .ch_name 里面，于是编辑/删除图标被卡片边缘吃了。
+     背景和撕边挪到 ::after 上，卡片自己保持透明、不裁剪。 */
+  position:relative !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+}
+
+/* 方格纸本体。铺满 .ch_name，压在内容底下。 */
+html[data-claude-archive="on"] #chat > .mes .ch_name::after {
+  content:"" !important;
+  position:absolute !important;
+  inset:0 !important;
+  z-index:-1 !important;
+  pointer-events:none !important;
+
   background-color:var(--ar-card) !important;
   background-image:
     linear-gradient(to right,  var(--ar-grid) 1px, transparent 1px),
@@ -5248,9 +5265,6 @@ html[data-claude-archive="on"] #chat > .mes .ch_name {
           mask-position:top right, top left !important;
   -webkit-mask-repeat:repeat-y, no-repeat !important;
           mask-repeat:repeat-y, no-repeat !important;
-
-  border:0 !important;
-  border-radius:0 !important;
 }
 
 /* 署名和日期钉在卡片顶部。
@@ -5314,12 +5328,35 @@ html[data-claude-archive="on"] #chat > .mes .ch_name .mesIDDisplay {
   font-variant-numeric:tabular-nums !important;
 }
 
-/* 操作按钮平时收起来，卡片上不该常驻一排图标。 */
+/* 操作按钮和编辑按钮。
+   两排都是 .ch_name 的后代 —— 也就是被塞在 118px 宽的卡片里。
+   编辑那排横着有 194px，卡片装不下；原先卡片带 mask，整排直接被裁没，
+   现象就是「点编辑之后退出键不见了」。
+   解法：绝对定位到卡片正下方，宽度限死成栏宽，让它自己换行。
+   两排不会同时出现 —— 编辑态下酒馆把 .mes_buttons 设成 display:none。 */
+html[data-claude-archive="on"] #chat > .mes :is(.mes_buttons, .mes_edit_buttons) {
+  position:absolute !important;
+  top:calc(100% + 8px) !important;
+  left:0 !important;
+  width:var(--ar-folio) !important;
+  max-width:none !important;
+  flex-direction:row !important;
+  flex-wrap:wrap !important;
+  justify-content:flex-start !important;
+  gap:8px !important;
+  z-index:3 !important;
+}
+
+/* 平时收起来，卡片上不该常驻一排图标。编辑态例外：
+   那排是当前唯一的出口，藏起来等于让人卡在编辑框里。 */
 html[data-claude-archive="on"] #chat > .mes .mes_buttons {
+  /* 这里绝对不能写 display —— 编辑态是酒馆把 .mes_buttons 设成 display:none 的，
+     用 !important 强开会让两排图标同时出现，叠在一起。 */
   opacity:0 !important;
   transition:opacity 120ms ease !important;
 }
 html[data-claude-archive="on"] #chat > .mes:hover .mes_buttons { opacity:1 !important; }
+html[data-claude-archive="on"] #chat > .mes .mes_edit_buttons { opacity:1 !important; }
 
 /* ---------- 正文 ----------
    选择器写成这么长有原因：项目里有一条
@@ -5376,7 +5413,7 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::aft
 
 /* ---------- 用户消息 = 陶土平涂块 ----------
    不做气泡、不做描边、不做圆角。一块颜色压在页面上。 */
-html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name {
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name::after {
   background-color:var(--ar-clay) !important;
   background-image:none !important;
 }

@@ -6728,15 +6728,12 @@ if (CLAUDE_ENABLED) {
         box.checked = enabled;
         return;
       }
+      /* 直接刷新，不给「刷新生效」按钮。
+         总开关和别的设置不一样：开关之间的中间态（样式撤了但 JS 还挂着，
+         或者反过来）本身就是坏界面，让用户停在那里没有意义。 */
       if (!box.checked) teardownLive();
-      describe();
-      hint.insertAdjacentHTML(
-        'beforeend',
-        `${box.checked ? '' : ' '}<button id="claude-web-reload-enabled" class="menu_button"
-           style="margin-left:6px">刷新生效</button>`,
-      );
-      panel.querySelector('#claude-web-reload-enabled')
-        ?.addEventListener('click', () => window.location.reload());
+      hint.textContent = box.checked ? '正在启用，刷新中…' : '正在关闭，刷新中…';
+      window.setTimeout(() => window.location.reload(), 150);
     });
   }
 
