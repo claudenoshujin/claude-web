@@ -5750,6 +5750,28 @@ console.info(
     /* 沿用酒馆的 inline-drawer 结构，折叠交给酒馆自己的委托监听处理，
        我们不另外绑，免得点一下切两次。 */
     wrapper.innerHTML = `
+      <style>
+        /* 主题自己那 2400 多处 !important 会把按钮压成窄条，文字于是竖着排。
+           这里用 id 提高特异性把它抢回来。 */
+        #${PANEL_ID} .menu_button {
+          display:inline-flex !important;
+          align-items:center !important;
+          justify-content:center !important;
+          width:auto !important;
+          min-width:0 !important;
+          max-width:none !important;
+          flex:0 0 auto !important;
+          white-space:nowrap !important;
+          writing-mode:horizontal-tb !important;
+          padding:5px 12px !important;
+          line-height:1.4 !important;
+        }
+        #${PANEL_ID} select.text_pole {
+          display:block !important;
+          width:100% !important;
+        }
+        #${PANEL_ID} label { display:block; margin-bottom:3px; }
+      </style>
       <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
           <b>Claude Web</b>
