@@ -4926,9 +4926,11 @@ html[data-claude-archive="on"] #chat > .mes::before {
 
 html[data-claude-archive="on"] #chat > .mes .ch_name .name_text {
   font-family:var(--ar-display) !important;
-  font-size:10px !important;
+  /* 13px。10px 时它比时间戳还不起眼，署名反而成了卡片上最弱的一行。
+     字号上去之后字距要收，.14em 在 13px 上会把名字撑出 118px 的栏宽。 */
+  font-size:13px !important;
   font-weight:650 !important;
-  letter-spacing:.14em !important;
+  letter-spacing:.08em !important;
   text-transform:uppercase !important;
   color:var(--ar-clay) !important;
   max-width:100% !important;
@@ -5009,7 +5011,11 @@ html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name .mesIDDispl
   color:rgba(255,253,248,.7) !important;
 }
 html[data-claude-archive="on"] #chat > .mes[is_user="true"] .mes_text {
-  max-width:calc(var(--ar-measure) * .82) !important;
+  /* 和角色消息同宽。原来乘 .82 是想让用户块显得收敛一点，
+     实际效果是两栏正文右边缘各停在一个地方，页面没有基准线。
+     border-box：max-width 连 padding 一起算，块的外边缘才和角色正文对齐。 */
+  max-width:var(--ar-measure) !important;
+  box-sizing:border-box !important;
   padding:16px 20px !important;
   background:var(--ar-block) !important;
   font-size:15.5px !important;
@@ -5078,5 +5084,10 @@ html[data-claude-archive="on"] .clawd-rail-section-title {
   }
   html[data-claude-archive="on"] #chat > .mes::before { font-size:20px !important; top:38px !important; }
   html[data-claude-archive="on"] #chat > .mes .ch_name { padding-top:40px !important; }
+  /* 手机上编号栏只有 78px，13px 的署名会顶到边。 */
+  html[data-claude-archive="on"] #chat > .mes .ch_name .name_text {
+    font-size:11px !important;
+    letter-spacing:.06em !important;
+  }
   html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::after { font-size:64px !important; }
 }
