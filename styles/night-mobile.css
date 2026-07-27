@@ -5139,7 +5139,12 @@ html body.claude-generation-active #rightSendForm #send_but::after {
 html[data-claude-archive="on"] {
   --ar-folio  : 118px;
   --ar-gutter : 34px;
-  --ar-measure: 60ch;
+  /* 右侧留给巨大编号的空档。正文不再靠 max-width 收着，而是填满自己那一栏，
+     栏本身让出这块地方 —— 这样两栏正文的右边缘永远对齐，编号也不会被压。 */
+  --ar-ghost-zone: 132px;
+  /* 只当上限用。窄屏时正文填满栏宽，宽屏时不至于一行拉到七十个字。
+     写成 em 而不是 ch：ch 量的是 "0" 的宽度，对中文没意义。 */
+  --ar-measure: 46em;
 
   /* 展示字用无衬线（编号、角色名、时间），正文保持衬线。 */
   --ar-display: "Inter", "Helvetica Neue", var(--cl-sans, system-ui), sans-serif;
@@ -5189,7 +5194,7 @@ html[data-claude-archive="on"] body::after {
 html[data-claude-archive="on"] #chat > .mes {
   position:relative !important;
   display:grid !important;
-  grid-template-columns:var(--ar-folio) var(--ar-gutter) minmax(0,1fr) !important;
+  grid-template-columns:var(--ar-folio) var(--ar-gutter) minmax(0,1fr) var(--ar-ghost-zone) !important;
   align-items:start !important;
   padding:30px 0 26px !important;
   background:transparent !important;
@@ -5328,7 +5333,9 @@ html[data-claude-archive="on"] #chat > .mes:hover .mes_buttons { opacity:1 !impo
    这里补上 body 和 [mesid]，压到 (1,4,2)。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_text, .mes_reasoning_details, .mes_reasoning) {
   grid-column:3 !important;
-  max-width:var(--ar-measure) !important;
+  /* 变量必须是 min() 的第一个参数。反过来写 cssstyle 会把整条丢掉，
+     回归工具量出来是 max-width:none。见交接单「踩过的坑」第 1 条。 */
+  max-width:min(var(--ar-measure), 100%) !important;
   width:auto !important;
   margin:0 !important;
   padding:0 !important;

@@ -112,6 +112,10 @@ function claudeReadSetting(key, allowed, fallback) {
   }
 }
 
+/* 总开关。默认开；只有明确写过 'off' 才算关，
+   读不到 localStorage（无痕、被云端宿主禁用）时不能把整个扩展关掉。 */
+const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'off';
+
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
 const CLAUDE_LAYOUT = (() => {
@@ -151,6 +155,10 @@ console.info(
   '[Claude Web] 扩展形态启动：' + CLAUDE_THEME_VARIANT + ' / ' + CLAUDE_LAYOUT
   + '（在酒馆「扩展」面板的 Claude Web 里可切换）',
 );
+
+/* 总开关。关掉之后除了设置面板什么都不跑 ——
+   面板必须留着，不然没有地方把它开回来。 */
+if (CLAUDE_ENABLED) {
 
 /* 配色预设。只在扩展形态里打包。
  *
@@ -6160,6 +6168,10 @@ console.info(
 })();
 
 
+} else {
+  console.info('[Claude Web] 已在设置面板里关闭，只加载设置面板本身。');
+}
+
 /* 扩展设置面板 —— 只在扩展形态里出现，脚本形态不打包这个文件。
  *
  * 为什么提前到阶段 1：原计划放阶段 4，但没有面板就意味着换日夜只能改
@@ -6216,7 +6228,11 @@ console.info(
      面板要轮询等酒馆的设置容器出现，最长 60 秒；真挂不上的时候（容器换了
      选择器、或者用户根本没开设置面板）属性就永远设不上，档案版式等于没装。
      这里先设一次，面板挂上之后再接管。 */
+  /* 总开关关掉时，面板照常挂（不然没地方开回来），但一个属性都不许设。 */
+  const enabled = typeof CLAUDE_ENABLED === 'undefined' ? true : CLAUDE_ENABLED;
+
   (function applyStoredStyle() {
+    if (!enabled) return;
     try {
       const root = document.documentElement;
       if (read('style', ['classic', 'archive'], 'classic') === 'archive') {
@@ -6305,6 +6321,13 @@ console.info(
           <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+            <input id="claude-web-enabled" type="checkbox">
+            <span><b>启用 Claude Web</b></span>
+          </label>
+          <div id="claude-web-enabled-hint"
+               style="margin:-6px 0 10px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+
           <label for="claude-web-preset">风格</label>
           <select id="claude-web-preset" class="text_pole"></select>
 
@@ -6663,10 +6686,66 @@ console.info(
     });
   }
 
+  /* 关掉时尽量当场把外观还原，不必等刷新：
+     停用样式表 + 抹掉我们设的属性和 CSS 变量。
+     JS 那部分（侧栏、欢迎页、Clawd）已经挂在 DOM 上了，撤不干净，所以仍要刷新。 */
+  function teardownLive() {
+    try {
+      const sheet = document.getElementById('claude-integrated-theme-live-style');
+      if (sheet) sheet.disabled = true;
+      const root = document.documentElement;
+      delete root.dataset.claudeArchive;
+      delete root.dataset.claudeArchiveGhost;
+      delete root.dataset.claudeIntegratedTheme;
+      /* 预设是往 documentElement 的 inline style 上设变量的，一并清掉。 */
+      const api = window.__claudeWebPresets;
+      if (api && api.coreKeys) {
+        for (const key of api.coreKeys()) root.style.removeProperty(key);
+      }
+      return true;
+    } catch (error) {
+      console.warn('[Claude Web] 停用时清理失败：', error);
+      return false;
+    }
+  }
+
+  function mountEnabled(panel) {
+    const box = panel.querySelector('#claude-web-enabled');
+    const hint = panel.querySelector('#claude-web-enabled-hint');
+    if (!box) return;
+    box.checked = enabled;
+
+    const describe = () => {
+      hint.textContent = box.checked
+        ? ''
+        : '已关闭。酒馆恢复原生界面，下面的设置暂时不起作用。';
+    };
+    describe();
+
+    box.addEventListener('change', () => {
+      if (!write('enabled', box.checked ? 'on' : 'off')) {
+        hint.textContent = '写入失败，设置没保存。';
+        box.checked = enabled;
+        return;
+      }
+      if (!box.checked) teardownLive();
+      describe();
+      hint.insertAdjacentHTML(
+        'beforeend',
+        `${box.checked ? '' : ' '}<button id="claude-web-reload-enabled" class="menu_button"
+           style="margin-left:6px">刷新生效</button>`,
+      );
+      panel.querySelector('#claude-web-reload-enabled')
+        ?.addEventListener('click', () => window.location.reload());
+    });
+  }
+
   function mount(host) {
     if (document.getElementById(PANEL_ID)) return;
     const panel = buildPanel();
     host.append(panel);
+
+    mountEnabled(panel);
 
     const variantSelect = panel.querySelector('#claude-web-variant');
     const layoutSelect = panel.querySelector('#claude-web-layout');
