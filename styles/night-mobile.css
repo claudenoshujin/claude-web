@@ -5106,3 +5106,305 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   --cl-topbar-surface  : var(--cw-topbar-surface);
   --cl-body-weight     : var(--cw-body-weight);
 }
+
+/* ===================== 档案版式 =====================
+ *
+ * 全部规则挂在 html[data-claude-archive="on"] 下面。不选这个版式的话
+ * 这份 CSS 一条都不生效，等于没装 —— 所以可以放心跟经典版式并存。
+ *
+ * 拼在样式表最末尾（tokens.css 之后），这样它能压过前面 4000 行里的
+ * !important —— 靠的是同为 !important 时选择器特异性更高（多一个
+ * html[data-*] 属性）。
+ *
+ * 设计依据见 档案版式-样张.html 和参考图。三条底线：
+ *   平涂色块硬碰硬，不加圆角/阴影/渐变
+ *   线要粗（≥2px 边框，图标 ≥3px 描边）
+ *   方格纸是物件，有边界有撕边，不是铺满的底纹
+ *
+ * DOM 的接法值得说明。酒馆一条消息长这样：
+ *   .mes[mesid]
+ *     .mesAvatarWrapper
+ *     .mes_block
+ *       .ch_name  (.name_text / .timestamp / .mes_buttons)
+ *       .mes_text
+ * 编号栏要跟正文并排，但它们分属 .mes 和 .mes_block 两层，做不成同一个
+ * grid 的兄弟。解法是给 .mes_block 设 display:contents —— 它自己不生成盒子，
+ * children 直接升级成 .mes 的 grid 子项。
+ *
+ * 编号用 content:attr(mesid) 取，纯 CSS，不需要 JS 往 DOM 里塞节点。
+ * 代价是只有两个伪元素可用：::before 给编号，::after 给右上角的水印。
+ * 卡片本身的方格纸背景因此画在 .ch_name 上，靠 padding-top 给编号让位。
+ */
+
+html[data-claude-archive="on"] {
+  --ar-folio  : 118px;
+  --ar-gutter : 34px;
+  --ar-measure: 60ch;
+
+  /* 展示字用无衬线（编号、角色名、时间），正文保持衬线。 */
+  --ar-display: "Inter", "Helvetica Neue", var(--cl-sans, system-ui), sans-serif;
+
+  --ar-page  : var(--cw-surface-page);
+  --ar-card  : var(--cw-surface-raised);
+  --ar-block : var(--cw-surface-hover);
+  --ar-mark  : var(--cw-text-body);
+  --ar-soft  : var(--cw-text-secondary);
+  --ar-mute  : var(--cw-text-muted);
+  --ar-clay  : var(--cw-mark);
+  --ar-grid  : color-mix(in srgb, var(--cw-mark) 34%, var(--cw-surface-raised));
+}
+
+/* 深色下奶油和陶土都要压一档 —— 给浅底当底色的亮度，搬到深底上当前景
+   就成了纯白和荧光橙。 */
+html[data-claude-archive="on"][data-claude-integrated-theme="night"] {
+  --ar-mark : color-mix(in srgb, var(--cw-text-body) 90%, var(--cw-surface-page));
+  --ar-clay : color-mix(in srgb, var(--cw-mark) 86%, #000);
+  --ar-grid : color-mix(in srgb, var(--cw-mark) 26%, var(--cw-surface-raised));
+}
+
+/* ---------- 页面底部的印刷网点 ---------- */
+html[data-claude-archive="on"] body::after {
+  content:"" !important;
+  position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important;
+  height:190px !important;
+  pointer-events:none !important;
+  z-index:0 !important;
+  background-image:radial-gradient(var(--ar-mark) 2px, transparent 2.2px) !important;
+  background-size:13px 13px !important;
+  opacity:.09 !important;
+  -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 100%) !important;
+          mask-image:linear-gradient(to top,#000 0%,transparent 100%) !important;
+}
+
+/* ==========================================================
+   消息条目
+   ========================================================== */
+
+html[data-claude-archive="on"] #chat > .mes {
+  position:relative !important;
+  display:grid !important;
+  grid-template-columns:var(--ar-folio) var(--ar-gutter) minmax(0,1fr) !important;
+  align-items:start !important;
+  padding:30px 0 26px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+
+/* .mes_block 不生成盒子，让 .ch_name 和 .mes_text 直接成为 .mes 的 grid 子项。
+   这是整份文件唯一的结构性技巧，去掉它就得改酒馆的 DOM。 */
+html[data-claude-archive="on"] #chat > .mes .mes_block {
+  display:contents !important;
+}
+
+/* 头像在档案册的逻辑里是异物 —— 记录靠编号和署名认，不靠脸。 */
+html[data-claude-archive="on"] #chat > .mes .mesAvatarWrapper {
+  display:none !important;
+}
+
+/* ---------- 编号栏 = 方格纸卡片 ----------
+   撕边竖向平铺。横向平铺的话波幅会随卡片高度拉伸，
+   短消息毛边细、长消息毛边粗，一眼就假。 */
+html[data-claude-archive="on"] #chat > .mes .ch_name {
+  grid-column:1 !important;
+  grid-row:1 !important;
+  align-self:stretch !important;
+
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start !important;
+  gap:3px !important;
+  /* 上边留 46px 给 ::before 里的编号 */
+  padding:46px 12px 14px 12px !important;
+  margin:0 !important;
+
+  background-color:var(--ar-card) !important;
+  background-image:
+    linear-gradient(to right,  var(--ar-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--ar-grid) 1px, transparent 1px) !important;
+  background-size:13px 13px !important;
+
+  --ar-tear:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='34'%3E%3Cpath d='M0,0 L4.6,0 C6.8,4 3.4,8 5.4,12 C7.2,16 3.6,20 5.8,24 C7.4,28 3.8,31 4.4,34 L0,34 Z' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image:var(--ar-tear), linear-gradient(#000,#000) !important;
+          mask-image:var(--ar-tear), linear-gradient(#000,#000) !important;
+  -webkit-mask-size:9px 34px, calc(100% - 9px) 100% !important;
+          mask-size:9px 34px, calc(100% - 9px) 100% !important;
+  -webkit-mask-position:top right, top left !important;
+          mask-position:top right, top left !important;
+  -webkit-mask-repeat:repeat-y, no-repeat !important;
+          mask-repeat:repeat-y, no-repeat !important;
+
+  border:0 !important;
+  border-radius:0 !important;
+}
+
+/* 编号。attr(mesid) 直接从 .mes 上取，不需要 JS 造节点。 */
+html[data-claude-archive="on"] #chat > .mes::before {
+  content:attr(mesid) !important;
+  position:absolute !important;
+  left:12px !important;
+  top:42px !important;
+  font-family:var(--ar-display) !important;
+  font-size:26px !important;
+  font-weight:700 !important;
+  letter-spacing:-.02em !important;
+  line-height:1 !important;
+  color:var(--ar-mark) !important;
+  font-variant-numeric:tabular-nums !important;
+  pointer-events:none !important;
+}
+
+html[data-claude-archive="on"] #chat > .mes .ch_name .name_text {
+  font-family:var(--ar-display) !important;
+  font-size:10px !important;
+  font-weight:650 !important;
+  letter-spacing:.14em !important;
+  text-transform:uppercase !important;
+  color:var(--ar-clay) !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+
+html[data-claude-archive="on"] #chat > .mes .ch_name .timestamp,
+html[data-claude-archive="on"] #chat > .mes .ch_name .mesIDDisplay {
+  font-family:var(--ar-display) !important;
+  font-size:10px !important;
+  font-weight:500 !important;
+  letter-spacing:.04em !important;
+  color:var(--ar-mute) !important;
+  font-variant-numeric:tabular-nums !important;
+}
+
+/* 操作按钮平时收起来，卡片上不该常驻一排图标。 */
+html[data-claude-archive="on"] #chat > .mes .mes_buttons {
+  opacity:0 !important;
+  transition:opacity 120ms ease !important;
+}
+html[data-claude-archive="on"] #chat > .mes:hover .mes_buttons { opacity:1 !important; }
+
+/* ---------- 正文 ---------- */
+html[data-claude-archive="on"] #chat > .mes .mes_text,
+html[data-claude-archive="on"] #chat > .mes .mes_reasoning_details {
+  grid-column:3 !important;
+  max-width:var(--ar-measure) !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:transparent !important;
+  border:0 !important;
+}
+html[data-claude-archive="on"] #chat > .mes .mes_text { grid-row:1 !important; }
+html[data-claude-archive="on"] #chat > .mes .mes_text p {
+  margin:0 0 1.02em !important;
+  line-height:1.92 !important;
+}
+html[data-claude-archive="on"] #chat > .mes .mes_text p:last-child { margin-bottom:0 !important; }
+
+/* 右上角的巨大空心编号。整版里最容易过头的一处，
+   所以单独给一个开关属性，默认关。 */
+html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::after {
+  content:attr(mesid) !important;
+  position:absolute !important;
+  right:-4px !important;
+  top:2px !important;
+  font-family:var(--ar-display) !important;
+  font-size:104px !important;
+  font-weight:800 !important;
+  letter-spacing:-.05em !important;
+  line-height:1 !important;
+  color:var(--ar-mark) !important;
+  opacity:.055 !important;
+  pointer-events:none !important;
+  user-select:none !important;
+  z-index:0 !important;
+}
+
+/* ---------- 用户消息 = 陶土平涂块 ----------
+   不做气泡、不做描边、不做圆角。一块颜色压在页面上。 */
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name {
+  background-color:var(--ar-clay) !important;
+  background-image:none !important;
+}
+html[data-claude-archive="on"] #chat > .mes[is_user="true"]::before {
+  color:#fffdf8 !important;
+}
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name .name_text {
+  color:rgba(255,253,248,.92) !important;
+}
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name .timestamp,
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name .mesIDDisplay {
+  color:rgba(255,253,248,.7) !important;
+}
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .mes_text {
+  max-width:calc(var(--ar-measure) * .82) !important;
+  padding:16px 20px !important;
+  background:var(--ar-block) !important;
+  font-size:15.5px !important;
+}
+html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_user="true"]::after {
+  content:none !important;
+}
+
+/* ---------- 条目之间：短粗黑条，不是通栏细线 ---------- */
+html[data-claude-archive="on"] #chat > .mes + .mes {
+  border-top:0 !important;
+}
+html[data-claude-archive="on"] #chat > .mes + .mes::marker { content:none; }
+html[data-claude-archive="on"] #chat > .mes:not(:first-child) .ch_name {
+  box-shadow:0 -14px 0 -12px var(--ar-mark) !important;
+}
+
+/* ==========================================================
+   输入框：2px 硬边，没有圆角没有阴影
+   ========================================================== */
+
+html[data-claude-archive="on"] #send_form,
+html[data-claude-archive="on"] body.clawd-welcome #form_sheld :is(#send_form, form) {
+  border:2px solid var(--ar-mark) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:var(--ar-card) !important;
+}
+
+/* ==========================================================
+   欢迎页：奶油块和陶土块直接拼，中间一道 2px 黑线
+   ========================================================== */
+
+html[data-claude-archive="on"] .clawd-welcome-hero {
+  font-family:var(--ar-display) !important;
+  font-weight:600 !important;
+  letter-spacing:-.02em !important;
+  color:var(--ar-mark) !important;
+}
+html[data-claude-archive="on"] .clawd-welcome-hero .asterisk {
+  color:var(--ar-clay) !important;
+}
+
+/* ==========================================================
+   侧栏
+   ========================================================== */
+
+html[data-claude-archive="on"] .clawd-rail-recent-item {
+  border-radius:0 !important;
+}
+html[data-claude-archive="on"] .clawd-rail-section-title {
+  font-family:var(--ar-display) !important;
+  font-size:10.5px !important;
+  font-weight:650 !important;
+  letter-spacing:.16em !important;
+  text-transform:uppercase !important;
+  color:var(--ar-mute) !important;
+}
+
+/* ---------- 手机 ---------- */
+@media (max-width:700px) {
+  html[data-claude-archive="on"] {
+    --ar-folio:78px;
+    --ar-gutter:16px;
+    --ar-measure:100%;
+  }
+  html[data-claude-archive="on"] #chat > .mes::before { font-size:20px !important; top:38px !important; }
+  html[data-claude-archive="on"] #chat > .mes .ch_name { padding-top:40px !important; }
+  html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::after { font-size:64px !important; }
+}
