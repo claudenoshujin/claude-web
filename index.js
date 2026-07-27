@@ -3,10 +3,11 @@
  * 这个文件由 tools/build-extension.js 生成，不要手改。
  * 真正的源码在仓库的 src/ 下，改完跑 node tools/build-extension.js 重出。
  *
- * 设置暂时走 localStorage（迁移阶段 4 会搬进扩展设置面板）：
- *   localStorage['claude-web:variant'] = 'day' | 'night'      默认 day
+ * 设置在酒馆的「扩展」面板里，标题 Claude Web。
+ * 底层存的是 localStorage，因为这个文件在模块求值时就要读出 variant/layout
+ * 来决定挂哪份样式表，那一刻酒馆自己的设置还没加载完。
+ *   localStorage['claude-web:variant'] = 'day' | 'night'            默认 day
  *   localStorage['claude-web:layout']  = 'auto' | 'pc' | 'mobile'   默认 auto
- * 改完刷新页面生效。
  */
 
 const CLAUDE_EXTENSION_MODE = true;
@@ -144,7 +145,7 @@ const CLAUDE_STYLE_HREF = new URL(
 
 console.info(
   '[Claude Web] 扩展形态启动：' + CLAUDE_THEME_VARIANT + ' / ' + CLAUDE_LAYOUT
-  + '（改 localStorage 的 claude-web:variant / claude-web:layout 后刷新可切换）',
+  + '（在酒馆「扩展」面板的 Claude Web 里可切换）',
 );
 
 (() => {
@@ -5649,5 +5650,178 @@ console.info(
   hostWindow[INSTANCE_KEY] = api;
   $(start);
   $(window).on('pagehide', destroy);
+})();
+
+
+/* 扩展设置面板 —— 只在扩展形态里出现，脚本形态不打包这个文件。
+ *
+ * 为什么提前到阶段 1：原计划放阶段 4，但没有面板就意味着换日夜只能改
+ * localStorage，手机上根本没有控制台，PC 上也得开 F12。一个换肤扩展
+ * 没有换肤入口，那是缺功能，不是缺润色。
+ *
+ * 设置仍然以 localStorage 为准，不用 extension_settings。理由：
+ * index.js 在模块求值时就要读出 variant/layout 来决定挂哪份样式表，
+ * 而那一刻酒馆的设置还没加载完。localStorage 是同步的、启动即可用，
+ * 不存在这个时序问题。面板只是给它一个界面。
+ */
+(() => {
+  'use strict';
+
+  const KEY_PREFIX = 'claude-web:';
+  const PANEL_ID = 'claude-web-settings';
+
+  const VARIANTS = [
+    { value: 'day', label: '日间' },
+    { value: 'night', label: '夜间' },
+  ];
+  const LAYOUTS = [
+    { value: 'auto', label: '自动（按 700px 断点）' },
+    { value: 'pc', label: '桌面' },
+    { value: 'mobile', label: '手机' },
+  ];
+
+  function read(key, allowed, fallback) {
+    try {
+      const raw = window.localStorage.getItem(KEY_PREFIX + key);
+      return allowed.includes(raw) ? raw : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function write(key, value) {
+    try {
+      window.localStorage.setItem(KEY_PREFIX + key, value);
+      return true;
+    } catch (error) {
+      console.warn('[Claude Web] 设置写入失败：', error);
+      return false;
+    }
+  }
+
+  function resolveLayout(choice) {
+    if (choice !== 'auto') return choice;
+    try {
+      return window.matchMedia('(max-width:700px)').matches ? 'mobile' : 'pc';
+    } catch {
+      return 'pc';
+    }
+  }
+
+  /* 换日夜只是换一份样式表，能当场生效，不用刷新。
+     换端型不行 —— CLAUDE_FEATURES.mobile 是启动时读一次的，
+     一堆布局逻辑按它分叉，中途改会留下半新半旧的状态。 */
+  function applyVariantLive(variant) {
+    const link = document.getElementById('claude-integrated-theme-live-style');
+    if (!(link instanceof HTMLLinkElement)) return false;
+    const layout = resolveLayout(read('layout', ['auto', 'pc', 'mobile'], 'auto'));
+    const base = typeof CLAUDE_EXTENSION_BASE !== 'undefined'
+      ? CLAUDE_EXTENSION_BASE
+      : new URL('.', import.meta.url).href;
+    link.setAttribute('href', new URL(`styles/${variant}-${layout}.css`, base).href);
+    document.documentElement.dataset.claudeIntegratedTheme = variant;
+    return true;
+  }
+
+  function buildPanel() {
+    const wrapper = document.createElement('div');
+    wrapper.id = PANEL_ID;
+    /* 沿用酒馆的 inline-drawer 结构，折叠交给酒馆自己的委托监听处理，
+       我们不另外绑，免得点一下切两次。 */
+    wrapper.innerHTML = `
+      <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+          <b>Claude Web</b>
+          <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+          <label for="claude-web-variant">主题</label>
+          <select id="claude-web-variant" class="text_pole"></select>
+
+          <label for="claude-web-layout" style="margin-top:8px">布局</label>
+          <select id="claude-web-layout" class="text_pole"></select>
+
+          <div id="claude-web-hint"
+               style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+        </div>
+      </div>
+    `;
+    return wrapper;
+  }
+
+  function fillSelect(select, options, current) {
+    select.textContent = '';
+    for (const option of options) {
+      const node = document.createElement('option');
+      node.value = option.value;
+      node.textContent = option.label;
+      if (option.value === current) node.selected = true;
+      select.append(node);
+    }
+  }
+
+  function mount(host) {
+    if (document.getElementById(PANEL_ID)) return;
+    const panel = buildPanel();
+    host.append(panel);
+
+    const variantSelect = panel.querySelector('#claude-web-variant');
+    const layoutSelect = panel.querySelector('#claude-web-layout');
+    const hint = panel.querySelector('#claude-web-hint');
+
+    const variant = read('variant', ['day', 'night'], 'day');
+    const layout = read('layout', ['auto', 'pc', 'mobile'], 'auto');
+    fillSelect(variantSelect, VARIANTS, variant);
+    fillSelect(layoutSelect, LAYOUTS, layout);
+
+    const describe = () => {
+      const effective = resolveLayout(layoutSelect.value);
+      hint.textContent = `当前生效：${layoutSelect.value === 'auto' ? `自动 → ${effective === 'mobile' ? '手机' : '桌面'}` : (effective === 'mobile' ? '手机' : '桌面')}`;
+    };
+    describe();
+
+    variantSelect.addEventListener('change', () => {
+      if (!write('variant', variantSelect.value)) return;
+      if (!applyVariantLive(variantSelect.value)) {
+        hint.textContent = '主题已保存，刷新后生效。';
+      } else {
+        describe();
+      }
+    });
+
+    layoutSelect.addEventListener('change', () => {
+      if (!write('layout', layoutSelect.value)) return;
+      describe();
+      /* 端型是启动时读的，必须刷新。与其让用户自己猜，不如直接给个按钮。 */
+      hint.insertAdjacentHTML(
+        'beforeend',
+        ' <button id="claude-web-reload" class="menu_button" style="margin-left:6px">刷新生效</button>',
+      );
+      panel.querySelector('#claude-web-reload')
+        ?.addEventListener('click', () => window.location.reload(), { once: true });
+    });
+  }
+
+  /* 酒馆的设置容器不是一开始就有的，轮询等它出现。
+     两个容器都可能存在，优先第二列（第三方扩展习惯放那边）。 */
+  const deadline = Date.now() + 60000;
+  const timer = window.setInterval(() => {
+    const host = document.getElementById('extensions_settings2')
+      || document.getElementById('extensions_settings');
+    if (host) {
+      window.clearInterval(timer);
+      try {
+        mount(host);
+        console.info('[Claude Web] 设置面板已挂载。');
+      } catch (error) {
+        console.warn('[Claude Web] 设置面板挂载失败：', error);
+      }
+      return;
+    }
+    if (Date.now() > deadline) {
+      window.clearInterval(timer);
+      console.warn('[Claude Web] 一分钟内没等到扩展设置容器，面板没挂上。');
+    }
+  }, 500);
 })();
 

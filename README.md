@@ -24,17 +24,15 @@ https://github.com/claudenoshujin/claude-web
 > 然后在根目录找 manifest（1.18 的 `src/endpoints/extensions.js`）。
 > 所以这个仓库的根就是扩展本体，不要再套一层文件夹。
 
-## 切换日夜 / 端型
+## 切换日夜 / 布局
 
-暂时走 localStorage，改完刷新：
+酒馆「扩展」面板里找 **Claude Web**：
 
-```js
-localStorage.setItem('claude-web:variant', 'night');   // day | night
-localStorage.setItem('claude-web:layout', 'mobile');   // auto | pc | mobile
-```
+- **主题**：日间 / 夜间 —— 改完当场生效，不用刷新
+- **布局**：自动 / 桌面 / 手机 —— 需要刷新，面板会给一个「刷新生效」按钮
 
-`layout` 默认 `auto`，按 700px 断点自动判断。
-设置面板在迁移阶段 4 加。
+「自动」按 700px 断点判断。布局之所以要刷新，是因为一堆布局逻辑在启动时
+读一次 `CLAUDE_FEATURES.mobile` 就分叉了，中途改会留下半新半旧的状态。
 
 ## 这个仓库是构建产物，不要手改
 
