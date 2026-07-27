@@ -4881,6 +4881,23 @@ html[data-claude-archive="on"] #chat > .mes .ch_name {
   border-radius:0 !important;
 }
 
+/* 署名和日期钉在卡片顶部。
+   卡片 align-self:stretch 会撑满整行，而酒馆在 .ch_name 里套了几层
+   flex-container（带 flex1 和 alignitemscenter）。那几层会跟着长高，
+   再把文字在自己身上居中 —— 长消息里署名就跑到卡片半腰去了。
+   把它们钉成不伸缩、顶部对齐即可，卡片本身照旧撑满。 */
+html[data-claude-archive="on"] #chat > .mes .ch_name {
+  justify-content:flex-start !important;
+}
+html[data-claude-archive="on"] #chat > .mes .ch_name > *,
+html[data-claude-archive="on"] #chat > .mes .ch_name .flex-container {
+  flex:0 0 auto !important;
+  align-items:flex-start !important;
+  align-self:flex-start !important;
+  max-width:100% !important;
+  min-height:0 !important;
+}
+
 /* 编号。attr(mesid) 直接从 .mes 上取，不需要 JS 造节点。 */
 html[data-claude-archive="on"] #chat > .mes::before {
   content:attr(mesid) !important;
@@ -4895,6 +4912,10 @@ html[data-claude-archive="on"] #chat > .mes::before {
   color:var(--ar-mark) !important;
   font-variant-numeric:tabular-nums !important;
   pointer-events:none !important;
+  /* 必须抬上来。.ch_name 有 mask-image，带 mask 的元素会生成层叠上下文，
+     绘制时按 z-index:0 的定位元素处理；它在 DOM 里排在 ::before 之后，
+     于是卡片会整片盖住编号 —— 现象是卡片顶部留了 46px 空白但什么都没有。 */
+  z-index:2 !important;
 }
 
 html[data-claude-archive="on"] #chat > .mes .ch_name .name_text {
@@ -4948,7 +4969,10 @@ html[data-claude-archive="on"] #chat > .mes .mes_text p:last-child { margin-bott
 html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::after {
   content:attr(mesid) !important;
   position:absolute !important;
-  right:-4px !important;
+  /* 原来是 -4px，指望它压在版心边缘。但对话列一侧还有侧栏和滚动条，
+     负值直接被裁掉大半，只剩一条边——真机上看就是「右边有半个数字」。
+     贴着内缘放，宁可少一点张力也别缺角。 */
+  right:10px !important;
   top:2px !important;
   font-family:var(--ar-display) !important;
   font-size:104px !important;
