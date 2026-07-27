@@ -148,6 +148,353 @@ console.info(
   + '（在酒馆「扩展」面板的 Claude Web 里可切换）',
 );
 
+/* 配色预设。只在扩展形态里打包。
+ *
+ * 见 方案-令牌层与预设系统-20260727.md。
+ *
+ * 预设的形状：
+ *   core   9 个色 + scheme 标记。**社区作者只需要填这 9 个。**
+ *   extra  可选的精确覆盖。classic 两套用它把当前主题的取值一字不差地搬过来，
+ *          保证「上了令牌层但看起来没变」。社区预设不用管这个字段。
+ *
+ * 应用方式只有一种：往 documentElement 的 inline style 上设 CSS 变量。
+ * **绝不换 stylesheet** —— Moonlit 的 README 自己写了手机上切主题会卡几秒，
+ * 那是重载整份样式表的代价。设变量只触发一次重绘。
+ */
+(() => {
+  'use strict';
+
+  const STORAGE_PRESET = 'claude-web:preset';
+  const STORAGE_CUSTOM = 'claude-web:custom';
+
+  /* 社区预设允许出现的键。导入时白名单校验 —— 不校验的话，
+     一个预设文件可以往 :root 上塞任意 CSS 变量。 */
+  const CORE_KEYS = [
+    '--cw-paper-0', '--cw-paper-1', '--cw-paper-2', '--cw-paper-3',
+    '--cw-ink-0', '--cw-ink-1', '--cw-ink-2', '--cw-ink-3',
+    '--cw-clay',
+  ];
+
+  /* extra 里允许的键。都是能从 core 推导、但 classic 需要精确值的那些。 */
+  const EXTRA_KEYS = [
+    '--cw-line', '--cw-line-strong', '--cw-hero', '--cw-icon',
+    '--cw-clay-soft', '--cw-clay-strong', '--cw-code-surface', '--cw-code-ink',
+    '--cw-em', '--cw-selection', '--cw-scrollbar', '--cw-scrollbar-hover',
+    '--cw-shadow-dialog', '--cw-shadow-composer', '--cw-shadow-floating',
+    '--cw-topbar-surface', '--cw-body-weight', '--cw-color-scheme',
+    '--cw-grid-opacity', '--cw-grid-step',
+  ];
+
+  const ALLOWED = new Set([...CORE_KEYS, ...EXTRA_KEYS]);
+
+  /* ---------- 内置预设 ---------- */
+
+  /* classic 两套 = 现在 theme-day.css / theme-night.css 的原值，一字不改。
+     它们存在的意义是「换上令牌层之后界面看起来完全没变」，
+     是这一步的验收基准，不是给人日常用的漂亮预设。 */
+  const CLASSIC_LIGHT = {
+    id: 'classic-light',
+    name: '经典 · 日间',
+    scheme: 'light',
+    core: {
+      '--cw-paper-0': '#f8f8f6',
+      '--cw-paper-1': '#ffffff',
+      '--cw-paper-2': '#f4f4f1',
+      '--cw-paper-3': '#efeeeb',
+      '--cw-ink-0': '#121212',
+      '--cw-ink-1': '#686660',
+      '--cw-ink-2': '#7b7974',
+      '--cw-ink-3': '#c9c5bc',
+      '--cw-clay': '#d97757',
+    },
+    extra: {
+      '--cw-line': 'rgba(31,31,30,.15)',
+      '--cw-line-strong': 'rgba(31,31,30,.25)',
+      '--cw-hero': '#373734',
+      '--cw-icon': '#0b0b0b',
+      '--cw-clay-soft': '#f3e0d8',
+      '--cw-clay-strong': '#c6613f',
+      '--cw-code-surface': '#f0eee6',
+      '--cw-code-ink': '#633a2e',
+      '--cw-em': '#6c6b66',
+      '--cw-selection': '#efcfc2',
+      '--cw-scrollbar': '#c9c5bc',
+      '--cw-scrollbar-hover': '#aaa59b',
+      '--cw-shadow-dialog': '0 12px 36px rgba(50,45,35,.12)',
+      '--cw-shadow-composer': '0 10px 30px rgba(43,40,34,.10)',
+      '--cw-shadow-floating': '0 14px 38px rgba(43,40,34,.11)',
+      '--cw-topbar-surface': 'rgba(248,248,246,.98)',
+      '--cw-body-weight': '430',
+      '--cw-color-scheme': 'light',
+    },
+  };
+
+  const CLASSIC_DARK = {
+    id: 'classic-dark',
+    name: '经典 · 夜间',
+    scheme: 'dark',
+    core: {
+      '--cw-paper-0': '#1f1f1e',
+      '--cw-paper-1': '#2c2c2a',
+      '--cw-paper-2': '#2c2c2a',
+      '--cw-paper-3': '#373734',
+      '--cw-ink-0': '#f8f8f6',
+      '--cw-ink-1': '#b8b6ae',
+      '--cw-ink-2': '#97958c',
+      '--cw-ink-3': '#44423d',
+      '--cw-clay': '#d97757',
+    },
+    extra: {
+      '--cw-line': 'rgba(226,225,218,.15)',
+      '--cw-line-strong': 'rgba(226,225,218,.25)',
+      '--cw-hero': '#c3c2b7',
+      '--cw-icon': '#ffffff',
+      '--cw-clay-soft': '#3a2a22',
+      '--cw-clay-strong': '#c6613f',
+      '--cw-code-surface': '#131211',
+      '--cw-code-ink': '#e6a58c',
+      '--cw-em': '#c3c2b7',
+      '--cw-selection': '#5a3a2c',
+      '--cw-scrollbar': '#44423d',
+      '--cw-scrollbar-hover': '#55534c',
+      '--cw-shadow-dialog': '0 12px 36px rgba(0,0,0,.55)',
+      '--cw-shadow-composer': '0 12px 34px rgba(0,0,0,.38)',
+      '--cw-shadow-floating': '0 16px 42px rgba(0,0,0,.44)',
+      '--cw-topbar-surface': 'rgba(31,31,30,.98)',
+      '--cw-body-weight': '400',
+      '--cw-color-scheme': 'dark',
+    },
+  };
+
+  /* 暖纸 = 标本册那版设计的取色。只填 9 个核心色，其余靠推导 ——
+     这也是给社区看的样板：一个预设长这么大就够了。 */
+  const WARM_PAPER = {
+    id: 'warm-paper',
+    name: '暖纸',
+    scheme: 'light',
+    core: {
+      '--cw-paper-0': '#f4f0e6',
+      '--cw-paper-1': '#efeadf',
+      '--cw-paper-2': '#e9e3d5',
+      '--cw-paper-3': '#e4ddcc',
+      '--cw-ink-0': '#232219',
+      '--cw-ink-1': '#6e6857',
+      '--cw-ink-2': '#9b9280',
+      '--cw-ink-3': '#d8cfbb',
+      '--cw-clay': '#c8623c',
+    },
+  };
+
+  const INK = {
+    id: 'ink',
+    name: '墨',
+    scheme: 'dark',
+    core: {
+      '--cw-paper-0': '#1c1b19',
+      '--cw-paper-1': '#232220',
+      '--cw-paper-2': '#2a2825',
+      '--cw-paper-3': '#333029',
+      '--cw-ink-0': '#ede9df',
+      '--cw-ink-1': '#a8a192',
+      '--cw-ink-2': '#8a8375',
+      '--cw-ink-3': '#3b372f',
+      '--cw-clay': '#d97757',
+    },
+  };
+
+  /* 按「家族 × 明暗」组织，而不是把四套平铺成一个下拉。
+     平铺的问题：样式表的明暗（CLAUDE_THEME_VARIANT）和预设自带的明暗是两个
+     独立选择，用户可以选出「浅色配色 + 深色样式表」这种半新半旧的组合。
+     拆成两个维度之后，明暗只有一个来源，打不起来。 */
+  const FAMILIES = [
+    { id: 'classic', name: '经典', light: CLASSIC_LIGHT, dark: CLASSIC_DARK },
+    { id: 'archive', name: '档案', light: WARM_PAPER, dark: INK },
+  ];
+
+  const BUILT_IN = [CLASSIC_LIGHT, CLASSIC_DARK, WARM_PAPER, INK];
+
+  function familyOf(presetId) {
+    return FAMILIES.find(f => f.light.id === presetId || f.dark.id === presetId) ?? FAMILIES[0];
+  }
+
+  /* 明暗的唯一来源是 CLAUDE_THEME_VARIANT（也就是「主题」那个下拉）。
+     预设自己的 scheme 字段只用来推导字重和阴影，不参与选择。 */
+  function currentScheme() {
+    const variant = typeof CLAUDE_THEME_VARIANT !== 'undefined' ? CLAUDE_THEME_VARIANT : 'day';
+    return variant === 'night' ? 'dark' : 'light';
+  }
+
+  /* ---------- 推导：只填了 9 个核心色时补齐其余 ---------- */
+
+  function derive(preset) {
+    const core = preset.core;
+    const dark = preset.scheme === 'dark';
+    const ink = core['--cw-ink-0'];
+    const clay = core['--cw-clay'];
+
+    /* 深字在浅底上显细，要补一点重量；浅字在深底上显肥，收一点。
+       这是排版规律，不是随便定的，所以从 scheme 推导而不是让预设填。 */
+    return {
+      '--cw-color-scheme': dark ? 'dark' : 'light',
+      '--cw-body-weight': dark ? '400' : '430',
+      '--cw-line': `color-mix(in srgb, ${ink} 15%, transparent)`,
+      '--cw-line-strong': `color-mix(in srgb, ${ink} 25%, transparent)`,
+      '--cw-hero': `color-mix(in srgb, ${ink} 84%, ${core['--cw-paper-0']})`,
+      '--cw-icon': ink,
+      '--cw-clay-soft': `color-mix(in srgb, ${clay} ${dark ? '22%' : '18%'}, ${core['--cw-paper-0']})`,
+      '--cw-clay-strong': `color-mix(in srgb, ${clay} 82%, #000)`,
+      '--cw-code-surface': core['--cw-paper-2'],
+      '--cw-code-ink': `color-mix(in srgb, ${clay} 70%, ${ink})`,
+      '--cw-em': core['--cw-ink-1'],
+      '--cw-selection': `color-mix(in srgb, ${clay} 34%, ${core['--cw-paper-0']})`,
+      '--cw-scrollbar': core['--cw-ink-3'],
+      '--cw-scrollbar-hover': core['--cw-ink-2'],
+      '--cw-shadow-dialog': dark
+        ? '0 12px 36px rgba(0,0,0,.55)' : '0 12px 36px rgba(50,45,35,.12)',
+      '--cw-shadow-composer': dark
+        ? '0 12px 34px rgba(0,0,0,.38)' : '0 10px 30px rgba(43,40,34,.10)',
+      '--cw-shadow-floating': dark
+        ? '0 16px 42px rgba(0,0,0,.44)' : '0 14px 38px rgba(43,40,34,.11)',
+      '--cw-topbar-surface': core['--cw-paper-0'],
+      /* 字符网格在深底上容易糊，压密一点、淡一点。 */
+      '--cw-grid-opacity': dark ? '.05' : '.075',
+      '--cw-grid-step': dark ? '38px' : '34px',
+    };
+  }
+
+  function resolve(preset) {
+    return { ...derive(preset), ...preset.core, ...(preset.extra ?? {}) };
+  }
+
+  /* ---------- 存取 ---------- */
+
+  function readJson(key) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function currentPresetId() {
+    try {
+      return window.localStorage.getItem(STORAGE_PRESET) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  /* 没选过预设时按 variant 回落到 classic，保证「装上之后和以前一样」。 */
+  function defaultPresetId() {
+    return FAMILIES[0][currentScheme()].id;
+  }
+
+  /* 存的是家族 id，不是具体预设 id —— 这样切换明暗时配色家族保持不变。 */
+  function currentFamilyId() {
+    try {
+      return window.localStorage.getItem('claude-web:family') || 'classic';
+    } catch {
+      return 'classic';
+    }
+  }
+
+  function activateFamily(familyId, { persist = true } = {}) {
+    const family = FAMILIES.find(item => item.id === familyId) ?? FAMILIES[0];
+    if (persist) {
+      try { window.localStorage.setItem('claude-web:family', family.id); } catch { /* 无痕 */ }
+    }
+    return activate(family[currentScheme()].id, { persist: false });
+  }
+
+  function findPreset(id) {
+    return BUILT_IN.find(preset => preset.id === id) ?? null;
+  }
+
+  function apply(tokens) {
+    const root = document.documentElement;
+    for (const [key, value] of Object.entries(tokens)) {
+      if (!ALLOWED.has(key)) continue;
+      root.style.setProperty(key, String(value));
+    }
+  }
+
+  function activate(id, { persist = true } = {}) {
+    const preset = findPreset(id) ?? findPreset(defaultPresetId());
+    if (!preset) return null;
+    apply(resolve(preset));
+    /* 自定义覆盖叠在预设之上，所以顺序不能反。 */
+    const custom = readJson(STORAGE_CUSTOM);
+    if (custom && typeof custom === 'object') apply(custom);
+    if (persist) {
+      try { window.localStorage.setItem(STORAGE_PRESET, preset.id); } catch { /* 无痕模式 */ }
+    }
+    return preset;
+  }
+
+  /* ---------- 导入导出 ---------- */
+
+  function exportCurrent() {
+    const preset = findPreset(familyOf(currentPresetId())[currentScheme()].id)
+      ?? findPreset(defaultPresetId());
+    const custom = readJson(STORAGE_CUSTOM) ?? {};
+    const tokens = { ...preset.core, ...custom };
+    return {
+      id: `${preset.id}-custom`,
+      name: `${preset.name}（改）`,
+      scheme: preset.scheme,
+      core: Object.fromEntries(CORE_KEYS.map(key => [key, tokens[key]]).filter(([, v]) => v)),
+      extra: Object.fromEntries(
+        Object.entries(custom).filter(([key]) => EXTRA_KEYS.includes(key)),
+      ),
+    };
+  }
+
+  /* 导入一律走白名单。不校验的话，一个预设文件能往 :root 上塞任意变量。 */
+  function importPreset(raw) {
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!data || typeof data !== 'object') throw new Error('预设文件不是一个对象。');
+    const source = { ...(data.core ?? {}), ...(data.extra ?? {}) };
+    const clean = {};
+    const rejected = [];
+    for (const [key, value] of Object.entries(source)) {
+      if (ALLOWED.has(key) && typeof value === 'string') clean[key] = value;
+      else rejected.push(key);
+    }
+    if (!Object.keys(clean).length) throw new Error('预设里没有一个可用的令牌。');
+    try {
+      window.localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(clean));
+    } catch (error) {
+      throw new Error(`写入失败：${error && error.message}`);
+    }
+    apply(clean);
+    return { applied: Object.keys(clean).length, rejected };
+  }
+
+  function clearCustom() {
+    try { window.localStorage.removeItem(STORAGE_CUSTOM); } catch { /* 无痕模式 */ }
+    activate(currentPresetId() || defaultPresetId(), { persist: false });
+  }
+
+  /* 启动时立刻套一次。放在这里而不是等 DOM ready ——
+     晚一帧就会看见默认色闪一下。 */
+  activateFamily(currentFamilyId(), { persist: false });
+
+  window.__claudeWebPresets = {
+    families: () => FAMILIES.map(({ id, name }) => ({ id, name })),
+    currentFamily: currentFamilyId,
+    activateFamily,
+    list: () => BUILT_IN.map(({ id, name, scheme }) => ({ id, name, scheme })),
+    current: () => currentPresetId() || defaultPresetId(),
+    activate,
+    exportCurrent,
+    importPreset,
+    clearCustom,
+    coreKeys: () => [...CORE_KEYS],
+  };
+})();
+
+
 (() => {
   'use strict';
 
@@ -5778,7 +6125,20 @@ console.info(
           <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-          <label for="claude-web-variant">主题</label>
+          <label for="claude-web-preset">配色</label>
+          <select id="claude-web-preset" class="text_pole"></select>
+          <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            <button id="claude-web-export" class="menu_button">导出</button>
+            <button id="claude-web-import" class="menu_button">导入</button>
+            <button id="claude-web-reset" class="menu_button">清除自定义</button>
+          </div>
+          <input id="claude-web-import-file" type="file" accept="application/json,.json" style="display:none">
+          <div id="claude-web-preset-hint"
+               style="margin-top:6px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+
+          <hr style="margin:10px 0;opacity:.25">
+
+          <label for="claude-web-variant">明暗</label>
           <select id="claude-web-variant" class="text_pole"></select>
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
@@ -5791,6 +6151,8 @@ console.info(
           <button id="claude-web-update" class="menu_button">检查更新</button>
           <div id="claude-web-update-hint"
                style="margin-top:6px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+          <div id="claude-web-build"
+               style="margin-top:8px;font-size:0.85em;opacity:.55;line-height:1.5;word-break:break-all"></div>
         </div>
       </div>
     `;
@@ -5823,13 +6185,25 @@ console.info(
     button.disabled = true;
     hint.textContent = `正在检查 ${folder}…`;
     try {
-      const response = await fetch('/api/extensions/update', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ extensionName: folder }),
-      });
-      if (!response.ok) {
-        hint.textContent = `更新接口返回 HTTP ${response.status}。手动装的（不是按地址装的）没法自动更新。`;
+      /* 扩展可能落在两个地方，服务端按 global 标记决定去哪找：
+           false → data/<user>/extensions/        （按地址装的默认位置）
+           true  → public/scripts/extensions/third-party/（手动拷文件夹会落这里）
+         我们不知道用户当初怎么装的，两个都试。只试一个就会出现
+         「明明装着却报 404」——之前就是这么踩的。 */
+      let response = null;
+      for (const global of [false, true]) {
+        response = await fetch('/api/extensions/update', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ extensionName: folder, global }),
+        });
+        if (response.ok) break;
+      }
+      if (!response || !response.ok) {
+        hint.textContent = response && response.status === 404
+          ? `两个扩展目录里都没找到 ${folder}。手动拷进去的文件夹不是 git 仓库，没法自动更新——`
+            + '删掉之后用「Install extension」按地址装一次就好了。'
+          : `更新接口返回 HTTP ${response ? response.status : '无响应'}。`;
         return;
       }
       const data = await response.json();
@@ -5859,6 +6233,69 @@ console.info(
     }
   }
 
+  /* 配色预设那一段。切换只设 CSS 变量，不换样式表，所以当场生效不用刷新。 */
+  function mountPresets(panel) {
+    const api = window.__claudeWebPresets;
+    const select = panel.querySelector('#claude-web-preset');
+    const hint = panel.querySelector('#claude-web-preset-hint');
+    const fileInput = panel.querySelector('#claude-web-import-file');
+    if (!api) {
+      select.disabled = true;
+      hint.textContent = '预设模块没加载上。';
+      return;
+    }
+
+    /* 下拉里放的是「家族」，明暗由上面的「主题」决定。
+       两个维度分开之后，选不出「浅色配色 + 深色样式表」这种半新半旧的组合。 */
+    fillSelect(
+      select,
+      api.families().map(item => ({ value: item.id, label: item.name })),
+      api.currentFamily(),
+    );
+
+    select.addEventListener('change', () => {
+      const preset = api.activateFamily(select.value);
+      hint.textContent = preset ? `已切到「${preset.name}」。` : '切换失败。';
+    });
+
+    panel.querySelector('#claude-web-export').addEventListener('click', () => {
+      try {
+        const data = api.exportCurrent();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `[ClaudeWeb] ${data.name}.json`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        hint.textContent = '已导出。';
+      } catch (error) {
+        hint.textContent = `导出失败：${error && error.message}`;
+      }
+    });
+
+    panel.querySelector('#claude-web-import').addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      try {
+        const result = api.importPreset(await file.text());
+        hint.textContent = result.rejected.length
+          ? `已应用 ${result.applied} 项，忽略了 ${result.rejected.length} 个不在白名单里的键。`
+          : `已应用 ${result.applied} 项。`;
+      } catch (error) {
+        hint.textContent = `导入失败：${error && error.message}`;
+      } finally {
+        fileInput.value = '';
+      }
+    });
+
+    panel.querySelector('#claude-web-reset').addEventListener('click', () => {
+      api.clearCustom();
+      hint.textContent = '自定义已清除，回到所选预设。';
+    });
+  }
+
   function mount(host) {
     if (document.getElementById(PANEL_ID)) return;
     const panel = buildPanel();
@@ -5881,11 +6318,16 @@ console.info(
 
     variantSelect.addEventListener('change', () => {
       if (!write('variant', variantSelect.value)) return;
-      if (!applyVariantLive(variantSelect.value)) {
-        hint.textContent = '主题已保存，刷新后生效。';
-      } else {
-        describe();
+      const ok = applyVariantLive(variantSelect.value);
+      /* 明暗变了，配色也得跟着换到同家族的另一半 —— 否则会出现
+         浅色配色配深色样式表。这一步必须和样式表换在同一次操作里。 */
+      const api = window.__claudeWebPresets;
+      if (api) {
+        /* variant 已经写进 localStorage，currentScheme() 读的就是新值。 */
+        api.activateFamily(api.currentFamily());
       }
+      hint.textContent = ok ? '' : '主题已保存，刷新后生效。';
+      if (ok) describe();
     });
 
     layoutSelect.addEventListener('change', () => {
@@ -5899,6 +6341,16 @@ console.info(
       panel.querySelector('#claude-web-reload')
         ?.addEventListener('click', () => window.location.reload(), { once: true });
     });
+
+    mountPresets(panel);
+
+    /* 构建号写在面板上。ST 加载 index.js 的 <script> 标签不带版本参数，
+       浏览器可能给出缓存的旧模块 —— 出现过「推了新版但面板还是旧的」，
+       当时没法一眼确认跑的是哪一版。有这行就不用猜了。 */
+    const build = panel.querySelector('#claude-web-build');
+    build.textContent = typeof CLAUDE_KEYBOARD_BUILD !== 'undefined'
+      ? `构建 ${CLAUDE_KEYBOARD_BUILD.id}`
+      : '构建号未知';
 
     const updateButton = panel.querySelector('#claude-web-update');
     const updateHint = panel.querySelector('#claude-web-update-hint');
