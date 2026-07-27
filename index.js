@@ -169,7 +169,17 @@ console.info(
   'use strict';
 
   const STORAGE_PRESET = 'claude-web:preset';
+  /* 自定义配色。**不是**叠在预设之上的补丁层，而是一套独立的方案，
+     和内置家族在「风格」下拉里并列。
+     形状：{ light: {令牌表}, dark: {令牌表} }。
+     必须分明暗两半 —— 只存一套的话，切到夜间时 paper-0 还是浅色，明暗开关等于废掉。
+     1.x 存的是扁平令牌表，读的时候迁移到当前明暗那一半。 */
   const STORAGE_CUSTOM = 'claude-web:custom';
+  /* 自定义的取值起点。用户从哪个家族点进调色，就从那套色开始改，
+     而不是从空白或者写死的 classic 开始。 */
+  const STORAGE_BASE = 'claude-web:custom-base';
+  const CUSTOM_ID = 'custom';
+  const CUSTOM_NAME = '我的配色';
 
   /* 社区预设允许出现的键。导入时白名单校验 —— 不校验的话，
      一个预设文件可以往 :root 上塞任意 CSS 变量。 */
@@ -321,6 +331,14 @@ console.info(
     return FAMILIES.find(f => f.light.id === presetId || f.dark.id === presetId) ?? FAMILIES[0];
   }
 
+  /* 下拉里要显示的全部选项：内置家族 + 我的配色。 */
+  function allFamilies() {
+    return [
+      ...FAMILIES.map(({ id, name }) => ({ id, name })),
+      { id: CUSTOM_ID, name: CUSTOM_NAME },
+    ];
+  }
+
   /* 明暗的唯一来源是「明暗」那个下拉，也就是 localStorage 里的 variant。
      预设自己的 scheme 字段只用来推导字重和阴影，不参与选择。
 
@@ -416,12 +434,95 @@ console.info(
     }
   }
 
+  /* ---------- 自定义配色 ---------- */
+
+  function writeJson(key, value) {
+    try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* 无痕 */ }
+  }
+
+  /* 读出 {light, dark}。旧的扁平格式迁移到当前明暗那一半 —— 当初就是一套值，
+     无从判断它是给日间还是夜间的，只能按用户当下看到的那一半算。 */
+  function customStore() {
+    const raw = readJson(STORAGE_CUSTOM);
+    if (!raw || typeof raw !== 'object') return { light: {}, dark: {} };
+    if (raw.light || raw.dark) {
+      return {
+        light: (raw.light && typeof raw.light === 'object') ? raw.light : {},
+        dark: (raw.dark && typeof raw.dark === 'object') ? raw.dark : {},
+      };
+    }
+    const legacy = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (ALLOWED.has(key) && typeof value === 'string') legacy[key] = value;
+    }
+    const migrated = { light: {}, dark: {} };
+    migrated[currentScheme()] = legacy;
+    return migrated;
+  }
+
+  /* 自定义的取值起点：用户最后看过的内置家族。 */
+  function baseFamily() {
+    let id = null;
+    try { id = window.localStorage.getItem(STORAGE_BASE); } catch { id = null; }
+    return FAMILIES.find(item => item.id === id) ?? FAMILIES[0];
+  }
+
+  /* 把 {light,dark} 里的一半组装成一个正常预设，缺的核心色从起点家族补齐。
+     补齐这一步是为了取色器永远有 9 个真实的初值可显示，不会出现空色块。 */
+  function customPreset(scheme) {
+    const half = customStore()[scheme] ?? {};
+    const base = baseFamily()[scheme === 'dark' ? 'dark' : 'light'];
+    const core = {};
+    for (const key of CORE_KEYS) core[key] = half[key] ?? base.core[key];
+    const extra = {};
+    for (const [key, value] of Object.entries(half)) {
+      if (EXTRA_KEYS.includes(key)) extra[key] = value;
+    }
+    return { id: CUSTOM_ID, name: CUSTOM_NAME, scheme, core, extra };
+  }
+
+  /* 取色器要显示的当前 9 色。 */
+  function customCore() {
+    return { ...customPreset(currentScheme()).core };
+  }
+
+  /* 改一个色。第一次改时把当前 9 色整体落盘 —— 这样这套方案从此自给自足，
+     以后换起点家族也不会牵动已经调好的颜色。 */
+  function setCustomColor(key, value) {
+    if (!ALLOWED.has(key) || typeof value !== 'string') return null;
+    const scheme = currentScheme();
+    const store = customStore();
+    store[scheme] = {
+      ...customPreset(scheme).core,
+      ...(store[scheme] ?? {}),
+      [key]: value,
+    };
+    writeJson(STORAGE_CUSTOM, store);
+    /* 不在自定义方案上时先切过去，否则拖了半天取色器界面纹丝不动。 */
+    if (currentFamilyId() !== CUSTOM_ID) return activateFamily(CUSTOM_ID);
+    apply(resolve(customPreset(scheme)));
+    return customPreset(scheme);
+  }
+
   function activateFamily(familyId, { persist = true } = {}) {
+    const scheme = currentScheme();
+    if (familyId === CUSTOM_ID) {
+      if (persist) {
+        try { window.localStorage.setItem('claude-web:family', CUSTOM_ID); } catch { /* 无痕 */ }
+      }
+      const preset = customPreset(scheme);
+      apply(resolve(preset));
+      return preset;
+    }
     const family = FAMILIES.find(item => item.id === familyId) ?? FAMILIES[0];
     if (persist) {
-      try { window.localStorage.setItem('claude-web:family', family.id); } catch { /* 无痕 */ }
+      try {
+        window.localStorage.setItem('claude-web:family', family.id);
+        /* 同时记成自定义的起点：下次点进调色就是从这套色开始改。 */
+        window.localStorage.setItem(STORAGE_BASE, family.id);
+      } catch { /* 无痕 */ }
     }
-    return activate(family[currentScheme()].id, { persist: false });
+    return activate(family[scheme].id, { persist: false });
   }
 
   function findPreset(id) {
@@ -437,12 +538,12 @@ console.info(
   }
 
   function activate(id, { persist = true } = {}) {
+    if (id === CUSTOM_ID) return activateFamily(CUSTOM_ID, { persist });
     const preset = findPreset(id) ?? findPreset(defaultPresetId());
     if (!preset) return null;
+    /* 只套这个预设。自定义不再叠在这上面 —— 它是「风格」下拉里并列的一项，
+       否则调过一次色之后切风格就几乎看不出变化。 */
     apply(resolve(preset));
-    /* 自定义覆盖叠在预设之上，所以顺序不能反。 */
-    const custom = readJson(STORAGE_CUSTOM);
-    if (custom && typeof custom === 'object') apply(custom);
     if (persist) {
       try { window.localStorage.setItem(STORAGE_PRESET, preset.id); } catch { /* 无痕模式 */ }
     }
@@ -451,19 +552,20 @@ console.info(
 
   /* ---------- 导入导出 ---------- */
 
+  /* 导出的是当前正在看的那一套色，自定义和内置一视同仁。 */
   function exportCurrent() {
-    const preset = findPreset(familyOf(currentPresetId())[currentScheme()].id)
-      ?? findPreset(defaultPresetId());
-    const custom = readJson(STORAGE_CUSTOM) ?? {};
-    const tokens = { ...preset.core, ...custom };
+    const scheme = currentScheme();
+    const preset = currentFamilyId() === CUSTOM_ID
+      ? customPreset(scheme)
+      : (findPreset(familyOf(currentPresetId())[scheme].id) ?? findPreset(defaultPresetId()));
     return {
-      id: `${preset.id}-custom`,
-      name: `${preset.name}（改）`,
+      id: `${preset.id}-export`,
+      name: preset.name,
       scheme: preset.scheme,
-      core: Object.fromEntries(CORE_KEYS.map(key => [key, tokens[key]]).filter(([, v]) => v)),
-      extra: Object.fromEntries(
-        Object.entries(custom).filter(([key]) => EXTRA_KEYS.includes(key)),
+      core: Object.fromEntries(
+        CORE_KEYS.map(key => [key, preset.core[key]]).filter(([, value]) => value),
       ),
+      extra: { ...(preset.extra ?? {}) },
     };
   }
 
@@ -479,18 +581,22 @@ console.info(
       else rejected.push(key);
     }
     if (!Object.keys(clean).length) throw new Error('预设里没有一个可用的令牌。');
-    try {
-      window.localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(clean));
-    } catch (error) {
-      throw new Error(`写入失败：${error && error.message}`);
-    }
-    apply(clean);
-    return { applied: Object.keys(clean).length, rejected };
+    /* 导入的东西装进「我的配色」，装进哪一半由文件自己的 scheme 决定；
+       没写 scheme 就按用户当下看到的那一半算。 */
+    const scheme = data.scheme === 'dark' || data.scheme === 'light'
+      ? data.scheme
+      : currentScheme();
+    const store = customStore();
+    store[scheme] = { ...customPreset(scheme).core, ...clean };
+    writeJson(STORAGE_CUSTOM, store);
+    activateFamily(CUSTOM_ID);
+    return { applied: Object.keys(clean).length, rejected, scheme };
   }
 
+  /* 清掉自定义，回到起点家族。两半一起清 —— 只清一半会留下日夜不成套的方案。 */
   function clearCustom() {
     try { window.localStorage.removeItem(STORAGE_CUSTOM); } catch { /* 无痕模式 */ }
-    activate(currentPresetId() || defaultPresetId(), { persist: false });
+    return activateFamily(baseFamily().id);
   }
 
   /* 启动时立刻套一次。放在这里而不是等 DOM ready ——
@@ -498,7 +604,7 @@ console.info(
   activateFamily(currentFamilyId(), { persist: false });
 
   window.__claudeWebPresets = {
-    families: () => FAMILIES.map(({ id, name }) => ({ id, name })),
+    families: allFamilies,
     currentFamily: currentFamilyId,
     activateFamily,
     list: () => BUILT_IN.map(({ id, name, scheme }) => ({ id, name, scheme })),
@@ -508,6 +614,9 @@ console.info(
     importPreset,
     clearCustom,
     coreKeys: () => [...CORE_KEYS],
+    customId: () => CUSTOM_ID,
+    customCore,
+    setCustomColor,
   };
 })();
 
@@ -6172,6 +6281,23 @@ console.info(
           width:100% !important;
         }
         #${PANEL_ID} label { display:block; margin-bottom:3px; }
+        /* 取色器一行两个。酒馆的设置栏很窄，三个一行色块会小到点不准。 */
+        #${PANEL_ID} .claude-web-swatches {
+          display:grid; grid-template-columns:1fr 1fr; gap:5px 8px; margin-top:8px;
+        }
+        #${PANEL_ID} .claude-web-swatch {
+          display:flex !important; align-items:center; gap:6px;
+          margin:0 !important; font-size:0.9em; min-width:0;
+        }
+        /* 酒馆给 input 的通用样式会把颜色块拉成一条细线，这里全量覆盖。 */
+        #${PANEL_ID} .claude-web-swatch input[type="color"] {
+          width:30px !important; height:22px !important;
+          flex:0 0 auto !important; padding:0 !important; border:none !important;
+          background:none !important; cursor:pointer;
+        }
+        #${PANEL_ID} .claude-web-swatch span {
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
       </style>
       <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
@@ -6179,8 +6305,17 @@ console.info(
           <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-          <label for="claude-web-preset">配色</label>
+          <label for="claude-web-preset">风格</label>
           <select id="claude-web-preset" class="text_pole"></select>
+
+          <details id="claude-web-colors" style="margin-top:8px">
+            <summary style="cursor:pointer;user-select:none;opacity:.85">自定义配色</summary>
+            <div id="claude-web-swatches" class="claude-web-swatches"></div>
+            <div style="margin-top:6px;font-size:0.85em;opacity:.6;line-height:1.5">
+              改动存进「我的配色」，日间和夜间各存一套。其余颜色（线条、阴影、代码块等）自动推导。
+            </div>
+          </details>
+
           <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
             <button id="claude-web-export" class="menu_button">导出</button>
             <button id="claude-web-import" class="menu_button">导入</button>
@@ -6393,16 +6528,75 @@ console.info(
     }
   }
 
+  /* 明暗那个下拉的 handler 和取色器不在同一个函数里，用这个引用搭桥。 */
+  let syncSwatchesRef = () => {};
+
+  /* 九个核心色的人话名字。用户看到的是「正文」不是 --cw-ink-0。 */
+  const SWATCH_LABELS = {
+    '--cw-paper-0': '背景',
+    '--cw-paper-1': '卡片',
+    '--cw-paper-2': '次级面',
+    '--cw-paper-3': '分区块',
+    '--cw-ink-0': '正文',
+    '--cw-ink-1': '次要字',
+    '--cw-ink-2': '弱化字',
+    '--cw-ink-3': '最淡线',
+    '--cw-clay': '强调色',
+  };
+
+  /* input[type=color] 只吃 #rrggbb。预设里的核心色都是这个形状，
+     但导入的文件不一定，遇到别的写法就不往取色器里塞，免得被静默改成 #000000。 */
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+
   /* 配色预设那一段。切换只设 CSS 变量，不换样式表，所以当场生效不用刷新。 */
   function mountPresets(panel) {
     const api = window.__claudeWebPresets;
     const select = panel.querySelector('#claude-web-preset');
     const hint = panel.querySelector('#claude-web-preset-hint');
     const fileInput = panel.querySelector('#claude-web-import-file');
+    const swatchBox = panel.querySelector('#claude-web-swatches');
     if (!api) {
       select.disabled = true;
       hint.textContent = '预设模块没加载上。';
       return;
+    }
+
+    /* ---- 九个取色器 ---- */
+    const swatches = new Map();
+
+    function syncSwatches() {
+      if (!api.customCore) return;
+      const core = api.customCore();
+      for (const [key, input] of swatches) {
+        const value = core[key];
+        if (typeof value === 'string' && HEX.test(value)) input.value = value;
+      }
+    }
+
+    if (api.customCore && api.setCustomColor && swatchBox) {
+      for (const key of api.coreKeys()) {
+        const row = document.createElement('label');
+        row.className = 'claude-web-swatch';
+        const input = document.createElement('input');
+        input.type = 'color';
+        const text = document.createElement('span');
+        text.textContent = SWATCH_LABELS[key] ?? key;
+        row.append(input, text);
+        swatchBox.append(row);
+        swatches.set(key, input);
+
+        /* input 而不是 change：拖着取色器就能看见界面跟着变。 */
+        input.addEventListener('input', () => {
+          api.setCustomColor(key, input.value);
+          /* 第一次改动会自动切到「我的配色」，下拉要跟上，
+             否则下拉显示「经典」而界面已经是自定义的了。 */
+          if (select.value !== api.customId()) select.value = api.customId();
+          hint.textContent = '已存进「我的配色」。';
+        });
+      }
+      syncSwatches();
+    } else if (swatchBox) {
+      swatchBox.textContent = '当前版本不支持自定义配色。';
     }
 
     /* 下拉里放的是「家族」，明暗由上面的「主题」决定。
@@ -6415,8 +6609,14 @@ console.info(
 
     select.addEventListener('change', () => {
       const preset = api.activateFamily(select.value);
+      /* 换风格会换掉自定义的取值起点，取色器要跟着显示新起点的颜色。 */
+      syncSwatches();
       hint.textContent = preset ? `已切到「${preset.name}」。` : '切换失败。';
     });
+
+    /* 明暗切换在另一个 handler 里，那边换完样式表要回来刷取色器 ——
+       自定义存了日夜两套，切明暗等于换了一整组值。 */
+    syncSwatchesRef = syncSwatches;
 
     panel.querySelector('#claude-web-export').addEventListener('click', () => {
       try {
@@ -6440,9 +6640,12 @@ console.info(
       if (!file) return;
       try {
         const result = api.importPreset(await file.text());
+        /* 导入落进「我的配色」，下拉和取色器都要跟上。 */
+        select.value = api.customId();
+        syncSwatches();
         hint.textContent = result.rejected.length
-          ? `已应用 ${result.applied} 项，忽略了 ${result.rejected.length} 个不在白名单里的键。`
-          : `已应用 ${result.applied} 项。`;
+          ? `已装进「我的配色」${result.applied} 项，忽略了 ${result.rejected.length} 个不在白名单里的键。`
+          : `已装进「我的配色」${result.applied} 项。`;
       } catch (error) {
         hint.textContent = `导入失败：${error && error.message}`;
       } finally {
@@ -6451,8 +6654,12 @@ console.info(
     });
 
     panel.querySelector('#claude-web-reset').addEventListener('click', () => {
-      api.clearCustom();
-      hint.textContent = '自定义已清除，回到所选预设。';
+      const preset = api.clearCustom();
+      if (preset) select.value = api.currentFamily();
+      syncSwatches();
+      hint.textContent = preset
+        ? `自定义已清除，回到「${preset.name}」。`
+        : '自定义已清除。';
     });
   }
 
@@ -6488,6 +6695,8 @@ console.info(
            导致选了日间界面还是夜间。） */
         api.activateFamily(api.currentFamily());
       }
+      /* 「我的配色」日夜各存一套，切明暗等于换了一整组值，取色器要重读。 */
+      syncSwatchesRef();
       hint.textContent = ok ? '' : '主题已保存，刷新后生效。';
       if (ok) describe();
     });
