@@ -13,7 +13,23 @@ https://github.com/claudenoshujin/claude-web
 ```
 
 装完的文件夹名等于仓库名，所以这个仓库必须叫 `claude-web`。
-以后有更新，在扩展面板点一下 Update 就行（manifest 里 `auto_update` 已开）。
+
+### 更新
+
+Claude Web 的设置面板里有两个按钮：
+
+- **检查更新** —— 走酒馆的 `/api/extensions/update`
+- **重新安装** —— 删掉扩展目录再按地址装一次
+
+正常情况用第一个。如果它报 **HTTP 500**，用第二个。
+
+原因：1.18 的 `/api/extensions/update` 用 simple-git，要调**系统装的 git 命令**；
+而 `/api/extensions/install` 走 `createGitClient`，用的是内置实现。
+所以「按地址装得上、点更新报 500」在没装 git 的机器上是正常现象。
+装的时候是 `depth:1` 浅克隆，pull 失败也会是同一个码。
+
+「重新安装」走的是安装那条路，不需要 git 命令。配色和明暗设置存在浏览器的
+localStorage 里，不在扩展目录，重装不会丢。
 
 ### 方式二：手动放文件
 
