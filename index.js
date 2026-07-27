@@ -136,6 +136,10 @@ const CLAUDE_KEYBOARD_BUILD = {
   mode: 'full',
 };
 
+/* 设置面板的「重新安装」要按地址重装，地址不能在面板里另写一份 ——
+   写两处就有一天会对不上。这里从构建脚本的 REPO_URL 注入。 */
+const CLAUDE_EXTENSION_REPO = 'https://github.com/claudenoshujin/claude-web';
+
 const CLAUDE_THEME = CLAUDE_THEMES[CLAUDE_THEME_VARIANT];
 
 const CLAUDE_STYLE_HREF = new URL(
@@ -317,10 +321,23 @@ console.info(
     return FAMILIES.find(f => f.light.id === presetId || f.dark.id === presetId) ?? FAMILIES[0];
   }
 
-  /* 明暗的唯一来源是 CLAUDE_THEME_VARIANT（也就是「主题」那个下拉）。
-     预设自己的 scheme 字段只用来推导字重和阴影，不参与选择。 */
+  /* 明暗的唯一来源是「明暗」那个下拉，也就是 localStorage 里的 variant。
+     预设自己的 scheme 字段只用来推导字重和阴影，不参与选择。
+
+     必须现读 localStorage，不能读 CLAUDE_THEME_VARIANT —— 那是模块加载时
+     求值一次的 const，用户改完设置它还是旧值。踩过：选「日间」之后样式表
+     换成了 day，但令牌还是 dark 的，而令牌经由兼容层压过一切，
+     结果界面看起来还是夜间。 */
   function currentScheme() {
-    const variant = typeof CLAUDE_THEME_VARIANT !== 'undefined' ? CLAUDE_THEME_VARIANT : 'day';
+    let variant = null;
+    try {
+      variant = window.localStorage.getItem('claude-web:variant');
+    } catch {
+      variant = null;
+    }
+    if (variant !== 'day' && variant !== 'night') {
+      variant = typeof CLAUDE_THEME_VARIANT !== 'undefined' ? CLAUDE_THEME_VARIANT : 'day';
+    }
     return variant === 'night' ? 'dark' : 'light';
   }
 
@@ -1291,7 +1308,7 @@ console.info(
         z-index: 10020 !important;
         display: block !important;
         width: max-content !important;
-        color: var(--cl-accent, #d97757) !important;
+        color: var(--cw-mark, #d97757) !important;
         font-family: var(--cl-sans, ui-sans-serif, sans-serif) !important;
         font-size: 12px !important;
         font-weight: 700 !important;
@@ -1302,10 +1319,10 @@ console.info(
         animation: clawd-particle-out 680ms cubic-bezier(.16,.76,.2,1) both !important;
       }
 
-      .clawd-click-particle.clawd-particle-question { color: var(--cl-muted, #8b8780) !important; }
-      .clawd-click-particle.clawd-particle-heart { color: var(--cl-accent, #d97757) !important; }
+      .clawd-click-particle.clawd-particle-question { color: var(--cw-text-muted, #8b8780) !important; }
+      .clawd-click-particle.clawd-particle-heart { color: var(--cw-mark, #d97757) !important; }
       .clawd-click-particle.clawd-particle-star { color: #d9a45f !important; }
-      .clawd-click-particle.clawd-particle-dot { color: var(--cl-muted, #8b8780) !important; }
+      .clawd-click-particle.clawd-particle-dot { color: var(--cw-text-muted, #8b8780) !important; }
 
       #chat > .mes[is_user="false"] {
         position: relative !important;
@@ -1356,7 +1373,7 @@ console.info(
         min-height: 28px !important;
         margin: 0 !important;
         padding: 0 !important;
-        color: var(--cl-muted, #8b8780) !important;
+        color: var(--cw-text-muted, #8b8780) !important;
         background: transparent !important;
         border: 0 !important;
         border-radius: 8px !important;
@@ -1378,8 +1395,8 @@ console.info(
 
       #chat > .mes[is_user="true"] .${USER_ACTIONS_CLASS} > button:hover,
       #chat > .mes[is_user="true"] .${USER_ACTIONS_CLASS} > button:focus-visible {
-        color: var(--cl-ink, #ece9e2) !important;
-        background: var(--cl-soft-hover, rgba(128,128,128,.12)) !important;
+        color: var(--cw-text-body, #ece9e2) !important;
+        background: var(--cw-surface-hover, rgba(128,128,128,.12)) !important;
         opacity: 1 !important;
       }
 
@@ -1435,7 +1452,7 @@ console.info(
         min-height: 48px !important;
         margin: 0 !important;
         padding: 0 !important;
-        color: var(--cl-muted, #8b8780) !important;
+        color: var(--cw-text-muted, #8b8780) !important;
         background: transparent !important;
         border: 0 !important;
         border-radius: 10px !important;
@@ -1472,8 +1489,8 @@ console.info(
 
       #chat > .mes[is_user="false"] > button.${LEFT_SWIPE_PROXY_CLASS}:hover,
       #chat > .mes[is_user="false"] > button.${SWIPE_PROXY_CLASS}:hover {
-        color: var(--cl-ink, #ece9e2) !important;
-        background: var(--cl-soft-hover, rgba(128,128,128,.12)) !important;
+        color: var(--cw-text-body, #ece9e2) !important;
+        background: var(--cw-surface-hover, rgba(128,128,128,.12)) !important;
         opacity: 1 !important;
       }
 
@@ -1493,7 +1510,7 @@ console.info(
         max-height: 26px !important;
         margin: 0 !important;
         padding: 0 !important;
-        color: var(--cl-muted, #8b8780) !important;
+        color: var(--cw-text-muted, #8b8780) !important;
         background: transparent !important;
         border: 0 !important;
         border-radius: 8px !important;
@@ -1515,8 +1532,8 @@ console.info(
       }
 
       button.${REROLL_CLASS}:hover {
-        color: var(--cl-ink, #ece9e2) !important;
-        background: var(--cl-soft-hover, rgba(128,128,128,.12)) !important;
+        color: var(--cw-text-body, #ece9e2) !important;
+        background: var(--cw-surface-hover, rgba(128,128,128,.12)) !important;
         opacity: 1 !important;
         transform: rotate(-16deg) !important;
       }
@@ -1621,7 +1638,7 @@ console.info(
           min-width: 38px !important;
           height: 54px !important;
           min-height: 54px !important;
-          color: var(--cl-ink, #ece9e2) !important;
+          color: var(--cw-text-body, #ece9e2) !important;
           background: color-mix(in srgb, var(--cl-canvas, #191918) 82%, transparent) !important;
           border: 1px solid var(--cl-line, rgba(128,128,128,.24)) !important;
           opacity: .74 !important;
@@ -3203,6 +3220,12 @@ console.info(
     const characters = Array.isArray(context?.characters) ? context.characters : [];
     const groups = Array.isArray(context?.groups) ? context.groups : [];
 
+    /* 角色列表还没加载完的时候，下面那句「认不出实体的记录过滤掉」会把
+       所有记录都滤没，然后这一轮被标记成「已加载」，不再重试 ——
+       真机表现是侧栏空着，要点一下角色卡触发 CHAT_CHANGED 才补上。
+       返回 null 表示「还没就绪」，调用方不会标记已加载，会再试。 */
+    if (records.length && !characters.length && !groups.length) return null;
+
     const entries = [];
     for (const record of records) {
       const character = characters.find(item => item?.avatar === record?.avatar) ?? null;
@@ -3519,7 +3542,6 @@ console.info(
     const now = Date.now();
     if (!shouldFetchRecents(force, now)) return;
     recentFetchedAt = now;
-    recentLoadedOnce = true;
     recentRenderPending = true;
     const token = ++recentRenderToken;
     const versionAtFetch = recentDataVersion;
@@ -3527,7 +3549,15 @@ console.info(
     void buildRecentEntries()
       .then(entries => {
         /* 期间又发起过新的一轮，或者脚本已经拆了，就丢弃这次结果。 */
-        if (destroyed || token !== recentRenderToken || !entries) return;
+        if (destroyed || token !== recentRenderToken) return;
+        /* null = 还没就绪（多半是酒馆的角色列表还没加载完）。
+           不标记「已加载」，让下一轮刷新再试一次。
+           以前在发起请求前就标记，结果首屏那次拉空之后再也不重试。 */
+        if (!entries) {
+          hostWindow.setTimeout(() => refreshRailRecents({ force: true }), 600);
+          return;
+        }
+        recentLoadedOnce = true;
         /* 拉取期间数据被改过（多半是删除），这批结果已经过期，丢掉重来。 */
         if (versionAtFetch !== recentDataVersion) {
           hostWindow.setTimeout(() => refreshRailRecents({ force: true }), 0);
@@ -6148,7 +6178,10 @@ console.info(
                style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
 
           <hr style="margin:10px 0;opacity:.25">
-          <button id="claude-web-update" class="menu_button">检查更新</button>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button id="claude-web-update" class="menu_button">检查更新</button>
+            <button id="claude-web-reinstall" class="menu_button">重新安装</button>
+          </div>
           <div id="claude-web-update-hint"
                style="margin-top:6px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
           <div id="claude-web-build"
@@ -6165,45 +6198,86 @@ console.info(
      extensionName 用的是文件夹名，不带 third-party/ 前缀 —— 服务端的 basePath
      本来就是第三方扩展目录（1.18 的 src/endpoints/extensions.js 已核实），
      而且它会 sanitize 掉斜杠，带前缀反而找不到。 */
-  async function runUpdate(button, hint) {
-    const folder = (() => {
-      try {
-        const base = typeof CLAUDE_EXTENSION_BASE !== 'undefined'
-          ? CLAUDE_EXTENSION_BASE
-          : new URL('.', import.meta.url).href;
-        return decodeURIComponent(new URL(base).pathname.replace(/\/+$/, '').split('/').pop() || '');
-      } catch {
-        return 'claude-web';
-      }
-    })();
+  /* 构建脚本注入的仓库地址（tools/build-extension.js 的 REPO_URL）。
+     兜底值只在源码直接跑的时候用得上。 */
+  const REPO_URL = typeof CLAUDE_EXTENSION_REPO !== 'undefined'
+    ? CLAUDE_EXTENSION_REPO
+    : 'https://github.com/claudenoshujin/claude-web';
 
+  function folderName() {
+    try {
+      const base = typeof CLAUDE_EXTENSION_BASE !== 'undefined'
+        ? CLAUDE_EXTENSION_BASE
+        : new URL('.', import.meta.url).href;
+      return decodeURIComponent(new URL(base).pathname.replace(/\/+$/, '').split('/').pop() || '');
+    } catch {
+      return 'claude-web';
+    }
+  }
+
+  function requestHeaders() {
     const context = window.SillyTavern?.getContext?.();
-    const headers = typeof context?.getRequestHeaders === 'function'
+    return typeof context?.getRequestHeaders === 'function'
       ? context.getRequestHeaders()
       : { 'Content-Type': 'application/json' };
+  }
+
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: requestHeaders(), body: JSON.stringify(body) });
+  }
+
+  /* 扩展可能落在两个地方，服务端按 global 标记决定去哪找：
+       false → data/<user>/extensions/        （按地址装的默认位置）
+       true  → public/scripts/extensions/third-party/（手动拷文件夹会落这里）
+     我们不知道用户当初怎么装的，两个都试。只试一个就会出现
+     「明明装着却报 404」——之前就是这么踩的。
+
+     判断依据只用 404：其余状态码（包括 500）都说明目录**在**，
+     只是服务端处理时出了别的错。 */
+  async function locate(folder) {
+    for (const global of [false, true]) {
+      const response = await post('/api/extensions/version', { extensionName: folder, global });
+      if (response.status !== 404) return { global, response };
+    }
+    return { global: null, response: null };
+  }
+
+  /* 酒馆自带的更新入口藏在「管理扩展」里，而且要勾上 Notify on extension updates
+     才会主动提示，很容易以为没更新。这里直接调它的更新接口：
+       POST /api/extensions/update  { extensionName }
+     extensionName 用的是文件夹名，不带 third-party/ 前缀 —— 服务端的 basePath
+     本来就是第三方扩展目录（1.18 的 src/endpoints/extensions.js 已核实），
+     而且它会 sanitize 掉斜杠，带前缀反而找不到。 */
+  async function runUpdate(button, hint) {
+    const folder = folderName();
 
     button.disabled = true;
     hint.textContent = `正在检查 ${folder}…`;
     try {
-      /* 扩展可能落在两个地方，服务端按 global 标记决定去哪找：
-           false → data/<user>/extensions/        （按地址装的默认位置）
-           true  → public/scripts/extensions/third-party/（手动拷文件夹会落这里）
-         我们不知道用户当初怎么装的，两个都试。只试一个就会出现
-         「明明装着却报 404」——之前就是这么踩的。 */
-      let response = null;
-      for (const global of [false, true]) {
-        response = await fetch('/api/extensions/update', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ extensionName: folder, global }),
-        });
-        if (response.ok) break;
+      const found = await locate(folder);
+      if (found.global === null) {
+        hint.textContent = `两个扩展目录里都没找到 ${folder}。`
+          + '用「Install extension」按地址装一次就好了。';
+        return;
       }
-      if (!response || !response.ok) {
-        hint.textContent = response && response.status === 404
-          ? `两个扩展目录里都没找到 ${folder}。手动拷进去的文件夹不是 git 仓库，没法自动更新——`
-            + '删掉之后用「Install extension」按地址装一次就好了。'
-          : `更新接口返回 HTTP ${response ? response.status : '无响应'}。`;
+
+      const response = await post('/api/extensions/update', {
+        extensionName: folder,
+        global: found.global,
+      });
+      if (!response.ok) {
+        /* 服务端只回一句 Internal Server Error，真正的原因在酒馆的黑窗口里。
+           但 1.18 的 /update 有个固定坑值得直接说出来：它用的是 simple-git，
+           要调系统装的 git 命令；而 /install 用的是 createGitClient，能走
+           内置实现。于是「按地址装得上、更新按钮报 500」是完全正常的现象 ——
+           这台机器上没装 git。
+           另一个已知原因：装的时候是 depth:1 浅克隆，git pull 在浅仓库上
+           经常直接失败。两种情况都不是我们能在前端修好的，所以给出口。 */
+        hint.innerHTML = `更新接口返回 HTTP ${response.status}。`
+          + '<br>1.18 的更新接口要调系统装的 <code>git</code> 命令（安装接口不用），'
+          + '所以「装得上但更新报 500」通常是这台机器没装 git；'
+          + '浅克隆的仓库 pull 失败也会是同一个码。'
+          + '<br>用下面的「重新安装」绕过去 —— 它走的是安装接口，不需要 git 命令。';
         return;
       }
       const data = await response.json();
@@ -6217,6 +6291,60 @@ console.info(
         ?.addEventListener('click', () => window.location.reload(), { once: true });
     } catch (error) {
       hint.textContent = `更新失败：${error && error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  /* 删掉再按地址装一次。之所以能当「更新」用：/install 走 createGitClient，
+     不依赖系统 git，所以 /update 报 500 的机器上它照样能跑。
+
+     顺序只能是先删后装 —— 目录已存在时 /install 直接回 409。
+     万一装的那步失败，扩展就真没了，所以失败时把地址原样贴出来让人手动装。
+     设置本身存在 localStorage 里，不在扩展目录，删了不丢。 */
+  async function runReinstall(button, hint) {
+    const folder = folderName();
+    if (!window.confirm(
+      `将删除扩展目录 ${folder} 后重新从 GitHub 安装。\n`
+      + '配色和明暗设置存在浏览器里，不会丢失。\n\n继续？',
+    )) return;
+
+    button.disabled = true;
+    hint.textContent = '正在定位扩展目录…';
+    try {
+      const found = await locate(folder);
+      if (found.global === null) {
+        hint.textContent = `两个扩展目录里都没找到 ${folder}，无需删除，直接装即可。`;
+      } else {
+        hint.textContent = '正在删除旧版本…';
+        const removed = await post('/api/extensions/delete', {
+          extensionName: folder,
+          global: found.global,
+        });
+        if (!removed.ok) {
+          hint.textContent = `删除失败：HTTP ${removed.status}。没有改动任何东西。`;
+          return;
+        }
+      }
+
+      hint.textContent = '正在安装最新版本…';
+      const installed = await post('/api/extensions/install', {
+        url: REPO_URL,
+        global: found.global === true,
+      });
+      if (!installed.ok) {
+        hint.innerHTML = `安装失败：HTTP ${installed.status}。`
+          + '<br>旧版本已经删掉了，请在「管理扩展 → Install extension」里手动装一次：'
+          + `<br><code>${REPO_URL}</code>`;
+        return;
+      }
+      const data = await installed.json().catch(() => null);
+      hint.innerHTML = `已装上 ${data?.version ?? '最新版本'}。`
+        + ' <button id="claude-web-update-reload" class="menu_button" style="margin-left:6px">刷新生效</button>';
+      hint.querySelector('#claude-web-update-reload')
+        ?.addEventListener('click', () => window.location.reload(), { once: true });
+    } catch (error) {
+      hint.textContent = `重装失败：${error && error.message}`;
     } finally {
       button.disabled = false;
     }
@@ -6323,7 +6451,9 @@ console.info(
          浅色配色配深色样式表。这一步必须和样式表换在同一次操作里。 */
       const api = window.__claudeWebPresets;
       if (api) {
-        /* variant 已经写进 localStorage，currentScheme() 读的就是新值。 */
+        /* variant 已经写进 localStorage，而 currentScheme() 是现读 localStorage 的，
+           所以这里拿到的是新值。（早先它读的是启动时求值的 const，
+           导致选了日间界面还是夜间。） */
         api.activateFamily(api.currentFamily());
       }
       hint.textContent = ok ? '' : '主题已保存，刷新后生效。';
@@ -6356,6 +6486,11 @@ console.info(
     const updateHint = panel.querySelector('#claude-web-update-hint');
     updateButton.addEventListener('click', () => {
       void runUpdate(updateButton, updateHint);
+    });
+
+    const reinstallButton = panel.querySelector('#claude-web-reinstall');
+    reinstallButton.addEventListener('click', () => {
+      void runReinstall(reinstallButton, updateHint);
     });
   }
 
