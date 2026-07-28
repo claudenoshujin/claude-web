@@ -1740,15 +1740,15 @@ html body #top-settings-holder :is(.fab, .fa-brands) {
   transform-origin:24px 48px;
   will-change:transform;
 }
-#chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name {
+html:not([data-claude-archive="on"]) #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name {
   display:flex !important;
   justify-content:flex-end !important;
   margin-bottom:4px;
 }
-#chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name > *:not(.mes_edit_buttons) {
+html:not([data-claude-archive="on"]) #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name > *:not(.mes_edit_buttons) {
   display:none !important;
 }
-#chat .mes_edit_buttons {
+html:not([data-claude-archive="on"]) #chat .mes_edit_buttons {
   gap:3px !important;
   padding:4px !important;
   background:var(--cw-surface-raised) !important;
@@ -1759,7 +1759,7 @@ html body #top-settings-holder :is(.fab, .fa-brands) {
   opacity:1 !important;
   visibility:visible !important;
 }
-#chat .mes_edit_buttons > .menu_button {
+html:not([data-claude-archive="on"]) #chat .mes_edit_buttons > .menu_button {
   width:28px !important;
   min-width:28px !important;
   height:28px !important;
@@ -1816,11 +1816,11 @@ html body #chat .mes_edit_buttons {
   visibility:hidden !important;
   pointer-events:none !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_block {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_block {
   position:relative !important;
   padding-bottom:42px !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
   position:absolute !important;
   inset:auto 4px 5px auto !important;
   z-index:4 !important;
@@ -1841,7 +1841,7 @@ html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
   visibility:visible !important;
   pointer-events:auto !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button {
   display:inline-flex !important;
   align-items:center !important;
   justify-content:center !important;
@@ -1860,7 +1860,7 @@ html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button {
   font-size:12px !important;
   opacity:.68 !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button:hover {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button:hover {
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-hover) !important;
   opacity:1 !important;
@@ -2120,10 +2120,10 @@ html body .typing_indicator::before {
   bottom:52px !important;
   margin:0 !important;
 }
-#chat .mes_edit_buttons {
+html:not([data-claude-archive="on"]) #chat .mes_edit_buttons {
   gap:6px !important;
 }
-#chat .mes_edit_buttons > .menu_button {
+html:not([data-claude-archive="on"]) #chat .mes_edit_buttons > .menu_button {
   width:38px !important;
   min-width:38px !important;
   height:38px !important;
@@ -2134,16 +2134,16 @@ html body .typing_indicator::before {
   min-width:36px !important;
   min-height:36px !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_block {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_block {
   padding-bottom:48px !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
   right:2px !important;
   bottom:4px !important;
   height:38px !important;
   gap:3px !important;
 }
-html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button {
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons > .menu_button {
   flex-basis:36px !important;
   width:36px !important;
   min-width:36px !important;
@@ -2667,7 +2667,7 @@ html body #chat > .mes[type="assistant_message"] :is(.clawd-signoff-button,.clau
 }
 
 /* Welcome shortcut prompt */
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) {
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) {
   position:relative !important;
   display:block !important;
   width:min(100%,980px) !important;
@@ -2678,15 +2678,15 @@ html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) {
   box-sizing:border-box !important;
 }
 
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mesAvatarWrapper,
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .ch_name,
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) :is(.mes_buttons,.extraMesButtons),
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > :is(.swipe_left,.swipeRightBlock,.claude-swipe-left-proxy,.claude-swipe-right-proxy),
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) :is(.clawd-signoff-button,.claude-reroll-button) {
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mesAvatarWrapper,
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .ch_name,
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) :is(.mes_buttons,.extraMesButtons),
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > :is(.swipe_left,.swipeRightBlock,.claude-swipe-left-proxy,.claude-swipe-right-proxy),
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) :is(.clawd-signoff-button,.claude-reroll-button) {
   display:none !important;
 }
 
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mes_block {
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mes_block {
   position:relative !important;
   width:calc(100% - 60px) !important;
   max-width:none !important;
@@ -2700,7 +2700,7 @@ html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mes
   box-sizing:border-box !important;
 }
 
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_text {
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_text {
   width:100% !important;
   max-width:100% !important;
   min-width:0 !important;
@@ -2709,7 +2709,7 @@ html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_t
   box-sizing:border-box !important;
 }
 
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_text :is(.flex-container,.flex-container-centered) {
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_text :is(.flex-container,.flex-container-centered) {
   position:static !important;
   inset:auto !important;
   display:flex !important;
@@ -2722,7 +2722,7 @@ html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_t
   box-sizing:border-box !important;
 }
 
-html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_text :is(button,.menu_button) {
+html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_text :is(button,.menu_button) {
   margin:0 !important;
 }
 
@@ -2739,7 +2739,7 @@ html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_t
     padding-right:4px !important;
   }
 
-  html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) {
+  html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) {
     width:calc(100% - 8px) !important;
     max-width:calc(100% - 8px) !important;
     margin-top:-5px !important;
@@ -2747,7 +2747,7 @@ html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) .mes_t
     padding-right:4px !important;
   }
 
-  html body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mes_block {
+  html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) > .mes_block {
     width:calc(100% - 44px) !important;
     margin-left:44px !important;
   }
@@ -2797,7 +2797,7 @@ html body #form_sheld {
 }
 
 /* User message edit state */
-html body #chat > .mes[is_user="true"]:has(.edit_textarea) .mes_block {
+html:not([data-claude-archive="on"]) body #chat > .mes[is_user="true"]:has(.edit_textarea) .mes_block {
   width:min(76%,66ch) !important;
   max-width:min(76%,66ch) !important;
   min-width:min(320px,76%) !important;
@@ -2840,7 +2840,7 @@ html body #chat > .mes[is_user="true"]:has(.edit_textarea) .edit_textarea:focus 
 }
 
 @media (max-width:700px) {
-  html body #chat > .mes[is_user="true"]:has(.edit_textarea) .mes_block {
+  html:not([data-claude-archive="on"]) body #chat > .mes[is_user="true"]:has(.edit_textarea) .mes_block {
     width:88% !important;
     max-width:88% !important;
     min-width:0 !important;
@@ -2855,7 +2855,7 @@ html body #chat > .mes[is_user="true"]:has(.edit_textarea) .edit_textarea:focus 
 }
 
 /* User edit top alignment */
-html body #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name {
+html:not([data-claude-archive="on"]) body #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name {
   position:static !important;
   display:block !important;
   width:0 !important;
@@ -5383,7 +5383,7 @@ html[data-claude-archive="on"] #chat > .mes .mes_edit_buttons { opacity:1 !impor
    用户消息（is_user="true" 不匹配那条）反而守着 60ch。
    两栏一长一短、正文盖住大编号，都是这一条造成的。
    这里补上 body 和 [mesid]，压到 (1,4,2)。 */
-html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_text, .mes_reasoning_details, .mes_reasoning) {
+html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_text, .mes_reasoning_details) {
   grid-column:3 !important;
   /* 变量必须是 min() 的第一个参数。反过来写 cssstyle 会把整条丢掉，
      回归工具量出来是 max-width:none。见交接单「踩过的坑」第 1 条。 */
@@ -5403,6 +5403,44 @@ html[data-claude-archive="on"] #chat > .mes .mes_text p {
   line-height:1.92 !important;
 }
 html[data-claude-archive="on"] #chat > .mes .mes_text p:last-child { margin-bottom:0 !important; }
+
+/* 思维链正文是 .mes_reasoning_details 里面的普通后代，不是 .mes 的 grid 子项。
+   不能和 details 一起做网格归位/清零，否则时间轴内边距和操作图标都会被抹掉。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_actions {
+  display:flex !important;
+  align-items:center !important;
+  flex-wrap:wrap !important;
+  gap:4px !important;
+  margin-left:auto !important;
+  opacity:.78 !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_actions > :is(.mes_button, .menu_button) {
+  flex:0 0 24px !important;
+  width:24px !important;
+  min-width:24px !important;
+  height:24px !important;
+  min-height:24px !important;
+  margin:0 !important;
+  padding:0 !important;
+  color:var(--ar-mute) !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  font-size:12px !important;
+  opacity:.72 !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_actions > :is(.mes_button, .menu_button):hover {
+  color:var(--ar-mark) !important;
+  background:transparent !important;
+  opacity:1 !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_edit_done {
+  color:var(--ar-clay) !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details :is(.mes_reasoning_delete, .mes_reasoning_edit_cancel) {
+  color:#b84c43 !important;
+}
 
 /* 右上角的巨大空心编号。整版里最容易过头的一处，
    所以单独给一个开关属性，默认关。 */
@@ -5459,21 +5497,56 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_u
 }
 
 /* ---------- 编辑态 ----------
-   两个来源的问题，各修各的。
-
-   1) 酒馆自己给 .mes_edit_buttons 设了 bottom:5px。我们又设了 top，
-      两个方向同时存在时按钮落点会跑掉，实测压在卡片下半截上。
-      必须显式 bottom:auto，让 top 单独说了算。
-
-   2) 经典版式在「用户消息 + 编辑中」时把整张署名牌压成零尺寸
-      （html body #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name
-        { position:static; display:block; width:0; height:0; padding:0 }），
-      因为它那套是把编辑框做成右对齐卡片，署名牌碍事。
-      档案版式要保留陶土块，所以得逐项还原 —— 那条规则是 (1,4,2)，
-      下面这些补到 (1,6,2) 才压得住。 */
+   经典版式的编辑布局已经在 theme-shared.css 用 :not([data-claude-archive])
+   隔离。这里完整定义档案版式自己的定位参照、可见性和按钮尺寸，不再靠
+   经典版式的规则垫底。 */
 /* 编辑那排有 7 个图标，94px 宽下要排三行（约 90px），下边得多留出来。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name {
   padding-bottom:120px !important;
+}
+
+html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons {
+  display:flex !important;
+  align-items:center !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  padding:0 !important;
+  color:var(--ar-mark) !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons > .menu_button {
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  flex:0 0 26px !important;
+  width:26px !important;
+  min-width:26px !important;
+  height:26px !important;
+  min-height:26px !important;
+  margin:0 !important;
+  padding:0 !important;
+  color:var(--ar-mute) !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  font-size:12px !important;
+  opacity:.78 !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons > .menu_button:hover {
+  color:var(--ar-mark) !important;
+  background:transparent !important;
+  opacity:1 !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .mes_edit_buttons > .menu_button {
+  color:rgba(255,253,248,.78) !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .mes_edit_buttons > .menu_button:hover {
+  color:#fffdf8 !important;
 }
 
 html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .ch_name {
@@ -5490,8 +5563,7 @@ html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edi
   padding:46px 12px 120px 12px !important;
 }
 
-/* 经典版式在编辑态把牌子里除按钮外的东西全 display:none 了。
-   档案版式要留住编号、署名、时间。 */
+/* 档案版式编辑时继续显示编号、署名和时间。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .ch_name > *:not(.mes_edit_buttons) {
   display:flex !important;
 }
