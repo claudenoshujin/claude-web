@@ -5058,12 +5058,31 @@ html[data-claude-archive="on"] #chat > .mes .mes_text p:last-child { margin-bott
 
 /* 思维链正文是 .mes_reasoning_details 里面的普通后代，不是 .mes 的 grid 子项。
    不能和 details 一起做网格归位/清零，否则时间轴内边距和操作图标都会被抹掉。 */
+
+/* 酒馆原生给 .mes_reasoning_details 设了 position:relative（不是我们写的，
+   是酒馆自己的基础样式）。这条不去掉，.mes_reasoning_actions 想绝对定位到
+   "整条消息的右上角"就只能钉在 details 自己的窄框里，够不到 .mes 的右边缘。
+   改成 static 之后，绝对定位的容纳块会自动升级成再上一层的 .mes
+   （.mes 本来就是 position:relative，一直没变）。
+   details 内部没有其他东西依赖它自己是定位祖先，真机验证过，
+   时间轴缩进、展开动画都不受影响。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details {
+  position:static !important;
+}
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_actions {
+  position:absolute !important;
+  top:8px !important;
+  right:12px !important;
+  left:auto !important;
+  bottom:auto !important;
   display:flex !important;
   align-items:center !important;
   flex-wrap:wrap !important;
   gap:4px !important;
-  margin:0 0 0 8px !important;
+  margin:0 !important;
+  padding:2px !important;
+  background:var(--ar-card) !important;
+  z-index:5 !important;
   opacity:.78 !important;
 }
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_actions > :is(.mes_button, .menu_button) {
@@ -5180,32 +5199,41 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_u
    经典版式的编辑布局已经在 theme-shared.css 用 :not([data-claude-archive])
    隔离。这里完整定义档案版式自己的定位参照、可见性和按钮尺寸，不再靠
    经典版式的规则垫底。 */
-/* 编辑那排有 7 个图标，94px 宽下要排三行（约 90px），下边得多留出来。 */
+/* 编辑那排有 7 个图标。经过两轮真机验证，最终方案是钉在整条消息的
+   右下角（固定角落，不管正文多长都不动，也不会浮在正文中间）。
+
+   要做到这一点，.mes_edit_buttons 的绝对定位容纳块必须是 .mes 本身
+   （宽度覆盖整条消息），而不是它自己的父节点 .ch_name（只有 118px 宽的
+   编号栏）。CSS 里绝对定位永远认「最近的已定位祖先」，跳不过中间这层——
+   所以编辑态下把 .ch_name 也改成 position:static，容纳块自然升级到
+   再上一层、本来就是 position:relative 的 .mes。
+   .ch_name 自己的方格纸背景画在 ::after 上、用 inset:0 顶着 .ch_name
+   当参照系；.ch_name 变 static 后 ::after 的参照系也会跟着跳到 .mes，
+   所以要把 inset:0 换成显式的 left/top/width/height，让纹理仍然只贴
+   编号栏那 118px 宽，不要跟着摊满整条消息。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name {
-  /* 平时 align-self:start，卡片只包住编号+署名+时间，不跟正文一样高
-     （见上面 .ch_name 主规则的注释）。编辑态例外：卡片要撑满自己所在的
-     grid 行区（现在已经是 grid-row:1/-1，跨到正文/reasoning 的最后一行），
-     这样它的下边缘才会正好落在"正文真正结束的地方"，编辑按钮再靠
-     bottom:8px 贴着这条边，就等于把工具条钉在了正文下面，而不是浮在
-     正文中间——之前只用 .ch_name 自己的高度当参照系，卡片本身很矮，
-     按钮就飘在第一屏顶部，跟正文重叠。 */
-  align-self:stretch !important;
+  position:static !important;
   padding-bottom:48px !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name::after {
+  inset:auto !important;
+  left:0 !important;
+  top:0 !important;
+  width:var(--ar-folio) !important;
+  height:100% !important;
 }
 
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons {
   position:absolute !important;
-  /* 按钮节点仍然留在 .ch_name 里（不搬 DOM），只用绝对定位把视觉位置挪到
-     正文列。但 .ch_name 和 .mes_text 都是 position:relative + z-index:auto，
-     按钮又是 .ch_name 更早出现在 DOM 里的后代 —— 真机验证过，这样裸绝对定位
-     会被 .mes_text（尤其是里面那个可滚动的 <textarea>）盖住，七个图标全部
+  /* 按钮节点仍然留在 .ch_name 里（不搬 DOM）。真机验证过：裸绝对定位会被
+     .mes_text（尤其是里面那个可滚动的 <textarea>）盖住，七个图标全部
      不可见，但仍然能点中（命中测试对了，画面不对）。只加 z-index 不够，
      必须同时给一个不透明背景，让它在自己的层里整块盖过去。 */
   z-index:5 !important;
   top:auto !important;
-  right:auto !important;
+  left:auto !important;
   bottom:8px !important;
-  left:calc(var(--ar-folio) + var(--ar-gutter)) !important;
+  right:12px !important;
   display:flex !important;
   align-items:center !important;
   justify-content:flex-start !important;
@@ -5221,7 +5249,7 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   opacity:1 !important;
   visibility:visible !important;
   pointer-events:auto !important;
-  padding:0 !important;
+  padding:2px !important;
   color:var(--ar-mark) !important;
   background:var(--ar-card) !important;
   border:0 !important;
@@ -5256,7 +5284,13 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   opacity:1 !important;
 }
 html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .ch_name {
-  position:relative !important;
+  /* 这条选择器比上面通用的编辑态 .ch_name 规则多一个 [is_user="true"]，
+     特异性更高，之前一直把 position 重新判成 relative，盖掉了上面让
+     .mes_edit_buttons 改用 .mes 当容纳块的 position:static。真机上的
+     表现是：欢迎页/用户消息编辑时，工具条飞到侧栏里去了——因为它这时候
+     的容纳块变回了只有 118px 宽、又贴着页面左边的 .ch_name，right:12px
+     是相对这个 118px 宽的窄框算的，直接算到了侧栏那边。 */
+  position:static !important;
   display:flex !important;
   flex-direction:column !important;
   align-items:flex-start !important;
