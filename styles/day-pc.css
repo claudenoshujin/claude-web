@@ -4977,7 +4977,7 @@ html[data-claude-archive="on"] #chat > .mes .ch_name .mesIDDisplay {
    现象就是「点编辑之后退出键不见了」。
    解法：绝对定位到卡片正下方，宽度限死成栏宽，让它自己换行。
    两排不会同时出现 —— 编辑态下酒馆把 .mes_buttons 设成 display:none。 */
-html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_buttons, .mes_edit_buttons) {
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_buttons {
   position:absolute !important;
   /* 用 bottom 而不是 top:100%。百分比在这里解析的是 .ch_name 的内容高度
      （实测 38px）而不是卡片高度（107px），图标会落在卡片半腰上。
@@ -4999,7 +4999,7 @@ html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_buttons, .mes_e
   z-index:3 !important;
 }
 /* 不加这条图标会被挤扁，七个硬塞进 94px 里而不是换行。 */
-html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_buttons, .mes_edit_buttons) > * {
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_buttons > * {
   flex:0 0 auto !important;
   margin:0 !important;
 }
@@ -5053,7 +5053,7 @@ html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .
   align-items:center !important;
   flex-wrap:wrap !important;
   gap:4px !important;
-  margin-left:auto !important;
+  margin:0 0 0 8px !important;
   opacity:.78 !important;
 }
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_actions > :is(.mes_button, .menu_button) {
@@ -5082,6 +5082,34 @@ html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .
 }
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details :is(.mes_reasoning_delete, .mes_reasoning_edit_cancel) {
   color:#b84c43 !important;
+}
+
+/* 酒馆 1.18 编辑思维链时会把 textarea 插进仍处于 closed 状态的
+   details。浏览器会把 ::details-content 压成 0 高，输入框虽然画出来，
+   却不参与消息高度计算，随后覆盖下一条消息。编辑态强制展开内容盒。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details:has(.reasoning_edit_textarea) {
+  overflow:visible !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details:has(.reasoning_edit_textarea)::details-content {
+  display:block !important;
+  content-visibility:visible !important;
+  block-size:auto !important;
+  height:auto !important;
+  overflow:visible !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .reasoning_edit_textarea {
+  display:block !important;
+  box-sizing:border-box !important;
+  width:100% !important;
+  min-height:180px !important;
+  margin:8px 0 0 !important;
+  padding:12px 14px !important;
+  color:var(--ar-ink) !important;
+  background:var(--ar-block) !important;
+  border:1px solid var(--ar-rule) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  font:14px/1.65 var(--ar-body) !important;
 }
 
 /* 右上角的巨大空心编号。整版里最容易过头的一处，
@@ -5144,12 +5172,27 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_u
    经典版式的规则垫底。 */
 /* 编辑那排有 7 个图标，94px 宽下要排三行（约 90px），下边得多留出来。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name {
-  padding-bottom:120px !important;
+  padding-bottom:48px !important;
 }
 
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons {
+  position:absolute !important;
+  top:auto !important;
+  right:auto !important;
+  bottom:8px !important;
+  left:calc(var(--ar-folio) + var(--ar-gutter)) !important;
   display:flex !important;
   align-items:center !important;
+  justify-content:flex-start !important;
+  flex-flow:row nowrap !important;
+  gap:6px !important;
+  width:max-content !important;
+  min-width:0 !important;
+  max-width:none !important;
+  height:28px !important;
+  min-height:28px !important;
+  max-height:28px !important;
+  margin:0 !important;
   opacity:1 !important;
   visibility:visible !important;
   pointer-events:auto !important;
@@ -5159,6 +5202,9 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   border:0 !important;
   border-radius:0 !important;
   box-shadow:none !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_text:has(> .edit_textarea) {
+  padding-bottom:48px !important;
 }
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons > .menu_button {
   display:inline-flex !important;
@@ -5184,13 +5230,6 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   background:transparent !important;
   opacity:1 !important;
 }
-html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .mes_edit_buttons > .menu_button {
-  color:rgba(255,253,248,.78) !important;
-}
-html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .mes_edit_buttons > .menu_button:hover {
-  color:#fffdf8 !important;
-}
-
 html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .ch_name {
   position:relative !important;
   display:flex !important;
@@ -5202,7 +5241,7 @@ html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edi
   min-height:0 !important;
   line-height:normal !important;
   margin:0 !important;
-  padding:46px 12px 120px 12px !important;
+  padding:46px 12px 48px 12px !important;
 }
 
 /* 档案版式编辑时继续显示编号、署名和时间。 */
