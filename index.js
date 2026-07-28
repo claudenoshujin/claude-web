@@ -3149,6 +3149,31 @@ if (CLAUDE_ENABLED) {
     }
   }
 
+  /* 酒馆编辑思维链时，会把 <textarea> 插进当前仍是 closed 的 <details>，
+     不会顺手把它翻成 open。真机反复验证过：只靠 CSS 强开
+     ::details-content（display/height/overflow 都改成看得见的值）算不出
+     视觉效果——getBoundingClientRect 和 value 都对，画面还是一片空白。
+     浏览器对 closed <details> 的非 summary 内容有一层 CSS 覆盖不到的
+     内部"不渲染"状态，唯一可靠的解法是把 `open` 这个真实属性也设成 true。
+     编辑结束（textarea 消失）后，如果是我们逼开的、且没被手动重新展开过，
+     就收回去，不然会把用户原本就收起的思维链意外留在展开状态。 */
+  function expandReasoningWhileEditing() {
+    for (const box of hostDocument.querySelectorAll(
+      '#chat .mes_reasoning_details:has(.reasoning_edit_textarea)')) {
+      if (!box.open) {
+        box.dataset.clawdForceOpenForEdit = '1';
+        box.open = true;
+      }
+    }
+    for (const box of hostDocument.querySelectorAll(
+      '#chat .mes_reasoning_details[data-clawd-force-open-for-edit]')) {
+      if (!box.querySelector('.reasoning_edit_textarea')) {
+        box.removeAttribute('open');
+        delete box.dataset.clawdForceOpenForEdit;
+      }
+    }
+  }
+
   function refreshWelcomeMode(messages) {
     if (!welcomeEnabled) return;
     const real = messages.filter(m => !isWelcomeSurfaceMessage(m));
@@ -5726,6 +5751,7 @@ if (CLAUDE_ENABLED) {
     refreshComposerPhrase(typingActive);
     refreshCodeBars();
     collapseReasoning();
+    expandReasoningWhileEditing();
     /* 先确定 welcome/chat，再移动快捷按钮和刷新输入框控件。
        旧顺序会让退出对话后的第一帧仍按聊天态摆放输入框，随后才补 hero，
        页面就会出现“标题消失、输入框沉底”或整体跳位。 */

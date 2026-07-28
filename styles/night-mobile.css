@@ -5219,10 +5219,15 @@ html[data-claude-archive="on"] #chat > .mes .mesAvatarWrapper {
    短消息毛边细、长消息毛边粗，一眼就假。 */
 html[data-claude-archive="on"] #chat > .mes .ch_name {
   grid-column:1 !important;
-  grid-row:1 !important;
+  /* 跨所有行（1 到最后一行），不只是第一行。有 reasoning 的消息现在是
+     两行网格（思维链在前、正文在后，见下面 .mes_text 的自动布局），
+     .ch_name 要跟着两行一起算，编辑态才能靠 align-self:stretch 精确
+     顶到"正文真正的底部"，而不是"第一行的底部"。 */
+  grid-row:1 / -1 !important;
   /* start 而不是 stretch：卡片只包住编号+署名+时间，高度不跟正文走。
      拉满在样张里看不出问题，因为那里最长的一条也才三四行；
-     真机一条几百字，拉满就是一根几百像素的纯色长条。 */
+     真机一条几百字，拉满就是一根几百像素的纯色长条。
+     编辑态是例外，见下面 :has(.edit_textarea) 那条覆盖规则。 */
   align-self:start !important;
 
   display:flex !important;
@@ -5397,7 +5402,12 @@ html[data-claude-archive="on"] body #chat > .mes[mesid] :is(.mes_text, .mes_reas
   font-size:16.5px !important;
   line-height:1.92 !important;
 }
-html[data-claude-archive="on"] #chat > .mes .mes_text { grid-row:1 !important; }
+/* grid-row 故意不写死成 1。.mes_text 和 .mes_reasoning_details 都只定了
+   grid-column:3，行号交给自动布局按 DOM 顺序走：酒馆原生顺序是
+   reasoning 在前、正文在后，所以 reasoning 自动落第 1 行、正文自动落
+   第 2 行——没有 reasoning 的消息里，正文自己就是第 3 列唯一的项，
+   还是落在第 1 行，跟以前一样。之前这里强制 .mes_text 用 grid-row:1，
+   会把 reasoning 挤到正文后面（跟酒馆原生顺序反着来），这条规则删掉。 */
 html[data-claude-archive="on"] #chat > .mes .mes_text p {
   margin:0 0 1.02em !important;
   line-height:1.92 !important;
@@ -5530,6 +5540,14 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_u
    经典版式的规则垫底。 */
 /* 编辑那排有 7 个图标，94px 宽下要排三行（约 90px），下边得多留出来。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name {
+  /* 平时 align-self:start，卡片只包住编号+署名+时间，不跟正文一样高
+     （见上面 .ch_name 主规则的注释）。编辑态例外：卡片要撑满自己所在的
+     grid 行区（现在已经是 grid-row:1/-1，跨到正文/reasoning 的最后一行），
+     这样它的下边缘才会正好落在"正文真正结束的地方"，编辑按钮再靠
+     bottom:8px 贴着这条边，就等于把工具条钉在了正文下面，而不是浮在
+     正文中间——之前只用 .ch_name 自己的高度当参照系，卡片本身很矮，
+     按钮就飘在第一屏顶部，跟正文重叠。 */
+  align-self:stretch !important;
   padding-bottom:48px !important;
 }
 
