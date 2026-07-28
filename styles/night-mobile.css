@@ -5215,46 +5215,38 @@ html[data-claude-archive="on"] #chat > .mes .mesAvatarWrapper {
 }
 
 /* ---------- 编号栏 = 方格纸卡片 ----------
-   撕边竖向平铺。横向平铺的话波幅会随卡片高度拉伸，
-   短消息毛边细、长消息毛边粗，一眼就假。 */
+   .ch_name 同时装着档案卡片内容、普通操作键和编辑工具条。让它自己成为
+   grid 子项，会用卡片的 140px 高度撑大 reasoning 所在的第一行；让它
+   position:relative，又会把两排绝对定位按钮困在 118px 的卡片里。
+   display:contents 只解开这一层布局盒，不移动任何 DOM。卡片视觉落到
+   第一个 flex1 子层，按钮则自然以 position:relative 的 .mes 为参照。 */
 html[data-claude-archive="on"] #chat > .mes .ch_name {
-  grid-column:1 !important;
-  /* 跨所有行（1 到最后一行），不只是第一行。有 reasoning 的消息现在是
-     两行网格（思维链在前、正文在后，见下面 .mes_text 的自动布局），
-     .ch_name 要跟着两行一起算，编辑态才能靠 align-self:stretch 精确
-     顶到"正文真正的底部"，而不是"第一行的底部"。 */
-  grid-row:1 / -1 !important;
-  /* start 而不是 stretch：卡片只包住编号+署名+时间，高度不跟正文走。
-     拉满在样张里看不出问题，因为那里最长的一条也才三四行；
-     真机一条几百字，拉满就是一根几百像素的纯色长条。
-     编辑态是例外，见下面 :has(.edit_textarea) 那条覆盖规则。 */
-  align-self:start !important;
+  display:contents !important;
+  position:static !important;
+  padding:0 !important;
+  margin:0 !important;
+}
 
+/* 方格纸本体。脱离 grid 流后不会撑高 reasoning 行；节点只包署名和时间，
+   mask 也不会再裁掉它的兄弟按钮。撕边竖向平铺，卡片始终保持紧凑。 */
+html[data-claude-archive="on"] #chat > .mes .ch_name > .flex-container.flex1 {
+  position:absolute !important;
+  left:0 !important;
+  top:30px !important;
+  z-index:1 !important;
+  box-sizing:border-box !important;
   display:flex !important;
   flex-direction:column !important;
   align-items:flex-start !important;
+  justify-content:flex-start !important;
   gap:3px !important;
-  /* 上边 46px 给 ::before 里的编号，下边 48px 给悬停时出现的那排图标。
-     图标常驻预留位置而不是靠卡片临时长高 —— 长高会让整页在鼠标划过时跳动。 */
-  padding:46px 12px 48px 12px !important;
+  width:var(--ar-folio) !important;
+  min-width:var(--ar-folio) !important;
+  max-width:var(--ar-folio) !important;
+  height:auto !important;
+  min-height:140px !important;
   margin:0 !important;
-
-  /* 卡片本身不带背景也不带 mask —— mask 会连同子元素一起裁掉，
-     而 .mes_buttons 就在 .ch_name 里面，于是编辑/删除图标被卡片边缘吃了。
-     背景和撕边挪到 ::after 上，卡片自己保持透明、不裁剪。 */
-  position:relative !important;
-  background:transparent !important;
-  border:0 !important;
-  border-radius:0 !important;
-}
-
-/* 方格纸本体。铺满 .ch_name，压在内容底下。 */
-html[data-claude-archive="on"] #chat > .mes .ch_name::after {
-  content:"" !important;
-  position:absolute !important;
-  inset:0 !important;
-  z-index:-1 !important;
-  pointer-events:none !important;
+  padding:46px 12px 48px !important;
 
   background-color:var(--ar-card) !important;
   background-image:
@@ -5273,16 +5265,9 @@ html[data-claude-archive="on"] #chat > .mes .ch_name::after {
           mask-repeat:repeat-y, no-repeat !important;
 }
 
-/* 署名和日期钉在卡片顶部。
-   卡片 align-self:stretch 会撑满整行，而酒馆在 .ch_name 里套了几层
-   flex-container（带 flex1 和 alignitemscenter）。那几层会跟着长高，
-   再把文字在自己身上居中 —— 长消息里署名就跑到卡片半腰去了。
-   把它们钉成不伸缩、顶部对齐即可，卡片本身照旧撑满。 */
-html[data-claude-archive="on"] #chat > .mes .ch_name {
-  justify-content:flex-start !important;
-}
-html[data-claude-archive="on"] #chat > .mes .ch_name > *,
-html[data-claude-archive="on"] #chat > .mes .ch_name .flex-container {
+/* 署名和日期钉在卡片顶部，不随长消息伸展。 */
+html[data-claude-archive="on"] #chat > .mes .ch_name > *:not(.flex1),
+html[data-claude-archive="on"] #chat > .mes .ch_name > .flex1 .flex-container {
   flex:0 0 auto !important;
   align-items:flex-start !important;
   align-self:flex-start !important;
@@ -5334,34 +5319,28 @@ html[data-claude-archive="on"] #chat > .mes .ch_name .mesIDDisplay {
   font-variant-numeric:tabular-nums !important;
 }
 
-/* 操作按钮和编辑按钮。
-   两排都是 .ch_name 的后代 —— 也就是被塞在 118px 宽的卡片里。
-   编辑那排横着有 194px，卡片装不下；原先卡片带 mask，整排直接被裁没，
-   现象就是「点编辑之后退出键不见了」。
-   解法：绝对定位到卡片正下方，宽度限死成栏宽，让它自己换行。
-   两排不会同时出现 —— 编辑态下酒馆把 .mes_buttons 设成 display:none。 */
+/* 普通操作键放到消息右上角；reasoning 消息给它自己的三枚按钮让出一行。
+   这样铅笔不再压住编号卡上的时间，也不会掉到用户消息的陶土底边。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_buttons {
   position:absolute !important;
-  /* 用 bottom 而不是 top:100%。百分比在这里解析的是 .ch_name 的内容高度
-     （实测 38px）而不是卡片高度（107px），图标会落在卡片半腰上。
-     bottom 是纯长度，没有这个歧义。
-     另外必须显式压掉酒馆自己给 .mes_edit_buttons 设的 bottom:5px。 */
-  top:auto !important;
-  bottom:10px !important;
-  left:12px !important;
-  width:calc(var(--ar-folio) - 24px) !important;
-  max-width:none !important;
-  /* 酒馆给这个容器写死了 28px 高，三行图标会有两行掉到卡片外面。 */
+  top:8px !important;
+  right:12px !important;
+  bottom:auto !important;
+  left:auto !important;
+  width:max-content !important;
+  max-width:124px !important;
   height:auto !important;
   min-height:0 !important;
   max-height:none !important;
   flex-direction:row !important;
   flex-wrap:wrap !important;
-  justify-content:flex-start !important;
+  justify-content:flex-end !important;
   gap:6px !important;
   z-index:3 !important;
 }
-/* 不加这条图标会被挤扁，七个硬塞进 94px 里而不是换行。 */
+html[data-claude-archive="on"] body #chat > .mes.reasoning[mesid] .mes_buttons {
+  top:44px !important;
+}
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_buttons > * {
   flex:0 0 auto !important;
   margin:0 !important;
@@ -5464,6 +5443,11 @@ html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .
   background:transparent !important;
   opacity:1 !important;
 }
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_summary:focus,
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_summary:focus-visible {
+  outline:0 !important;
+  box-shadow:none !important;
+}
 html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_reasoning_details .mes_reasoning_edit_done {
   color:var(--ar-clay) !important;
 }
@@ -5523,7 +5507,7 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes::aft
 
 /* ---------- 用户消息 = 陶土平涂块 ----------
    不做气泡、不做描边、不做圆角。一块颜色压在页面上。 */
-html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name::after {
+html[data-claude-archive="on"] #chat > .mes[is_user="true"] .ch_name > .flex-container.flex1 {
   background-color:var(--ar-clay) !important;
   background-image:none !important;
 }
@@ -5549,6 +5533,20 @@ html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"] .mes_tex
   font-size:15.5px !important;
   line-height:1.8 !important;
 }
+/* .ch_name 解包后第 1 列会重新变成空位；不显式占列的话，自定义的用户
+   铅笔/删除键会被 grid 自动排进第 1 列，藏到档案卡片底下。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"] .claude-user-message-actions {
+  grid-column:4 !important;
+  grid-row:1 !important;
+  align-self:start !important;
+  justify-self:stretch !important;
+  position:relative !important;
+  z-index:4 !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+  transform:none !important;
+}
 html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_user="true"]::after {
   content:none !important;
 }
@@ -5557,52 +5555,29 @@ html[data-claude-archive="on"][data-claude-archive-ghost="on"] #chat > .mes[is_u
    经典版式的编辑布局已经在 theme-shared.css 用 :not([data-claude-archive])
    隔离。这里完整定义档案版式自己的定位参照、可见性和按钮尺寸，不再靠
    经典版式的规则垫底。 */
-/* 编辑那排有 7 个图标。经过两轮真机验证，最终方案是钉在整条消息的
-   右下角（固定角落，不管正文多长都不动，也不会浮在正文中间）。
-
-   要做到这一点，.mes_edit_buttons 的绝对定位容纳块必须是 .mes 本身
-   （宽度覆盖整条消息），而不是它自己的父节点 .ch_name（只有 118px 宽的
-   编号栏）。CSS 里绝对定位永远认「最近的已定位祖先」，跳不过中间这层——
-   所以编辑态下把 .ch_name 也改成 position:static，容纳块自然升级到
-   再上一层、本来就是 position:relative 的 .mes。
-   .ch_name 自己的方格纸背景画在 ::after 上、用 inset:0 顶着 .ch_name
-   当参照系；.ch_name 变 static 后 ::after 的参照系也会跟着跳到 .mes，
-   所以要把 inset:0 换成显式的 left/top/width/height，让纹理仍然只贴
-   编号栏那 118px 宽，不要跟着摊满整条消息。 */
-html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name {
-  position:static !important;
-  padding-bottom:48px !important;
-}
-html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_name::after {
-  inset:auto !important;
-  left:0 !important;
-  top:0 !important;
-  width:var(--ar-folio) !important;
-  height:100% !important;
-}
-
+/* 编辑那排有 7 个图标。ch_name 已经用 display:contents 解包，所以按钮节点
+   虽然仍留在原生 DOM 位置，绝对定位容纳块会直接是整条 .mes。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons {
   position:absolute !important;
-  /* 按钮节点仍然留在 .ch_name 里（不搬 DOM）。真机验证过：裸绝对定位会被
-     .mes_text（尤其是里面那个可滚动的 <textarea>）盖住，七个图标全部
-     不可见，但仍然能点中（命中测试对了，画面不对）。只加 z-index 不够，
-     必须同时给一个不透明背景，让它在自己的层里整块盖过去。 */
+  /* 放在消息右侧预留区，不再跟着长正文沉到屏幕外。有 reasoning 时下面
+     还有一条 top:44px 的覆盖，让它避开 reasoning 自己的三枚操作键。 */
   z-index:5 !important;
-  top:auto !important;
+  top:8px !important;
   left:auto !important;
-  bottom:8px !important;
-  right:12px !important;
+  bottom:auto !important;
+  right:4px !important;
   display:flex !important;
   align-items:center !important;
-  justify-content:flex-start !important;
-  flex-flow:row nowrap !important;
+  justify-content:flex-end !important;
+  flex-direction:row !important;
+  flex-wrap:wrap !important;
   gap:6px !important;
-  width:max-content !important;
-  min-width:0 !important;
-  max-width:none !important;
-  height:28px !important;
+  width:124px !important;
+  min-width:124px !important;
+  max-width:124px !important;
+  height:auto !important;
   min-height:28px !important;
-  max-height:28px !important;
+  max-height:60px !important;
   margin:0 !important;
   opacity:1 !important;
   visibility:visible !important;
@@ -5614,8 +5589,11 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   border-radius:0 !important;
   box-shadow:none !important;
 }
+html[data-claude-archive="on"] body #chat > .mes.reasoning[mesid]:has(.edit_textarea) .mes_edit_buttons {
+  top:44px !important;
+}
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_text:has(> .edit_textarea) {
-  padding-bottom:48px !important;
+  padding-bottom:0 !important;
 }
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons > .menu_button {
   display:inline-flex !important;
@@ -5641,26 +5619,6 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   background:transparent !important;
   opacity:1 !important;
 }
-html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .ch_name {
-  /* 这条选择器比上面通用的编辑态 .ch_name 规则多一个 [is_user="true"]，
-     特异性更高，之前一直把 position 重新判成 relative，盖掉了上面让
-     .mes_edit_buttons 改用 .mes 当容纳块的 position:static。真机上的
-     表现是：欢迎页/用户消息编辑时，工具条飞到侧栏里去了——因为它这时候
-     的容纳块变回了只有 118px 宽、又贴着页面左边的 .ch_name，right:12px
-     是相对这个 118px 宽的窄框算的，直接算到了侧栏那边。 */
-  position:static !important;
-  display:flex !important;
-  flex-direction:column !important;
-  align-items:flex-start !important;
-  justify-content:flex-start !important;
-  width:auto !important;
-  height:auto !important;
-  min-height:0 !important;
-  line-height:normal !important;
-  margin:0 !important;
-  padding:46px 12px 48px 12px !important;
-}
-
 /* 档案版式编辑时继续显示编号、署名和时间。 */
 html[data-claude-archive="on"] body #chat > .mes[mesid][is_user="true"]:has(.edit_textarea) .ch_name > *:not(.mes_edit_buttons) {
   display:flex !important;
@@ -5671,7 +5629,7 @@ html[data-claude-archive="on"] #chat > .mes + .mes {
   border-top:0 !important;
 }
 html[data-claude-archive="on"] #chat > .mes + .mes::marker { content:none; }
-html[data-claude-archive="on"] #chat > .mes:not(:first-child) .ch_name {
+html[data-claude-archive="on"] #chat > .mes:not(:first-child) .ch_name > .flex-container.flex1 {
   box-shadow:0 -14px 0 -12px var(--ar-mark) !important;
 }
 
@@ -5725,7 +5683,10 @@ html[data-claude-archive="on"] .clawd-rail-section-title {
     --ar-measure:100%;
   }
   html[data-claude-archive="on"] #chat > .mes::before { font-size:20px !important; top:38px !important; }
-  html[data-claude-archive="on"] #chat > .mes .ch_name { padding-top:40px !important; }
+  html[data-claude-archive="on"] #chat > .mes .ch_name > .flex-container.flex1 {
+    min-height:134px !important;
+    padding:40px 8px 42px !important;
+  }
   /* 手机上编号栏只有 78px，13px 的署名会顶到边。 */
   html[data-claude-archive="on"] #chat > .mes .ch_name .name_text {
     font-size:11px !important;
