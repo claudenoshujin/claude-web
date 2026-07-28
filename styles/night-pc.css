@@ -5177,6 +5177,13 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .ch_
 
 html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes_edit_buttons {
   position:absolute !important;
+  /* 按钮节点仍然留在 .ch_name 里（不搬 DOM），只用绝对定位把视觉位置挪到
+     正文列。但 .ch_name 和 .mes_text 都是 position:relative + z-index:auto，
+     按钮又是 .ch_name 更早出现在 DOM 里的后代 —— 真机验证过，这样裸绝对定位
+     会被 .mes_text（尤其是里面那个可滚动的 <textarea>）盖住，七个图标全部
+     不可见，但仍然能点中（命中测试对了，画面不对）。只加 z-index 不够，
+     必须同时给一个不透明背景，让它在自己的层里整块盖过去。 */
+  z-index:5 !important;
   top:auto !important;
   right:auto !important;
   bottom:8px !important;
@@ -5198,7 +5205,7 @@ html[data-claude-archive="on"] body #chat > .mes[mesid]:has(.edit_textarea) .mes
   pointer-events:auto !important;
   padding:0 !important;
   color:var(--ar-mark) !important;
-  background:transparent !important;
+  background:var(--ar-card) !important;
   border:0 !important;
   border-radius:0 !important;
   box-shadow:none !important;
