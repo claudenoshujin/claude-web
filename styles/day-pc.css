@@ -5276,6 +5276,110 @@ html[data-claude-archive="on"] #chat > .mes:not(:first-child) .ch_name > .flex-c
 }
 
 /* ==========================================================
+   书脊线：一条贯穿全部消息的竖线
+   ==========================================================
+   参考（Columbia Journalism Review）里正文左缘有一条通栏赭线，
+   从文章开头一直拉到结尾。它便宜，但作用很大 ——
+   没有它，每条消息都是孤立地浮在页面上；有了它，一屏才读成「一份印刷品」。
+
+   画在消息上不行：消息之间的空档会断线。
+   用伪元素也不行，两条都被占了 ——
+     #chat::before 是顶部那块 120px 的固定遮罩（html body #chat::before）
+     .mes_text::after 是最后一条消息的光标
+   而且绝对定位的伪元素在滚动容器里只有一屏高，滚两下线就没了。
+
+   所以画成 #chat 自己的背景，配 background-attachment:local ——
+   local 让背景跟着内容滚，repeat-y 让它铺满整个可滚动高度，不管聊天有多长。
+   注意项目里 `html body:not(.clawd-welcome) #chat` 设了 background-image:none，
+   优先级 (1,2,2)；下面这条是 (1,3,1)，要补 body 才压得住。 */
+html[data-claude-archive="on"] body:not(.clawd-welcome) #chat {
+  /* 背景没法单独设 opacity，所以直接混出淡色。
+     满色的 1px 陶土线在浅底上太跳，会变成一根栏杆而不是一条参考线。 */
+  --ar-spine:color-mix(in srgb, var(--ar-clay) 45%, transparent);
+  background-image:linear-gradient(var(--ar-spine), var(--ar-spine)) !important;
+  background-repeat:repeat-y !important;
+  background-attachment:local !important;
+  background-size:1px 24px !important;
+  /* 落在卡片和正文之间那条空档的中线上。 */
+  background-position:calc(var(--ar-folio) + var(--ar-gutter) / 2) 0 !important;
+}
+
+/* 右栏的刻度线本来想做在 .mes_text::after 上，放弃了 ——
+   项目里已经有 `#chat > .mes.last_mes[is_user="false"] .mes_text::after`
+   在用这个伪元素（最后一条消息的光标）。抢它会把光标弄没。
+   要做右栏刻度得等有个真节点可挂，或者改用 .mes_block（现在是 display:contents，
+   也不行）。先记着，不硬来。 */
+
+/* ==========================================================
+   正文排印：参考里撑起层次的那些小东西
+   ========================================================== */
+
+/* 链接下划线用 underline 而不是 border-bottom —— 前者会跟着文字断行，
+   后者在换行处会拖出一条通到行尾的横线。CJR 那种下划线就是前者。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text a {
+  color:inherit !important;
+  text-decoration:underline !important;
+  text-decoration-color:var(--ar-clay) !important;
+  text-underline-offset:.22em !important;
+  text-decoration-thickness:1px !important;
+}
+
+/* 引用块：左边一道 2px 陶土线，没有底色。
+   底色会在平涂底上糊成一块，参考里全都是只用线。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text blockquote {
+  margin:1.2em 0 !important;
+  padding:.1em 0 .1em 1.1em !important;
+  border-left:2px solid var(--ar-clay) !important;
+  background:transparent !important;
+  color:var(--ar-soft) !important;
+  font-style:normal !important;
+}
+
+/* 分节标题。参考里每个区块都有一个小标题（Spotlight / More from CJR），
+   它是「这一屏有结构」最直接的信号。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text :is(h1,h2,h3) {
+  font-family:var(--ar-display) !important;
+  font-weight:650 !important;
+  letter-spacing:.01em !important;
+  margin:1.6em 0 .5em !important;
+  padding-bottom:.3em !important;
+  border-bottom:1px solid var(--ar-line, rgba(0,0,0,.16)) !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text h1 { font-size:1.42em !important; }
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text h2 { font-size:1.2em !important; }
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text h3 {
+  font-size:1em !important;
+  text-transform:uppercase !important;
+  letter-spacing:.12em !important;
+  border-bottom:0 !important;
+  color:var(--ar-mute) !important;
+}
+
+/* 表格：只留横线，去掉竖线和外框。
+   竖线会把表格变成网格，参考里的表格都是横线制。 */
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text table {
+  border-collapse:collapse !important;
+  border:0 !important;
+  font-size:.94em !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text :is(th,td) {
+  border:0 !important;
+  border-bottom:1px solid var(--ar-line, rgba(0,0,0,.14)) !important;
+  padding:.42em .8em .42em 0 !important;
+  background:transparent !important;
+  text-align:left !important;
+}
+html[data-claude-archive="on"] body #chat > .mes[mesid] .mes_text th {
+  font-family:var(--ar-display) !important;
+  font-size:.86em !important;
+  font-weight:650 !important;
+  letter-spacing:.1em !important;
+  text-transform:uppercase !important;
+  border-bottom:2px solid var(--ar-mark) !important;
+  color:var(--ar-mark) !important;
+}
+
+/* ==========================================================
    输入框：2px 硬边，没有圆角没有阴影
    ========================================================== */
 
