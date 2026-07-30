@@ -148,6 +148,13 @@ const CLAUDE_DRAWER_TINT_OPACITY = Math.max(18, CLAUDE_BG_BLUR_OPACITY);
    得多）再配模糊，是常见磨砂玻璃的标准做法——玻璃本身只留一点点存在感，
    主要靠底下的颜色透出来，不会再糊成一片白/一片黑。 */
 const CLAUDE_GLASS_BASE = 'var(--cw-surface-page)';
+/* 手机侧边栏（#top-settings-holder，导航列表那个抽屉）反馈"看着比别处
+   淡"——它挂的是主区域那根滑条（--claude-bg-blur-opacity，最低能到
+   8%），侧边栏一开还带着系统那层黑色遮罩（.clawd-mobile-scrim，见 CSS
+   文件那边），淡玻璃 + 黑遮罩叠在一起就是发暗发灰的根源。侧边栏是导航
+   主入口，不该跟着主区域那根"用户可能调得很低"的滑条走——单独给它一个
+   更高的浓度下限，其他抽屉/弹层不受影响。 */
+const CLAUDE_NAV_TINT_OPACITY = Math.max(38, CLAUDE_BG_BLUR_OPACITY);
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
@@ -157,6 +164,7 @@ document.documentElement.dataset.claudeBgBlur = CLAUDE_BG_BLUR_ENABLED ? 'on' : 
 document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE_BG_BLUR_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
+document.documentElement.style.setProperty('--claude-nav-tint-opacity', `${CLAUDE_NAV_TINT_OPACITY}%`);
 
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
@@ -198,7 +206,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: '2.0.8-clawd-states-composer-viewport-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.9-clawd-states-composer-viewport-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -1651,7 +1659,7 @@ if (CLAUDE_ENABLED) {
          "浓度下限"变量（不再用主区域那根可能被拖到 8% 的滑条），保证顶栏
          这种常驻功能区不会因为用户把主区域调得很透就跟着一起看不清。 */
       html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
-        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-bg-blur-opacity, 22%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-nav-tint-opacity, 38%), transparent) !important;
       }
       html[data-claude-bg-blur="on"] #top-bar#top-bar {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;

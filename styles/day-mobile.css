@@ -4054,7 +4054,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     padding:0 !important;
     border:0 !important;
     border-radius:0 !important;
-    background:rgba(0,0,0,.38) !important;
+    background:rgba(0,0,0,.2) !important;
     opacity:0 !important;
     pointer-events:none !important;
     transition:opacity 180ms ease !important;
