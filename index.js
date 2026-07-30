@@ -166,10 +166,12 @@ const CLAUDE_EXTENSION_REPO = 'https://github.com/claudenoshujin/claude-web';
 
 const CLAUDE_THEME = CLAUDE_THEMES[CLAUDE_THEME_VARIANT];
 
-const CLAUDE_STYLE_HREF = new URL(
+const CLAUDE_STYLE_URL = new URL(
   'styles/' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '.css',
   CLAUDE_EXTENSION_BASE,
-).href;
+);
+CLAUDE_STYLE_URL.searchParams.set('v', CLAUDE_KEYBOARD_BUILD.id);
+const CLAUDE_STYLE_HREF = CLAUDE_STYLE_URL.href;
 
 console.info(
   '[Claude Web] 扩展形态启动：' + CLAUDE_THEME_VARIANT + ' / ' + CLAUDE_LAYOUT
