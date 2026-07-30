@@ -1645,8 +1645,16 @@ if (CLAUDE_ENABLED) {
          "id 数量相同时比类的数量，类数量相同时比标签数量"这条比较规则，
          我最早只对比了 :is(...) 那一条基础规则，漏看了这条专门给
          "挂在侧栏rail 下的抽屉"加的更具体规则。下面单独给这条更具体的
-         选择器也补一份同样的半透明色，才能真正盖过去。 */
-      html body #top-settings-holder > .drawer > .drawer-content {
+         选择器也补一份同样的半透明色，才能真正盖过去。
+
+         手机布局（day-mobile.css / night-mobile.css）比 PC 布局那条又多
+         叠了一个 ".openDrawer" 状态类——"html body #top-settings-holder >
+         .drawer > .drawer-content.openDrawer"，比上面这条 PC 端够用的
+         选择器又高一级（多一个类），手机窄屏下实测抽屉还是纯色，就是被
+         这条压过去了。这里把 .openDrawer 变体也一起列出来，两个布局
+         都能盖住，不用再赌“加载顺序刚好在后面”那种运气。 */
+      html body #top-settings-holder > .drawer > .drawer-content,
+      html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
         background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
         background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
