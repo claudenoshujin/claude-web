@@ -206,7 +206,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: '2.0.9-clawd-states-composer-viewport-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.1.0-clawd-states-composer-viewport-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -1688,14 +1688,16 @@ if (CLAUDE_ENABLED) {
         --cw-text-muted: color-mix(in srgb, var(--cw-ink-2) 55%, var(--cw-text-body) 45%) !important;
       }
 
-      /* 抽屉/弹层固定磨砂：世界书、扩展、角色管理、User Settings 这些
-         .drawer-content/.popup 面板不受上面 bgBlur/bgTransparent 两个开关
-         控制——它们本来就不该跟着背景透传开关走，不然背景透传关掉时它们
-         又变回纯色，跟旁边区域的磨砂质感对不上，显得割裂。这里只给半透明
-         底色，不加 backdrop-filter：这些面板种类太多（世界书编辑器、
-         角色卡编辑、Prompt 管理二级弹层……），有没有内部套 fixed 定位子
-         元素没法逐个跑一遍去确认，为了不重蹈 #top-settings-holder 那次
-         "抽屉锁死打不开"的坑，这里只做半透明色调、不做真实模糊。
+      /* 抽屉/弹层磨砂：世界书、扩展、角色管理、User Settings 这些
+         .drawer-content/.popup 面板。这里原来是不受 bgBlur/bgTransparent
+         两个开关控制、常驻磨砂的——当时的顾虑是"背景透传关掉时它们又变回
+         纯色，跟旁边区域对不上"。但反馈是背景透传本来就关着（没人要透传）
+         的"常态"下，抽屉却硬带了一层磨砂感，不必要——用户没开这个功能，
+         抽屉就该是主题原本的纯色，不该有任何磨砂痕迹。这里改成跟主区域
+         一样受 data-claude-bg-transparent 控制，关闭时完全回退到主题
+         原生样式。
+         下面这两条规则现在都挂在 data-claude-bg-transparent="on" 底下，
+         关掉背景透传就完全不生效，抽屉/弹窗自动回到主题原生的纯色。
          Prompt 管理二级弹层（#completion_prompt_manager_popup.openDrawer）
          有自己专门的不透明规则、选择器带 id，优先级比这条高，不会被这里
          的半透明覆盖掉——之前特意做成不透明就是防止列表和固定输入框从
@@ -1731,14 +1733,14 @@ if (CLAUDE_ENABLED) {
          把它变成了里面 fixed 抽屉的定位基准，导致抽屉挤扁/关不掉——这次
          是直接加在抽屉本身，不是加在抽屉的祖先上，两者不是一回事，真机
          测试开关各个抽屉正常。 */
-      html body #top-settings-holder > .drawer > .drawer-content,
-      html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+      html[data-claude-bg-transparent="on"] body #top-settings-holder > .drawer > .drawer-content,
+      html[data-claude-bg-transparent="on"] body #top-settings-holder > .drawer > .drawer-content.openDrawer {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         backdrop-filter: blur(20px) saturate(1.25) !important;
         -webkit-backdrop-filter: blur(20px) saturate(1.25) !important;
       }
-      html :is(.drawer-content, .popup, .popup-content) {
+      html[data-claude-bg-transparent="on"] :is(.drawer-content, .popup, .popup-content) {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         backdrop-filter: blur(20px) saturate(1.25) !important;

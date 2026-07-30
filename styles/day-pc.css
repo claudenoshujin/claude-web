@@ -922,7 +922,12 @@ body:has(.typing_indicator:not(.displayNone):not([style*="display: none"]):not([
 }
 .select2-results__option {
   min-height:34px;
-  padding:7px 10px !important;
+  /* 酒馆原生 select2-overrides.css 给每一行都画了个 14px 的方形复选框，
+     绝对定位在 left:6px，指望这里的左内边距能让出空间给它站。这条规则
+     原来给的是 10px，勾选框实际占到 20px 左右，文字紧跟着 10px 就起排，
+     跟复选框叠在一起——尤其是选中态那个 "✓"，正好糊在名字第一个字上。
+     左内边距加到 30px，给复选框留出足够空间，不再跟文字打架。 */
+  padding:7px 10px 7px 30px !important;
   font-family:var(--cl-sans) !important;
   font-size:.9em;
 }

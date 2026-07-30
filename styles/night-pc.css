@@ -922,7 +922,9 @@ body:has(.typing_indicator:not(.displayNone):not([style*="display: none"]):not([
 }
 .select2-results__option {
   min-height:34px;
-  padding:7px 10px !important;
+  /* 同 day-pc.css：给原生的方形复选框（left:6px, 宽14px）留出空间，
+     不然文字和勾选框会叠在一起。 */
+  padding:7px 10px 7px 30px !important;
   font-family:var(--cl-sans) !important;
   font-size:.9em;
 }
