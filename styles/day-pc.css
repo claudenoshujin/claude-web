@@ -4846,7 +4846,12 @@ html body #chat .mes_edit_buttons > .menu_button {
 }
 
 /* User Settings still exposes SillyTavern's dark gradient section headers. */
-html body #user-settings-block-content h4.title_restorable {
+html body #user-settings-block-content h4 {
+  display:flex !important;
+  align-items:center !important;
+  min-height:38px !important;
+  padding:6px 10px !important;
+  box-sizing:border-box !important;
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-raised) !important;
   border:1px solid var(--cw-rule-hairline) !important;
