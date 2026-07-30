@@ -1709,7 +1709,16 @@ if (CLAUDE_ENABLED) {
          用跟 --SmartThemeBlurTintColor 一样的思路根治：不跟它比优先级，
          直接把它读的这个变量本身重新定义掉，开了背景透传之后聊天页输入条
          也统一吃我们这根浓度滑条。 */
-      html[data-claude-bg-transparent="on"] {
+      /* 光在 html 上重定义这个变量不够——day-pc.css 里 --cl-composer-chat
+         的原始定义写在 ":root, html body" 上，body 那份是直接扎在 body
+         元素自己身上的（哪怕没有 !important），CSS 自定义属性的继承规则
+         是"元素自己身上只要有声明就不再看祖先的继承值"，跟那份声明是不是
+         important 无关——important 只在同一个元素上争夺胜负时才起作用。
+         所以我们挂在 html 上的 !important 版本永远赢不过 body 自己那份，
+         必须直接把 body 也纳入选择器，声明才会落在 body 自己头上，盖掉
+         day-pc.css 那份。 */
+      html[data-claude-bg-transparent="on"],
+      html[data-claude-bg-transparent="on"] body {
         --cl-composer-chat: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
 
