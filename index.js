@@ -1583,16 +1583,21 @@ if (CLAUDE_ENABLED) {
          fixed 面板，一旦祖先带上 backdrop-filter 就被摁进侧栏那个又窄
          又裁切的盒子里，表现是点了打不开、开着的关不掉。之前那版侧栏
          也叠了 blur，线上直接把抽屉全部糊死，是我漏测的坑。
-         #sheld/#chat/#send_form/#form_sheld 这几个底下不挂抽屉，
-         可以放心用完整的模糊效果。 */
+
+         模糊只上在 #sheld 这一层——#chat、#form_sheld（连带里面的
+         #send_form）都是 #sheld 的子元素，之前四个都各自叠了一层
+         color-mix + blur，子元素的盒子比父元素小一圈（欢迎页尤其明显，
+         问候语和输入框那块是居中的窄盒子），两层模糊叠在一起、且子盒子
+         边缘只有单层父级模糊，就在子盒子的四条边上刷出一圈实打实的
+         "描边"——用户反馈的欢迎语外框就是这个。#chat/#form_sheld/
+         #send_form 这里不再单独给背景和滤镜，留空之后background-transparent
+         那条规则已经把它们设成透明了，会自然透出 #sheld 这一层模糊后的
+         底色，不会再有二次模糊/二次描边。 */
       html[data-claude-bg-blur="on"] #top-bar#top-bar,
       html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
         background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
       }
-      html[data-claude-bg-blur="on"] #sheld#sheld,
-      html[data-claude-bg-blur="on"] #chat#chat,
-      html[data-claude-bg-blur="on"] #send_form#send_form,
-      html[data-claude-bg-blur="on"] #form_sheld#form_sheld {
+      html[data-claude-bg-blur="on"] #sheld#sheld {
         background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
         backdrop-filter: blur(16px) saturate(1.08) !important;
         -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
