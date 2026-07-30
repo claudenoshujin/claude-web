@@ -1697,6 +1697,22 @@ if (CLAUDE_ENABLED) {
         --SmartThemeBlurTintColor: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
 
+      /* 真正在真实聊天页（非欢迎页）里把 #send_form 顶掉、让接缝 bug 复现的
+         另有其人：day-pc.css/day-mobile.css 里还定义了一条只在聊天页生效
+         的选择器 html body:not(.clawd-welcome) #form_sheld :is(#send_form,
+         form)，专门给输入条上了 --cl-composer-chat 这个变量（88% 正文底色
+         + 5% 文字色，接近不透明），本意是"聊天区里输入条要比正文更醒目"。
+         这条规则比我们上面给 #send_form#send_form 写的那条选择器还多两层
+         元素（html body），优先级压过我们，欢迎页不受影响（有 .clawd-welcome
+         挡着），一进真实聊天就现形——这才是"新bug"截图里那条硬边的真身，
+         不是简单的双层色调叠加。
+         用跟 --SmartThemeBlurTintColor 一样的思路根治：不跟它比优先级，
+         直接把它读的这个变量本身重新定义掉，开了背景透传之后聊天页输入条
+         也统一吃我们这根浓度滑条。 */
+      html[data-claude-bg-transparent="on"] {
+        --cl-composer-chat: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+      }
+
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
       html[data-claude-motion="off"] button.${BUTTON_CLASS}::before,
       html[data-claude-motion="off"] button.clawd-mobile-clawd-button,
