@@ -136,12 +136,18 @@ const CLAUDE_BG_BLUR_OPACITY = (() => {
   if (!Number.isFinite(num)) return 22;
   return Math.min(60, Math.max(8, Math.round(num)));
 })();
-/* 抽屉/弹层没有模糊滤镜兜底（怕再踩 fixed 定位那个坑，只给半透明色调，
-   不加 backdrop-filter），世界书编辑器、User Settings 这些字多的面板，
-   如果直接用上面那个可能被用户调得很低的浓度，没有模糊柔化，底下背景图
-   一透，字会花。这里给抽屉单独设个下限，用户把主区域调得再透，抽屉本身
-   至少保持這个浓度，不牺牲这些功能面板的可读性。 */
+/* 世界书编辑器、User Settings 这些字多的面板，如果直接用上面那个可能被
+   用户调得很低的浓度，字会花——现在这些抽屉/弹层自己也带了 backdrop-filter
+   模糊（见下面 CSS），但色调这层还是单独设个下限，两层一起兜底可读性，
+   用户把主区域调得再透，抽屉本身至少保持這个浓度。 */
 const CLAUDE_DRAWER_TINT_OPACITY = Math.max(68, CLAUDE_BG_BLUR_OPACITY);
+/* 抽屉/弹层、聊天区、输入条这些"磨砂玻璃"表面统一用一个跟日夜主题脱钩的
+   中性灰做底色，不再用 --cw-surface-page（日间是纸白 #f8f8f6、夜间是
+   近黑 #1f1f1e）。之前日间在低浓度时，白色底色几乎不提供对比度，背景一
+   复杂文字就花；用中性灰打底，哪怕调到最低浓度，底色本身也还有一定明度
+   差，不会跟白纸一样被背景直接吃掉。日夜用同一个值，看起来才是统一的
+   "磨砂玻璃"质感，而不是"日间蒙了层白纱、夜间蒙了层黑纱"两种不同效果。 */
+const CLAUDE_GLASS_BASE = '#96968f';
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
@@ -150,6 +156,7 @@ document.documentElement.dataset.claudeBgTransparent = CLAUDE_BG_TRANSPARENT_ENA
 document.documentElement.dataset.claudeBgBlur = CLAUDE_BG_BLUR_ENABLED ? 'on' : 'off';
 document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE_BG_BLUR_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
+document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
 
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
@@ -1603,8 +1610,8 @@ if (CLAUDE_ENABLED) {
          ——这本来就是原设计里唯一带独立底色的控件，边界是有意的（一个
          圆角药丸形状的控件轮廓，不是贯穿整行的硬切线），不算视觉割裂。 */
       html[data-claude-bg-transparent="on"] #send_form#send_form {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
         background-image: none !important;
       }
 
@@ -1634,10 +1641,10 @@ if (CLAUDE_ENABLED) {
          底色，不会再有二次模糊/二次描边。 */
       html[data-claude-bg-blur="on"] #top-bar#top-bar,
       html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-bg-blur-opacity, 22%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-bg-blur-opacity, 22%), transparent) !important;
       }
       html[data-claude-bg-blur="on"] #sheld#sheld {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-bg-blur-opacity, 22%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-bg-blur-opacity, 22%), transparent) !important;
         backdrop-filter: blur(16px) saturate(1.08) !important;
         -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
       }
@@ -1687,14 +1694,14 @@ if (CLAUDE_ENABLED) {
          测试开关各个抽屉正常。 */
       html body #top-settings-holder > .drawer > .drawer-content,
       html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
         backdrop-filter: blur(16px) saturate(1.08) !important;
         -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
       }
       html :is(.drawer-content, .popup, .popup-content) {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
         backdrop-filter: blur(16px) saturate(1.08) !important;
         -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
       }
@@ -1711,7 +1718,7 @@ if (CLAUDE_ENABLED) {
          受益），背景会自动跟着我们的日夜色调和毛玻璃浓度滑条走，不用每
          冒出一个新扩展就单独打一次补丁。 */
       html {
-        --SmartThemeBlurTintColor: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        --SmartThemeBlurTintColor: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
       }
 
       /* 真正在真实聊天页（非欢迎页）里把 #send_form 顶掉、让接缝 bug 复现的
@@ -1736,7 +1743,7 @@ if (CLAUDE_ENABLED) {
          day-pc.css 那份。 */
       html[data-claude-bg-transparent="on"],
       html[data-claude-bg-transparent="on"] body {
-        --cl-composer-chat: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        --cl-composer-chat: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
       }
 
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
