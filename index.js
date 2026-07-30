@@ -1578,15 +1578,31 @@ if (CLAUDE_ENABLED) {
       html[data-claude-bg-transparent="on"] #top-bar#top-bar,
       html[data-claude-bg-transparent="on"] #top-settings-holder#top-settings-holder,
       html[data-claude-bg-transparent="on"] #sheld#sheld,
-      html[data-claude-bg-transparent="on"] #chat#chat,
-      html[data-claude-bg-transparent="on"] #send_form#send_form,
-      html[data-claude-bg-transparent="on"] #form_sheld#form_sheld {
+      html[data-claude-bg-transparent="on"] #chat#chat {
         background: transparent !important;
         background-color: transparent !important;
         background-image: none !important;
       }
       html[data-claude-bg-transparent="on"] #chat#chat::before {
         background: transparent !important;
+      }
+      /* 输入框（#send_form/#form_sheld）不跟着上面这批走完全透明——PC 和
+         手机两套布局里它们在 DOM 里挂的位置不一样：手机端是 #sheld 的
+         直接子元素，天然能透出 #sheld 那层已经做过模糊处理的底色；PC 端
+         不是这样挂的，同样设成 transparent 之后背后没有任何模糊层顶着，
+         直接把最原始、没模糊过的背景图硬生生露出来，跟手机端看着完全是
+         两种效果——用户反馈"PC 端不透明"，根子就是这个布局差异，不是
+         单纯的优先级问题。
+         干脆不依赖"透出父层模糊"这条路径，直接给输入框自己一份固定的
+         半透明色调（用跟抽屉一样的 --claude-drawer-tint-opacity 这个
+         带下限的浓度），不管 PC 还是手机、不管 #sheld 那层模糊算不算数，
+         输入框永远是"看得见背景但不刺眼、字也认得清"的同一种效果，不用
+         再猜它此刻是完全透明还是完全实心。 */
+      html[data-claude-bg-transparent="on"] #send_form#send_form,
+      html[data-claude-bg-transparent="on"] #form_sheld#form_sheld {
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background-image: none !important;
       }
 
       /* 毛玻璃：在透传的基础上，给内容区（不含 html/body 这两层最外层）
