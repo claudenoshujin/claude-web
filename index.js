@@ -1634,9 +1634,35 @@ if (CLAUDE_ENABLED) {
          Prompt 管理二级弹层（#completion_prompt_manager_popup.openDrawer）
          有自己专门的不透明规则、选择器带 id，优先级比这条高，不会被这里
          的半透明覆盖掉——之前特意做成不透明就是防止列表和固定输入框从
-         底下透出来，这里不用重复处理。 */
+         底下透出来，这里不用重复处理。
+
+         这条规则第一版上线后实测完全没生效（真机截图侧栏抽屉还是纯白/纯
+         黑），backdrop plugin这里排查了很久：day-pc.css 里还有一条更具体的
+         "#top-settings-holder > .drawer > .drawer-content { background:
+         var(--cw-surface-page) !important; ... }"，选择器带一个 id 两个类，
+         优先级 (1,2,0)，比这条 :is(...) 单类选择器的 (0,1,1) 高得多，
+         哪怕后加载、哪怕 !important，也照样是它赢——具体到 CSS 里就是
+         "id 数量相同时比类的数量，类数量相同时比标签数量"这条比较规则，
+         我最早只对比了 :is(...) 那一条基础规则，漏看了这条专门给
+         "挂在侧栏rail 下的抽屉"加的更具体规则。下面单独给这条更具体的
+         选择器也补一份同样的半透明色，才能真正盖过去。 */
+      html body #top-settings-holder > .drawer > .drawer-content {
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+      }
       html :is(.drawer-content, .popup, .popup-content) {
         background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+      }
+      /* 背景管理面板（世界书/角色管理旁边那个"背景"抽屉）自己有个固定顶栏
+         #bg-header-fixed，用的是酒馆原生 --SmartThemeBlurTintColor 变量，
+         不是我们主题的 --cw-surface-page——这俩没有绑定关系，酒馆原生这个
+         变量当前值偏深色，跟日间模式下浅色的抽屉正文拼在一起就是一截黑色
+         的"Add Background"横条杵在白色面板顶上，明暗不一致。只在这一个
+         元素上用我们自己的浅色调色，不去动 --SmartThemeBlurTintColor 本身
+         ——那个变量别处也在用，改了影响面不可控，这里按元素单点修。 */
+      html #bg-header-fixed {
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
 
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
