@@ -118,17 +118,16 @@ const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'of
 const CLAUDE_MOTION_ENABLED = claudeReadSetting('motion', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'], 'on') !== 'off';
 /* 生成计时器默认开——是个实用小组件，不是装饰。
-   侧栏图标、背景透传、毛玻璃默认关——都是外观改动，不该在没人要求的情况下
-   突然把原本的白底/黑底换成透明，或者把侧栏图标藏起来。 */
+   背景透传、毛玻璃默认关——都是外观改动，不该在没人要求的情况下
+   突然把原本的白底/黑底换成透明。
+   （侧栏图标开关已废弃移除：实测在真机上不生效，留着只会误导用户。） */
 const CLAUDE_GEN_TIMER_ENABLED = claudeReadSetting('genTimer', ['on', 'off'], 'on') !== 'off';
-const CLAUDE_RAIL_ICONS_ENABLED = claudeReadSetting('railIcons', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_BG_TRANSPARENT_ENABLED = claudeReadSetting('bgTransparent', ['on', 'off'], 'off') === 'on';
 const CLAUDE_BG_BLUR_ENABLED = claudeReadSetting('bgBlur', ['on', 'off'], 'off') === 'on';
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeGenTimer = CLAUDE_GEN_TIMER_ENABLED ? 'on' : 'off';
-document.documentElement.dataset.claudeRailIcons = CLAUDE_RAIL_ICONS_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgTransparent = CLAUDE_BG_TRANSPARENT_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgBlur = CLAUDE_BG_BLUR_ENABLED ? 'on' : 'off';
 
@@ -1541,39 +1540,47 @@ if (CLAUDE_ENABLED) {
         .clawd-gen-timer { transition: none !important; }
       }
 
-      /* 侧栏图标开关：只藏图标字形，不改按钮的可点击区域和布局尺寸——
-         用 visibility 而不是 display，省得图标一关整排按钮宽度跟着塌。
-         输入框（send_form 系列）的图标不在 #top-settings-holder 范围里，
-         不受影响。 */
-      html[data-claude-rail-icons="off"] #top-settings-holder .drawer-icon,
-      html[data-claude-rail-icons="off"] #top-settings-holder :is(.fa, .fas, .fa-solid, .far, .fa-regular, .fab, .fa-brands) {
-        visibility: hidden !important;
-      }
-
-      /* 背景透传：主题原本给 body/#sheld/#chat/输入区整片刷了不透明的
-         --cw-surface-page（也就是现在的白底/黑底），把酒馆自己的背景图
-         盖住了。这里只清空这几层的背景色，不碰 background-image——
-         酒馆的背景图挂在更底层的元素上，本来就没被这几层挡住内容，
-         挡住的只是"看不看得见"。 */
+      /* 背景透传：主题原本给 body/侧栏（#top-bar、#top-settings-holder）/
+         正文（#sheld、#chat，含 #chat::before 顶部遮罩条）/输入区整片刷了
+         不透明的 --cw-surface-page（也就是现在的白底/黑底），把酒馆自己的
+         背景图盖住了；欢迎语页面用的是同一批容器，一起覆盖到就不用再单独
+         处理。这里只清空这几层的背景色，不碰 background-image——酒馆的
+         背景图挂在更底层的元素上，本来就没被这几层挡住内容，挡住的只是
+         "看不看得见"。
+         注意 #foo#foo 的重复写法不是笔误：主题原样式里同名选择器很多是
+         "html body #foo" 这种三段式，优先级比这边挂在 html 属性选择器上的
+         单个 id 选择器更高，重复一次 id 才能确保稳赢，不必依赖样式表谁先
+         加载谁后加载。（上一版只覆盖了 body/#sheld/#chat/#send_form/
+         #form_sheld，漏了侧栏和 #chat::before，真机测出侧栏、正文区域、
+         欢迎语区域都还是不透的，就是因为这个。） */
       html[data-claude-bg-transparent="on"],
       html[data-claude-bg-transparent="on"] body,
-      html[data-claude-bg-transparent="on"] #sheld,
-      html[data-claude-bg-transparent="on"] #chat,
-      html[data-claude-bg-transparent="on"] #send_form,
-      html[data-claude-bg-transparent="on"] #form_sheld {
+      html[data-claude-bg-transparent="on"] #top-bar#top-bar,
+      html[data-claude-bg-transparent="on"] #top-settings-holder#top-settings-holder,
+      html[data-claude-bg-transparent="on"] #sheld#sheld,
+      html[data-claude-bg-transparent="on"] #chat#chat,
+      html[data-claude-bg-transparent="on"] #send_form#send_form,
+      html[data-claude-bg-transparent="on"] #form_sheld#form_sheld {
         background: transparent !important;
         background-color: transparent !important;
+        background-image: none !important;
+      }
+      html[data-claude-bg-transparent="on"] #chat#chat::before {
+        background: transparent !important;
       }
 
       /* 毛玻璃：在透传的基础上，给内容区（不含 html/body 这两层最外层）
          补一层很浅的同色调半透明底 + 模糊，读起来是"隔着磨砂玻璃看背景"，
          不是完全透明导致文字糊在背景图上看不清。设置面板里这个开关依赖
          背景透传先开，两个都关掉时都不生效，不会出现"糊了但看不出透明"
-         的死角状态。 */
-      html[data-claude-bg-blur="on"] #sheld,
-      html[data-claude-bg-blur="on"] #chat,
-      html[data-claude-bg-blur="on"] #send_form,
-      html[data-claude-bg-blur="on"] #form_sheld {
+         的死角状态。侧栏也一起给毛玻璃，不然会出现"正文和输入区磨砂、
+         侧栏完全透明"的不协调断层。 */
+      html[data-claude-bg-blur="on"] #top-bar#top-bar,
+      html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder,
+      html[data-claude-bg-blur="on"] #sheld#sheld,
+      html[data-claude-bg-blur="on"] #chat#chat,
+      html[data-claude-bg-blur="on"] #send_form#send_form,
+      html[data-claude-bg-blur="on"] #form_sheld#form_sheld {
         background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
         backdrop-filter: blur(16px) saturate(1.08) !important;
         -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
@@ -6901,10 +6908,6 @@ if (CLAUDE_ENABLED) {
 
           <label for="claude-web-variant">明暗</label>
           <select id="claude-web-variant" class="text_pole"></select>
-          <div style="display:flex;gap:6px;margin-top:6px">
-            <button id="claude-web-day" class="menu_button">日间</button>
-            <button id="claude-web-night" class="menu_button">夜间</button>
-          </div>
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
           <select id="claude-web-layout" class="text_pole"></select>
@@ -6929,10 +6932,6 @@ if (CLAUDE_ENABLED) {
 
           <hr style="margin:10px 0;opacity:.25">
           <div style="font-weight:600;margin-bottom:6px">界面</div>
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
-            <input id="claude-web-rail-icons" type="checkbox">
-            <span>显示侧栏图标</span>
-          </label>
           <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
             <input id="claude-web-bg-transparent" type="checkbox">
             <span>背景透传（显示酒馆背景，而不是白底/黑底）</span>
@@ -7352,15 +7351,6 @@ if (CLAUDE_ENABLED) {
       if (ok) describe();
     });
 
-    panel.querySelector('#claude-web-day')?.addEventListener('click', () => {
-      variantSelect.value = 'day';
-      variantSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    panel.querySelector('#claude-web-night')?.addEventListener('click', () => {
-      variantSelect.value = 'night';
-      variantSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-
     layoutSelect.addEventListener('change', () => {
       if (!write('layout', layoutSelect.value)) return;
       hint.textContent = '正在切换布局…';
@@ -7385,13 +7375,6 @@ if (CLAUDE_ENABLED) {
     genTimerBox.addEventListener('change', () => {
       if (!write('genTimer', genTimerBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeGenTimer = genTimerBox.checked ? 'on' : 'off';
-    });
-
-    const railIconsBox = panel.querySelector('#claude-web-rail-icons');
-    railIconsBox.checked = read('railIcons', ['on', 'off'], 'on') !== 'off';
-    railIconsBox.addEventListener('change', () => {
-      if (!write('railIcons', railIconsBox.checked ? 'on' : 'off')) return;
-      document.documentElement.dataset.claudeRailIcons = railIconsBox.checked ? 'on' : 'off';
     });
 
     const bgTransparentBox = panel.querySelector('#claude-web-bg-transparent');
