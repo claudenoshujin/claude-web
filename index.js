@@ -1670,8 +1670,14 @@ if (CLAUDE_ENABLED) {
          保障没了。开了背景透传之后，把这个次要文字色朝主文字色（对比度
          最高、每个主题下都验证过可读）拉近一截，不管日夜、不管背景图什么
          内容，都能保住一个最低对比度。 */
+      /* 这里不能写成 var(--cw-text-muted) 55% 混自己——--cw-text-muted
+         自己就是这条规则要重新定义的目标，同一个变量在自己的定义里引用
+         自己，CSS 会判定为循环引用，直接判无效（invalid at computed-value
+         time），实测 getComputedStyle 读出来是空字符串，规则等于白写。
+         改成引用 --cw-ink-2——这是 --cw-text-muted 在主题里真正指向的
+         底层色号，跟目标变量不是同一个名字，就不会自我循环了。 */
       html[data-claude-bg-transparent="on"] {
-        --cw-text-muted: color-mix(in srgb, var(--cw-text-muted) 55%, var(--cw-text-body) 45%) !important;
+        --cw-text-muted: color-mix(in srgb, var(--cw-ink-2) 55%, var(--cw-text-body) 45%) !important;
       }
 
       /* 抽屉/弹层固定磨砂：世界书、扩展、角色管理、User Settings 这些
