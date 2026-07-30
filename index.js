@@ -124,12 +124,32 @@ const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'
 const CLAUDE_GEN_TIMER_ENABLED = claudeReadSetting('genTimer', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_BG_TRANSPARENT_ENABLED = claudeReadSetting('bgTransparent', ['on', 'off'], 'off') === 'on';
 const CLAUDE_BG_BLUR_ENABLED = claudeReadSetting('bgBlur', ['on', 'off'], 'off') === 'on';
+/* 毛玻璃浓度：8~60 之间的整数，表示 color-mix 里 --cw-surface-page 的占比。
+   数字越大越"糊"（底色更浓、越不透）；越小越接近纯透明。允许字符串是
+   开区间，这里手动做数值校验和夹取，claudeReadSetting 那套白名单机制
+   不适合连续数值。抽屉/弹层固定用同一个值上磨砂——它们不受
+   bgBlur/bgTransparent 开关控制，用户要的是"不管开不开，抽屉始终是磨砂"。 */
+const CLAUDE_BG_BLUR_OPACITY = (() => {
+  let raw = null;
+  try { raw = window.localStorage.getItem('claude-web:bgBlurOpacity'); } catch { /* 无痕/被禁用时用默认值 */ }
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return 22;
+  return Math.min(60, Math.max(8, Math.round(num)));
+})();
+/* 抽屉/弹层没有模糊滤镜兜底（怕再踩 fixed 定位那个坑，只给半透明色调，
+   不加 backdrop-filter），世界书编辑器、User Settings 这些字多的面板，
+   如果直接用上面那个可能被用户调得很低的浓度，没有模糊柔化，底下背景图
+   一透，字会花。这里给抽屉单独设个下限，用户把主区域调得再透，抽屉本身
+   至少保持這个浓度，不牺牲这些功能面板的可读性。 */
+const CLAUDE_DRAWER_TINT_OPACITY = Math.max(45, CLAUDE_BG_BLUR_OPACITY);
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeGenTimer = CLAUDE_GEN_TIMER_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgTransparent = CLAUDE_BG_TRANSPARENT_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgBlur = CLAUDE_BG_BLUR_ENABLED ? 'on' : 'off';
+document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE_BG_BLUR_OPACITY}%`);
+document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
 
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
@@ -1595,12 +1615,28 @@ if (CLAUDE_ENABLED) {
          底色，不会再有二次模糊/二次描边。 */
       html[data-claude-bg-blur="on"] #top-bar#top-bar,
       html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
-        background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-bg-blur-opacity, 22%), transparent) !important;
       }
       html[data-claude-bg-blur="on"] #sheld#sheld {
-        background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-bg-blur-opacity, 22%), transparent) !important;
         backdrop-filter: blur(16px) saturate(1.08) !important;
         -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+      }
+
+      /* 抽屉/弹层固定磨砂：世界书、扩展、角色管理、User Settings 这些
+         .drawer-content/.popup 面板不受上面 bgBlur/bgTransparent 两个开关
+         控制——它们本来就不该跟着背景透传开关走，不然背景透传关掉时它们
+         又变回纯色，跟旁边区域的磨砂质感对不上，显得割裂。这里只给半透明
+         底色，不加 backdrop-filter：这些面板种类太多（世界书编辑器、
+         角色卡编辑、Prompt 管理二级弹层……），有没有内部套 fixed 定位子
+         元素没法逐个跑一遍去确认，为了不重蹈 #top-settings-holder 那次
+         "抽屉锁死打不开"的坑，这里只做半透明色调、不做真实模糊。
+         Prompt 管理二级弹层（#completion_prompt_manager_popup.openDrawer）
+         有自己专门的不透明规则、选择器带 id，优先级比这条高，不会被这里
+         的半透明覆盖掉——之前特意做成不透明就是防止列表和固定输入框从
+         底下透出来，这里不用重复处理。 */
+      html :is(.drawer-content, .popup, .popup-content) {
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
 
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
@@ -6957,6 +6993,16 @@ if (CLAUDE_ENABLED) {
             <input id="claude-web-bg-blur" type="checkbox">
             <span>背景毛玻璃（需先开启背景透传）</span>
           </label>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="font-size:0.9em;opacity:.75;white-space:nowrap">毛玻璃浓度</span>
+            <input id="claude-web-bg-blur-opacity" type="range" min="8" max="60" step="1" style="flex:1">
+            <span id="claude-web-bg-blur-opacity-value" style="font-size:0.9em;opacity:.75;width:2.4em;text-align:right"></span>
+          </div>
+          <div style="font-size:0.85em;opacity:.6;line-height:1.5;margin-top:2px">
+            数字越大越糊、底色越浓；越小越透。世界书/角色管理这些抽屉面板
+            不跟着上面两个开关走，固定带浅浅的磨砂色调，浓度也吃这根滑条，
+            但有个可读性下限，不会被拖到看不清字。
+          </div>
 
           <hr style="margin:10px 0;opacity:.25">
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -7419,6 +7465,26 @@ if (CLAUDE_ENABLED) {
         write('bgTransparent', 'on');
         document.documentElement.dataset.claudeBgTransparent = 'on';
       }
+    });
+
+    const bgBlurOpacitySlider = panel.querySelector('#claude-web-bg-blur-opacity');
+    const bgBlurOpacityValue = panel.querySelector('#claude-web-bg-blur-opacity-value');
+    const applyBgBlurOpacity = (n) => {
+      const clamped = Math.min(60, Math.max(8, Math.round(n)));
+      document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${clamped}%`);
+      document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${Math.max(45, clamped)}%`);
+      bgBlurOpacityValue.textContent = `${clamped}%`;
+      return clamped;
+    };
+    {
+      const rawSaved = Number(window.localStorage.getItem(KEY_PREFIX + 'bgBlurOpacity'));
+      const initial = Number.isFinite(rawSaved) ? rawSaved : 22;
+      bgBlurOpacitySlider.value = String(Math.min(60, Math.max(8, Math.round(initial))));
+      applyBgBlurOpacity(Number(bgBlurOpacitySlider.value));
+    }
+    bgBlurOpacitySlider.addEventListener('input', () => {
+      const clamped = applyBgBlurOpacity(Number(bgBlurOpacitySlider.value));
+      write('bgBlurOpacity', String(clamped));
     });
 
     mountPresets(panel);
