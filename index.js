@@ -118,9 +118,10 @@ const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'of
 
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
+const CLAUDE_LAYOUT_CHOICE = claudeReadSetting('layout', ['auto', 'pc', 'mobile'], 'auto');
+
 const CLAUDE_LAYOUT = (() => {
-  const choice = claudeReadSetting('layout', ['auto', 'pc', 'mobile'], 'auto');
-  if (choice !== 'auto') return choice;
+  if (CLAUDE_LAYOUT_CHOICE !== 'auto') return CLAUDE_LAYOUT_CHOICE;
   /* 和 CSS 里的主断点保持一致：700px 以下算手机。 */
   try {
     return window.matchMedia('(max-width:700px)').matches ? 'mobile' : 'pc';
@@ -129,6 +130,25 @@ const CLAUDE_LAYOUT = (() => {
   }
 })();
 
+/* 自动布局不能只在启动时判断一次。跨过主断点时自动刷新，让 JS 功能分支和
+   对应的 PC / 手机样式表一起切换；只改 CSS 会留下半桌面半手机的状态。 */
+if (CLAUDE_ENABLED && CLAUDE_LAYOUT_CHOICE === 'auto' && window.matchMedia) {
+  const layoutMedia = window.matchMedia('(max-width:700px)');
+  let layoutReloadTimer = 0;
+  const syncAutoLayout = () => {
+    window.clearTimeout(layoutReloadTimer);
+    layoutReloadTimer = window.setTimeout(() => {
+      const nextLayout = layoutMedia.matches ? 'mobile' : 'pc';
+      if (nextLayout !== CLAUDE_LAYOUT) window.location.reload();
+    }, 180);
+  };
+  if (typeof layoutMedia.addEventListener === 'function') {
+    layoutMedia.addEventListener('change', syncAutoLayout);
+  } else if (typeof layoutMedia.addListener === 'function') {
+    layoutMedia.addListener(syncAutoLayout);
+  }
+}
+
 const CLAUDE_FEATURES = {
   rail: true,
   welcome: true,
@@ -136,7 +156,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: '2026-07-24-r22-nested-modal-chain-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.1-layout-drawer-edit-toolbar-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -330,10 +350,9 @@ if (CLAUDE_ENABLED) {
      拆成两个维度之后，明暗只有一个来源，打不起来。 */
   const FAMILIES = [
     { id: 'classic', name: '经典', light: CLASSIC_LIGHT, dark: CLASSIC_DARK },
-    { id: 'archive', name: '档案', light: WARM_PAPER, dark: INK },
   ];
 
-  const BUILT_IN = [CLASSIC_LIGHT, CLASSIC_DARK, WARM_PAPER, INK];
+  const BUILT_IN = [CLASSIC_LIGHT, CLASSIC_DARK];
 
   function familyOf(presetId) {
     return FAMILIES.find(f => f.light.id === presetId || f.dark.id === presetId) ?? FAMILIES[0];
@@ -6220,15 +6239,9 @@ if (CLAUDE_ENABLED) {
     { value: 'night', label: '夜间' },
   ];
   const LAYOUTS = [
-    { value: 'auto', label: '自动（按 700px 断点）' },
+    { value: 'auto', label: '自动（跨 700px 自动切换）' },
     { value: 'pc', label: '桌面' },
     { value: 'mobile', label: '手机' },
-  ];
-  /* 版式跟明暗/布局不一样，它不换样式表 —— 档案那套整份挂在
-     html[data-claude-archive] 下面，切换只是改一个属性，当场生效。 */
-  const STYLES = [
-    { value: 'classic', label: '经典（照官网）' },
-    { value: 'archive', label: '档案（标本册）' },
   ];
 
   function read(key, allowed, fallback) {
@@ -6250,25 +6263,21 @@ if (CLAUDE_ENABLED) {
     }
   }
 
-  /* 版式属性必须在模块求值时就设上，不能等面板挂载。
-     面板要轮询等酒馆的设置容器出现，最长 60 秒；真挂不上的时候（容器换了
-     选择器、或者用户根本没开设置面板）属性就永远设不上，档案版式等于没装。
-     这里先设一次，面板挂上之后再接管。 */
-  /* 总开关关掉时，面板照常挂（不然没地方开回来），但一个属性都不许设。 */
+  /* 2.0.1 撤下未完成的档案版式。升级用户可能还留着旧 localStorage，
+     启动时主动清掉，不能让已经从面板移除的功能继续暗中生效。 */
   const enabled = typeof CLAUDE_ENABLED === 'undefined' ? true : CLAUDE_ENABLED;
-
-  (function applyStoredStyle() {
-    if (!enabled) return;
+  (function retireArchiveStyle() {
+    const root = document.documentElement;
+    delete root.dataset.claudeArchive;
+    delete root.dataset.claudeArchiveGhost;
     try {
-      const root = document.documentElement;
-      if (read('style', ['classic', 'archive'], 'classic') === 'archive') {
-        root.dataset.claudeArchive = 'on';
+      if (window.localStorage.getItem(KEY_PREFIX + 'family') === 'archive') {
+        window.localStorage.setItem(KEY_PREFIX + 'family', 'classic');
       }
-      if (read('ghost', ['on', 'off'], 'off') === 'on') {
-        root.dataset.claudeArchiveGhost = 'on';
-      }
-    } catch (error) {
-      console.warn('[Claude Web] 版式属性设置失败：', error);
+      window.localStorage.removeItem(KEY_PREFIX + 'style');
+      window.localStorage.removeItem(KEY_PREFIX + 'ghost');
+    } catch {
+      /* 无痕模式或受限宿主里清不掉也不影响：CSS 已经不再包含档案版式。 */
     }
   })();
 
@@ -6381,14 +6390,6 @@ if (CLAUDE_ENABLED) {
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
           <select id="claude-web-layout" class="text_pole"></select>
-
-          <label for="claude-web-style" style="margin-top:8px">版式</label>
-          <select id="claude-web-style" class="text_pole"></select>
-
-          <label class="checkbox_label" style="margin-top:8px;display:flex;align-items:center;gap:6px">
-            <input id="claude-web-ghost" type="checkbox">
-            <span>档案版式：消息右上角显示巨大编号</span>
-          </label>
 
           <div id="claude-web-hint"
                style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
@@ -6805,42 +6806,8 @@ if (CLAUDE_ENABLED) {
 
     layoutSelect.addEventListener('change', () => {
       if (!write('layout', layoutSelect.value)) return;
-      describe();
-      /* 端型是启动时读的，必须刷新。与其让用户自己猜，不如直接给个按钮。 */
-      hint.insertAdjacentHTML(
-        'beforeend',
-        ' <button id="claude-web-reload" class="menu_button" style="margin-left:6px">刷新生效</button>',
-      );
-      panel.querySelector('#claude-web-reload')
-        ?.addEventListener('click', () => window.location.reload(), { once: true });
-    });
-
-    /* 版式。不换样式表，只改 documentElement 上的属性 —— 档案那套整份
-       挂在 html[data-claude-archive="on"] 下，属性一改当场生效，不用刷新。 */
-    const styleSelect = panel.querySelector('#claude-web-style');
-    const ghostBox = panel.querySelector('#claude-web-ghost');
-    fillSelect(styleSelect, STYLES, read('style', ['classic', 'archive'], 'classic'));
-    ghostBox.checked = read('ghost', ['on', 'off'], 'off') === 'on';
-
-    const applyStyle = () => {
-      const root = document.documentElement;
-      if (styleSelect.value === 'archive') root.dataset.claudeArchive = 'on';
-      else delete root.dataset.claudeArchive;
-      if (ghostBox.checked) root.dataset.claudeArchiveGhost = 'on';
-      else delete root.dataset.claudeArchiveGhost;
-      /* 巨大编号只在档案版式里有意义，经典版式下把复选框灰掉，
-         免得勾了没反应让人以为坏了。 */
-      ghostBox.disabled = styleSelect.value !== 'archive';
-    };
-    applyStyle();
-
-    styleSelect.addEventListener('change', () => {
-      if (!write('style', styleSelect.value)) return;
-      applyStyle();
-    });
-    ghostBox.addEventListener('change', () => {
-      if (!write('ghost', ghostBox.checked ? 'on' : 'off')) return;
-      applyStyle();
+      hint.textContent = '正在切换布局…';
+      window.setTimeout(() => window.location.reload(), 120);
     });
 
     mountPresets(panel);
