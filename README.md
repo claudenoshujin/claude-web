@@ -28,6 +28,11 @@ https://github.com/claudenoshujin/claude-web
 
 主题可以立即切换。手动更改布局后扩展会自动刷新。
 
+## 2.0.6 修复
+
+- 清除桌面与手机顶部重复预留的 35px 空白层
+- 清除输入框外壳额外绘制的上方实体边框
+
 ## 2.0.5 修复
 
 - 手机端角色头像只占标题行，不再挤窄整条回复
@@ -81,4 +86,4 @@ SillyTavern/public/scripts/extensions/third-party/claude-web/
 
 ## 版本
 
-当前版本：`2.0.5`
+当前版本：`2.0.6`

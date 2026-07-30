@@ -4868,6 +4868,16 @@ html body #user-settings-block-content input[type="range"].neo-range-slider {
   background-color:var(--cw-rule-hairline) !important;
   box-shadow:none !important;
 }
+
+/* 2.0.6: SillyTavern still contributes a 35px top offset after Claude Web
+   takes over the shell. The composer seam was also being painted by an
+   opaque upward shadow. Both are stale outer-wrapper edges. */
+html body #sheld {
+  top:0 !important;
+}
+html body #form_sheld {
+  box-shadow:none !important;
+}
 html body #user-settings-block-content input[type="range"]::-webkit-slider-thumb {
   appearance:none !important;
   width:15px !important;

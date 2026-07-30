@@ -5230,6 +5230,14 @@ html body #user-settings-block-content input[type="range"].neo-range-slider {
     left:0 !important;
   }
 }
+
+/* 2.0.6: remove the duplicated native shell offset and composer seam. */
+html body #sheld {
+  top:0 !important;
+}
+html body #form_sheld {
+  box-shadow:none !important;
+}
 html body #user-settings-block-content input[type="range"]::-webkit-slider-thumb {
   appearance:none !important;
   width:15px !important;
