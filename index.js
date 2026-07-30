@@ -1573,10 +1573,22 @@ if (CLAUDE_ENABLED) {
          补一层很浅的同色调半透明底 + 模糊，读起来是"隔着磨砂玻璃看背景"，
          不是完全透明导致文字糊在背景图上看不清。设置面板里这个开关依赖
          背景透传先开，两个都关掉时都不生效，不会出现"糊了但看不出透明"
-         的死角状态。侧栏也一起给毛玻璃，不然会出现"正文和输入区磨砂、
-         侧栏完全透明"的不协调断层。 */
+         的死角状态。
+
+         #top-bar / #top-settings-holder 单独拆出来、只给半透明底色、
+         不上 backdrop-filter —— 世界书/角色管理/扩展这些抽屉的
+         .drawer-content 就挂在 #top-settings-holder 底下。CSS 规则是
+         "给元素加 filter/backdrop-filter，这个元素就变成它内部
+         fixed/absolute 子元素的新参照系"，抽屉本来是要铺满整个视口的
+         fixed 面板，一旦祖先带上 backdrop-filter 就被摁进侧栏那个又窄
+         又裁切的盒子里，表现是点了打不开、开着的关不掉。之前那版侧栏
+         也叠了 blur，线上直接把抽屉全部糊死，是我漏测的坑。
+         #sheld/#chat/#send_form/#form_sheld 这几个底下不挂抽屉，
+         可以放心用完整的模糊效果。 */
       html[data-claude-bg-blur="on"] #top-bar#top-bar,
-      html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder,
+      html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
+        background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
+      }
       html[data-claude-bg-blur="on"] #sheld#sheld,
       html[data-claude-bg-blur="on"] #chat#chat,
       html[data-claude-bg-blur="on"] #send_form#send_form,
@@ -7395,6 +7407,13 @@ if (CLAUDE_ENABLED) {
     bgBlurBox.addEventListener('change', () => {
       if (!write('bgBlur', bgBlurBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeBgBlur = bgBlurBox.checked ? 'on' : 'off';
+      // 反过来也要联动：单开毛玻璃、不开透传，背景其实还是不透明的纯色，
+      // 毛玻璃在纯色上完全看不出效果，等于白开。开毛玻璃时顺手把透传也点上。
+      if (bgBlurBox.checked && !bgTransparentBox.checked) {
+        bgTransparentBox.checked = true;
+        write('bgTransparent', 'on');
+        document.documentElement.dataset.claudeBgTransparent = 'on';
+      }
     });
 
     mountPresets(panel);
