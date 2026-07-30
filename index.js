@@ -1183,6 +1183,10 @@ if (CLAUDE_ENABLED) {
   const LEG_BOUNCE_CLASS = 'clawd-leg-bounce';
   const INPUT_ACTIVE_CLASS = 'clawd-input-active';
   const INPUT_TEXT_CLASS = 'clawd-input-has-text';
+  /* D2：害羞（环境触发）与被冷落。两个都是常驻状态的 class，不是
+     一次性反应，所以单独命名，不进 BUTTON_REACTIONS 的洗牌袋。 */
+  const SHY_AMBIENT_CLASS = 'clawd-shy-ambient';
+  const NEGLECTED_CLASS = 'clawd-neglected';
   const LEFT_SWIPE_PROXY_CLASS = 'claude-swipe-left-proxy';
   const SWIPE_PROXY_CLASS = 'claude-swipe-right-proxy';
   const REROLL_CLASS = 'claude-reroll-button';
@@ -1473,6 +1477,26 @@ if (CLAUDE_ENABLED) {
 
       body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before,
       body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before {
+        animation: none !important;
+      }
+
+      /* D2 被冷落 / 害羞（环境触发）。跟 D1 一样只占 translate/rotate 通道，
+         不碰 transform（呼吸/打盹/入睡都在那条通道上），也用 :not() 让三击
+         踱步和入睡继续按既有优先级压过它们——这两条常驻状态谁都不该覆盖
+         已经更明确的用户操作（toggle）或更需要表达的「不在」（睡着）。
+         生成中（GENERATING_CLASS）也整体让位，避免跟专属动作抢注意力。 */
+      button.${BUTTON_CLASS}.${NEGLECTED_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${NEGLECTED_CLASS}:not(.${LEG_BOUNCE_CLASS})::before {
+        animation: clawd-neglected-droop 3.4s ease-in-out infinite !important;
+      }
+
+      button.${BUTTON_CLASS}.${SHY_AMBIENT_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${SHY_AMBIENT_CLASS}:not(.${LEG_BOUNCE_CLASS})::before {
+        animation: clawd-shy-ambient-tilt 2.2s ease-in-out infinite !important;
+      }
+
+      body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${NEGLECTED_CLASS}::before,
+      body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${SHY_AMBIENT_CLASS}::before {
         animation: none !important;
       }
 
@@ -1832,6 +1856,23 @@ if (CLAUDE_ENABLED) {
         50% { translate: 0 -1px; }
       }
 
+      /* D2 被冷落：慢、低幅度的下垂，读成「蔫了」，跟打盹的深呼吸区分开——
+         打盹是完全没人在，冷落是人在但没搭理它，所以幅度更小、节奏更快，
+         不该跟打盹看起来是同一件事。 */
+      @keyframes clawd-neglected-droop {
+        0%, 100% { rotate: 0deg; translate: 0 0; }
+        50% { rotate: -3deg; translate: 0 1px; }
+      }
+
+      /* D2 害羞（环境触发）：小幅左右扭动 + 轻微缩向一侧，比点击彩蛋的
+         clawd-react-shy 更收敛——那个是一次性大动作，这个是常驻小动作，
+         叠在一起会太吵。 */
+      @keyframes clawd-shy-ambient-tilt {
+        0%, 100% { translate: 0 0; rotate: 0deg; }
+        30% { translate: -1px 1px; rotate: -4deg; }
+        60% { translate: 1px 1px; rotate: 3deg; }
+      }
+
       @media (max-width: 700px) {
         button.${BUTTON_CLASS} {
           width: 38px !important;
@@ -1894,7 +1935,11 @@ if (CLAUDE_ENABLED) {
         button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS}::before,
         button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before,
         button.${BUTTON_CLASS}.${INPUT_TEXT_CLASS}::before,
-        button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before {
+        button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before,
+        button.${BUTTON_CLASS}.${NEGLECTED_CLASS}::before,
+        button.clawd-mobile-clawd-button.${NEGLECTED_CLASS}::before,
+        button.${BUTTON_CLASS}.${SHY_AMBIENT_CLASS}::before,
+        button.clawd-mobile-clawd-button.${SHY_AMBIENT_CLASS}::before {
           animation: none !important;
         }
         button.${BUTTON_CLASS}.${INPUT_ACTIVE_CLASS},
@@ -2479,6 +2524,15 @@ if (CLAUDE_ENABLED) {
   let ccHasBeenPoked = false;
   let ccReturnedAt = 0;
   let ccHiddenAt = 0;
+  /* D2 害羞（环境触发）：短时间内连续被戳（软戳，没有攒到三连击那种切换
+     抖腿的重击），读成「被摸得有点不好意思」。窗口内记录每一次软戳的
+     时间戳，超过阈值就触发一次有限时长的害羞姿势——跟点击彩蛋里那个
+     一次性的 clawd-react-shy 是两套 class，互不覆盖。 */
+  const SHY_TRIGGER_WINDOW_MS = 8000;
+  const SHY_TRIGGER_COUNT = 4;
+  const SHY_POSE_MS = 2600;
+  let shyPokeTimestamps = [];
+  const shyPoseTimers = new WeakMap();
   /* 每个 Clawd 按钮各自的姿势计时器。以前是单个全局变量：多个 Clawd（每条
      AI 消息一个）同时存在时，后一个 Clawd 眨眼会 clearTimeout 掉前一个的
      计时器，但不会摘掉前一个已经加上的 class —— 前一个就永久卡在眨眼/
@@ -2518,6 +2572,33 @@ if (CLAUDE_ENABLED) {
       if (ccPoseTimers.get(button) === timer) ccPoseTimers.delete(button);
     }, duration);
     ccPoseTimers.set(button, timer);
+  }
+
+  /* D2 害羞（环境触发），有限时长的常驻姿势，走独立的按钮各自计时器
+     （跟本轮修的眨眼计时器同一个写法），避免共享计时器互相取消。
+     跟被冷落互斥：害羞期间直接压掉冷落状态，害羞退场后冷落会在下一次
+     refreshIdleSleep 里按最新条件重新判定，不会自动补回来。 */
+  function pulseShyAmbient(button) {
+    if (!button) return;
+    setNeglected(false);
+    const existing = shyPoseTimers.get(button);
+    if (existing) hostWindow.clearTimeout(existing);
+    button.classList.add(SHY_AMBIENT_CLASS);
+    const timer = hostWindow.setTimeout(() => {
+      button.classList.remove(SHY_AMBIENT_CLASS);
+      if (shyPoseTimers.get(button) === timer) shyPoseTimers.delete(button);
+    }, SHY_POSE_MS);
+    shyPoseTimers.set(button, timer);
+  }
+
+  function noteSoftPoke(button) {
+    const now = Date.now();
+    shyPokeTimestamps.push(now);
+    shyPokeTimestamps = shyPokeTimestamps.filter(t => now - t < SHY_TRIGGER_WINDOW_MS);
+    if (shyPokeTimestamps.length >= SHY_TRIGGER_COUNT && !isTypingActive() && !ccLegBounceEnabled) {
+      shyPokeTimestamps = [];
+      pulseShyAmbient(button);
+    }
   }
 
   function ccContextSlot() {
@@ -2598,6 +2679,10 @@ if (CLAUDE_ENABLED) {
   function handleCcCombo(button) {
     // 睡着的时候戳它，回一句梦话就好，不进连点彩蛋的计数
     if (!button) return true;
+    // 不管哪种戳法，都算「有人在搭理 Clawd」——冷落状态立即解除，
+    // 不用等下一次 refreshIdleSleep 的 5 秒轮询。
+    lastPokeAt = Date.now();
+    if (neglected) setNeglected(false);
     if (button.classList.contains('clawd-sleeping') || ccSleeping) {
       pulseCcPose(button, 'clawd-poke-blink', 620);
       showCcToast(button, ccEscapeHtml(takeCcLine('sleeping')), 'hi');
@@ -2609,6 +2694,7 @@ if (CLAUDE_ENABLED) {
     if (ccComboCount <= 2) {
       const slot = ccContextSlot();
       ccHasBeenPoked = true;
+      noteSoftPoke(button);
       if (Math.random() < CC_SILENT_RATE) {
         hostDocument.querySelectorAll('.clawd-cc-toast, .clawd-hi-toast').forEach(el => el.remove());
         pulseCcPose(button, 'clawd-poke-blink');
@@ -2620,6 +2706,8 @@ if (CLAUDE_ENABLED) {
       ccComboCount = 0;
       if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
       ccComboTimer = null;
+      shyPokeTimestamps = [];
+      button.classList.remove(SHY_AMBIENT_CLASS);
       clearCcTransientFeedback(button);
       setCcLegBounce(!ccLegBounceEnabled);
       showCcToast(
@@ -2654,6 +2742,15 @@ if (CLAUDE_ENABLED) {
   // 要先在这个对话里有过一次输入，计时才开始 —— 否则一进来干等一分钟它就睡了。
   let hasChatActivity = false;
 
+  /* D2 被冷落：跟打盹是两条独立轴线。打盹看的是「页面有没有键盘活动」
+     （lastActivityAt），冷落看的是「有没有人戳过 Clawd 本体」
+     （lastPokeAt）——两者不共用同一个计时器，否则会互相打架。
+     判定要求「人还在活跃聊天」但「一直没搭理 Clawd」，跟打盹/入睡那种
+     「人也不在了」是相反的场景，所以额外要求 elapsed 没到 drowsy 的门槛。 */
+  const NEGLECT_POKE_MS = 3 * 60 * 1000;
+  let lastPokeAt = Date.now();
+  let neglected = false;
+
   function setSleeping(on) {
     hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
       .forEach(button => button.classList.toggle('clawd-sleeping', on));
@@ -2662,6 +2759,13 @@ if (CLAUDE_ENABLED) {
   function setDrowsy(on) {
     hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
       .forEach(button => button.classList.toggle('clawd-idle-drowsy', on));
+  }
+
+  function setNeglected(on) {
+    if (neglected === on) return;
+    neglected = on;
+    hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
+      .forEach(button => button.classList.toggle(NEGLECTED_CLASS, on));
   }
 
   /* 入睡前哈欠一下，呼吸动画晚 900ms 才接上——不然哈欠和呼吸两段 transform
@@ -2678,12 +2782,28 @@ if (CLAUDE_ENABLED) {
   }
 
   function refreshIdleSleep() {
-    if (ccSleeping || !hasChatActivity) return;
+    if (ccSleeping || !hasChatActivity) {
+      if (neglected) setNeglected(false);
+      return;
+    }
     const elapsed = Date.now() - lastActivityAt;
     const idle = elapsed > IDLE_SLEEP_MS;
+    const drowsyOn = !idle && elapsed > IDLE_SLEEP_MS * .75;
     // 呼吸/睡觉两档中间原来是空的：入睡前最后 25% 的等待时间加一档
     // 「醒着但没人理」的东张西望，不再从静止直接跳到闭眼。
-    setDrowsy(!idle && elapsed > IDLE_SLEEP_MS * .75);
+    setDrowsy(drowsyOn);
+
+    /* 冷落只在「人还在活跃聊天」（elapsed 没到 drowsy 门槛）时判定——
+       快睡着 / 已经在打盹入睡的场景交给 drowsy/sleeping 表达，两者不重叠。
+       还要求生成不在进行中，且没有正处于害羞（环境触发）：害羞和冷落的
+       触发条件互斥，害羞优先，冷落让位。 */
+    const shouldBeNeglected = elapsed < IDLE_SLEEP_MS * .75
+      && !isTypingActive()
+      && !ccLegBounceEnabled
+      && !hostDocument.querySelector('button.' + BUTTON_CLASS + '.' + SHY_AMBIENT_CLASS)
+      && Date.now() - lastPokeAt > NEGLECT_POKE_MS;
+    setNeglected(shouldBeNeglected);
+
     if (idle === idleAsleep) {
       if (idle) setSleeping(true);
       return;
@@ -2693,6 +2813,7 @@ if (CLAUDE_ENABLED) {
       setSleeping(false);
       return;
     }
+    setNeglected(false);
     setDrowsy(false);
     playSleepTransition();
     hostWindow.setTimeout(() => {
@@ -3330,6 +3451,8 @@ if (CLAUDE_ENABLED) {
       hasChatActivity = false;
       idleAsleep = false;
       setSleeping(false);
+      setNeglected(false);
+      lastPokeAt = Date.now();
     }
 
     const chat = hostDocument.querySelector('#chat');
@@ -5065,6 +5188,10 @@ if (CLAUDE_ENABLED) {
       if (next === had) return;
 
       button.dataset.look = next;
+      // 真实鼠标接管了：清掉「这份朝向是环境张望设的」标记，
+      // 这样左右观察那边的收尾定时器就不会在鼠标已经改了朝向之后
+      // 把眼神错误地扳回中间。
+      delete button.dataset.clawdAmbientLook;
       // 像素画没有半格，眼珠只能整格跳，加不出中间帧。
       // 改用动画里的老办法：跳之前先眨一下，用眨眼盖住这一跳 ——
       // 人眼扫视时本来就会眨，所以这个遮掩读起来是自然的。
@@ -5077,12 +5204,58 @@ if (CLAUDE_ENABLED) {
       }, 70);
     });
   }
+  let lastMouseMoveAt = Date.now();
   function handleLook(event) {
     lookX = event.clientX;
     lookY = event.clientY;
+    lastMouseMoveAt = Date.now();
     if (lookRaf) return;
     lookRaf = hostWindow.requestAnimationFrame(applyLook);
   }
+
+  /* D2 左右观察：没有真实 mousemove 一段时间后，偶尔自主看一眼再收回。
+     复用鼠标跟随那套 clawd-look-l/r 帧和 clawd-saccade 眨眼遮挡，
+     不用新画像素帧。用 dataset.clawdAmbientLook 标记「这份朝向是环境
+     张望设的」，收尾定时器到点时只在朝向没被真实鼠标顶替过才收回去，
+     避免收尾定时器把真实鼠标刚设好的朝向错误地扳回中间。 */
+  const SCAN_IDLE_MS = 8000;
+  const SCAN_HOLD_MS = 900;
+  function playAmbientGlance(button) {
+    if (!button || button.dataset.look) return; // 已经在看某个方向（真实或环境），不叠加
+    const dir = Math.random() < 0.5 ? 'l' : 'r';
+    button.dataset.look = dir;
+    button.dataset.clawdAmbientLook = dir;
+    button.classList.add('clawd-saccade');
+    hostWindow.setTimeout(() => {
+      button.classList.remove('clawd-saccade');
+      button.classList.add('clawd-look-' + dir);
+    }, 70);
+    hostWindow.setTimeout(() => {
+      // 期间没被真实鼠标顶替，才收回去；顶替过的话真实鼠标系统自己会管。
+      if (button.dataset.clawdAmbientLook !== dir) return;
+      delete button.dataset.clawdAmbientLook;
+      button.dataset.look = '';
+      button.classList.add('clawd-saccade');
+      hostWindow.setTimeout(() => {
+        button.classList.remove('clawd-saccade');
+        button.classList.remove('clawd-look-l', 'clawd-look-r');
+      }, 70);
+    }, SCAN_HOLD_MS);
+  }
+
+  function ccMaybeScan() {
+    if (destroyed) return;
+    if (Date.now() - lastMouseMoveAt < SCAN_IDLE_MS) return;
+    if (isTypingActive() || ccLegBounceEnabled || ccSleeping) return;
+    if (Math.random() > 0.18) return;
+    hostDocument.querySelectorAll('button.' + BUTTON_CLASS).forEach(button => {
+      if (button.classList.contains('clawd-sleeping')
+        || button.classList.contains(NEGLECTED_CLASS)
+        || button.classList.contains(SHY_AMBIENT_CLASS)) return;
+      playAmbientGlance(button);
+    });
+  }
+  const ccScanTimer = hostWindow.setInterval(ccMaybeScan, 6000);
 
   /* 3. 输入框聚焦时抬头 */
   function setPerk(on) {
@@ -5729,6 +5902,8 @@ if (CLAUDE_ENABLED) {
     LEG_BOUNCE_CLASS,
     INPUT_ACTIVE_CLASS,
     INPUT_TEXT_CLASS,
+    NEGLECTED_CLASS,
+    SHY_AMBIENT_CLASS,
     'clawd-idle-drowsy',
     'clawd-sleep-transition',
     'clawd-wobble-sway',
@@ -6153,6 +6328,7 @@ if (CLAUDE_ENABLED) {
     hostWindow.clearInterval(ccCheerTimer);
     hostWindow.clearInterval(ccWobbleTimer);
     hostWindow.clearInterval(idleTimer);
+    hostWindow.clearInterval(ccScanTimer);
     if (reconcileTimer) hostWindow.clearTimeout(reconcileTimer);
     reconcileTimer = 0;
     if (destroyed) return;
