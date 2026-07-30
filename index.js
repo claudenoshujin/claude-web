@@ -1449,17 +1449,16 @@ if (CLAUDE_ENABLED) {
         box-shadow: var(--clawd-f-tucked) !important;
       }
 
-      /* D1/D2: three quick clicks toggle a persistent mirrored leg-bounce.
-         Individual scale/translate properties compose with the existing
+      /* D1: three quick clicks toggle a persistent sideways scuttle —
+         not a mirrored flip. Real crabs walk sideways without turning
+         their body around, and a static scale:-1 1 mirror made the face
+         pop to the other side the instant the mode switched on, which
+         read as a glitch rather than a walk. Movement stays on the
+         translate/rotate channel so it still composes with the
          one-shot transform reactions instead of replacing them. */
-      button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS},
-      button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS} {
-        scale: -1 1;
-      }
-
       button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS}:not(.clawd-sleeping)::before,
       button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before {
-        animation: clawd-leg-bounce 360ms ease-in-out infinite !important;
+        animation: clawd-leg-bounce 640ms linear infinite !important;
       }
 
       button.${BUTTON_CLASS}.${INPUT_ACTIVE_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping),
@@ -1811,16 +1810,21 @@ if (CLAUDE_ENABLED) {
         }
       }
 
-      /* 像素画是单张 box-shadow 精灵，没有独立的"腿"部件可以单独动——
-         之前让整只 ::before 上下位移 2px，360ms 一轮、infinite 循环，
-         读出来就是全身反复往上跳，跟"抖腿"完全是两种动作。
-         改成左右方向的小幅位移（不带净位移，去回都在原地），
-         视觉上更接近腿在原地打颤，不是整只在弹跳。 */
+      /* D1 螃蟹横向踱步。像素画是单张 box-shadow 精灵，没有独立的"腿"
+         部件可以单独动，所以走路感不能靠换帧，只能靠位移的节奏来演。
+         第一版让整只 ::before 上下位移 2px，读出来是原地弹跳；改成左右
+         小抖（±1px）又太小、没有方向感，读成原地打颤/抽搐。
+         这版换成"停顿-快速切换-停顿"的四段节奏，而不是连续正弦滑动——
+         纯正弦滑动读出来是滑冰，不是走路。停顿段（0-40%、50-90%）身体
+         略微倾向落脚的一侧，快速切换段（40-50%、90-100%）模拟迈步时的
+         重心转移。不做镜像翻转：朝向来回跳变比原地抖腿更像故障，横着
+         走本来就该正脸不转身，靠位移和倾斜给方向感就够了。 */
       @keyframes clawd-leg-bounce {
-        0%, 100% { translate: 0 0; }
-        25% { translate: -1px 0; }
-        50% { translate: 0 0; }
-        75% { translate: 1px 0; }
+        0% { translate: -3px 0; rotate: -2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
+        40% { translate: -3px 0; rotate: -2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
+        50% { translate: 3px 0; rotate: 2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
+        90% { translate: 3px 0; rotate: 2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
+        100% { translate: -3px 0; rotate: -2deg; }
       }
 
       @keyframes clawd-compose-bob {
