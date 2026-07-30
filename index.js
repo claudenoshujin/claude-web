@@ -141,7 +141,7 @@ const CLAUDE_BG_BLUR_OPACITY = (() => {
    如果直接用上面那个可能被用户调得很低的浓度，没有模糊柔化，底下背景图
    一透，字会花。这里给抽屉单独设个下限，用户把主区域调得再透，抽屉本身
    至少保持這个浓度，不牺牲这些功能面板的可读性。 */
-const CLAUDE_DRAWER_TINT_OPACITY = Math.max(45, CLAUDE_BG_BLUR_OPACITY);
+const CLAUDE_DRAWER_TINT_OPACITY = Math.max(68, CLAUDE_BG_BLUR_OPACITY);
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
@@ -1603,8 +1603,8 @@ if (CLAUDE_ENABLED) {
          ——这本来就是原设计里唯一带独立底色的控件，边界是有意的（一个
          圆角药丸形状的控件轮廓，不是贯穿整行的硬切线），不算视觉割裂。 */
       html[data-claude-bg-transparent="on"] #send_form#send_form {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
         background-image: none !important;
       }
 
@@ -1674,12 +1674,12 @@ if (CLAUDE_ENABLED) {
          都能盖住，不用再赌“加载顺序刚好在后面”那种运气。 */
       html body #top-settings-holder > .drawer > .drawer-content,
       html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
       }
       html :is(.drawer-content, .popup, .popup-content) {
-        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
       }
       /* --SmartThemeBlurTintColor 是酒馆自己给"磨砂面板"准备的原生变量，
          语义就是"配合模糊用的半透明底色"——不少第三方扩展（背景管理面板
@@ -1694,7 +1694,7 @@ if (CLAUDE_ENABLED) {
          受益），背景会自动跟着我们的日夜色调和毛玻璃浓度滑条走，不用每
          冒出一个新扩展就单独打一次补丁。 */
       html {
-        --SmartThemeBlurTintColor: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        --SmartThemeBlurTintColor: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
       }
 
       /* 真正在真实聊天页（非欢迎页）里把 #send_form 顶掉、让接缝 bug 复现的
@@ -1719,7 +1719,7 @@ if (CLAUDE_ENABLED) {
          day-pc.css 那份。 */
       html[data-claude-bg-transparent="on"],
       html[data-claude-bg-transparent="on"] body {
-        --cl-composer-chat: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+        --cl-composer-chat: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
       }
 
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
@@ -7555,7 +7555,7 @@ if (CLAUDE_ENABLED) {
     const applyBgBlurOpacity = (n) => {
       const clamped = Math.min(60, Math.max(8, Math.round(n)));
       document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${clamped}%`);
-      document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${Math.max(45, clamped)}%`);
+      document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${Math.max(68, clamped)}%`);
       bgBlurOpacityValue.textContent = `${clamped}%`;
       return clamped;
     };
