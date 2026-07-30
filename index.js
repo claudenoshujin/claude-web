@@ -2581,9 +2581,15 @@ if (CLAUDE_ENABLED) {
   function pulseShyAmbient(button) {
     if (!button) return;
     setNeglected(false);
+    // 只在真正「新进入」害羞时弹气泡——已经在害羞状态里被重新触发
+    // （计时器续期）不重复弹，否则连续戳的时候气泡会一直闪。
+    const wasActive = button.classList.contains(SHY_AMBIENT_CLASS);
     const existing = shyPoseTimers.get(button);
     if (existing) hostWindow.clearTimeout(existing);
     button.classList.add(SHY_AMBIENT_CLASS);
+    if (!wasActive) {
+      showCcToast(button, ccEscapeHtml(ccPrefersChinese() ? '害羞了…别一直戳啦' : "shy… stop poking me"), 'hi');
+    }
     const timer = hostWindow.setTimeout(() => {
       button.classList.remove(SHY_AMBIENT_CLASS);
       if (shyPoseTimers.get(button) === timer) shyPoseTimers.delete(button);
@@ -2730,12 +2736,15 @@ if (CLAUDE_ENABLED) {
   // 阈值 1800 字，而酒馆的回复基本都超 —— 蜷缩变成了常态，
   // 还把左右看的规则盖住、跟上下看打架。
   // 跟之前那个「含代码块就眯眼」是同一类错误：内容驱动的姿势在酒馆里必然长期误触发。
-  /* 打盹：1 分钟没输入就睡，敲键盘就醒。
+  /* 打盹：3 分钟没输入就睡，敲键盘就醒。
      只认键盘，不认鼠标移动和滚动 —— 读长回复的时候鼠标和滚轮一直在动，
      但人其实没在「操作」，把那些算进来它就永远睡不着。
      连点 8 下的彩蛋走同一套 clawd-sleeping 类，两边不冲突：
-     彩蛋睡固定 6 秒，打盹睡到你回来为止。 */
-  const IDLE_SLEEP_MS = 60000;
+     彩蛋睡固定 6 秒，打盹睡到你回来为止。
+     阈值原来是 1 分钟，跟被冷落的窗口几乎重叠——冷落刚冒出来一小会儿
+     就被入睡盖过去，等于白做。改成 3 分钟，给冷落留出 1~2:15 的
+     显示窗口（drowsy 门槛是本值的 75%，会跟着一起挪，不用单独调）。 */
+  const IDLE_SLEEP_MS = 180000;
   let lastActivityAt = Date.now();
   let idleAsleep = false;
   // 打开酒馆挂在那儿不算「你在这段对话里停了一分钟」。
@@ -2746,8 +2755,9 @@ if (CLAUDE_ENABLED) {
      （lastActivityAt），冷落看的是「有没有人戳过 Clawd 本体」
      （lastPokeAt）——两者不共用同一个计时器，否则会互相打架。
      判定要求「人还在活跃聊天」但「一直没搭理 Clawd」，跟打盹/入睡那种
-     「人也不在了」是相反的场景，所以额外要求 elapsed 没到 drowsy 的门槛。 */
-  const NEGLECT_POKE_MS = 3 * 60 * 1000;
+     「人也不在了」是相反的场景，所以额外要求 elapsed 没到 drowsy 的门槛。
+     阈值 1 分钟，比入睡短，保证冷落会先冒出来，不会被入睡直接盖掉。 */
+  const NEGLECT_POKE_MS = 60000;
   let lastPokeAt = Date.now();
   let neglected = false;
 
@@ -2764,8 +2774,11 @@ if (CLAUDE_ENABLED) {
   function setNeglected(on) {
     if (neglected === on) return;
     neglected = on;
-    hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
-      .forEach(button => button.classList.toggle(NEGLECTED_CLASS, on));
+    const buttons = hostDocument.querySelectorAll('button.' + BUTTON_CLASS);
+    buttons.forEach(button => button.classList.toggle(NEGLECTED_CLASS, on));
+    if (on && buttons.length) {
+      showCcToast(buttons[0], ccEscapeHtml(ccPrefersChinese() ? '有点被冷落了…' : 'feeling a bit ignored…'), 'hi');
+    }
   }
 
   /* 入睡前哈欠一下，呼吸动画晚 900ms 才接上——不然哈欠和呼吸两段 transform
@@ -5220,11 +5233,20 @@ if (CLAUDE_ENABLED) {
      避免收尾定时器把真实鼠标刚设好的朝向错误地扳回中间。 */
   const SCAN_IDLE_MS = 8000;
   const SCAN_HOLD_MS = 900;
+  // 眼神动作本身够轻，不用每次张望都弹气泡——太吵；每 20 秒最多提示一次，
+  // 主要是让人第一次注意到「这是在自主张望」，认出来之后就不用再提醒。
+  const SCAN_TOAST_COOLDOWN_MS = 20000;
+  let lastScanToastAt = 0;
   function playAmbientGlance(button) {
     if (!button || button.dataset.look) return; // 已经在看某个方向（真实或环境），不叠加
     const dir = Math.random() < 0.5 ? 'l' : 'r';
     button.dataset.look = dir;
     button.dataset.clawdAmbientLook = dir;
+    const now = Date.now();
+    if (now - lastScanToastAt > SCAN_TOAST_COOLDOWN_MS) {
+      lastScanToastAt = now;
+      showCcToast(button, ccEscapeHtml(ccPrefersChinese() ? '张望一下～' : 'just looking around~'), 'hi');
+    }
     button.classList.add('clawd-saccade');
     hostWindow.setTimeout(() => {
       button.classList.remove('clawd-saccade');
