@@ -4827,3 +4827,12 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
     gap:8px !important;
   }
 }
+
+/* 2.0.3: stock character-message actions inherit SillyTavern's
+   drop-shadow(0 0 2px #000), which makes the glyph look duplicated.
+   User-message actions already have no filter; keep both sides equally crisp. */
+html body #chat > .mes[is_user="false"] .mes_buttons .mes_button,
+html body #chat > .mes[is_user="false"] .mes_buttons .extraMesButtons > div {
+  filter:none !important;
+  text-shadow:none !important;
+}

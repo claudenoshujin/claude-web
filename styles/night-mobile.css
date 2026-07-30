@@ -5154,3 +5154,10 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   visibility:visible !important;
   pointer-events:auto !important;
 }
+
+/* 2.0.3: remove SillyTavern's stock shadow from character-message actions. */
+html body #chat > .mes[is_user="false"] .mes_buttons .mes_button,
+html body #chat > .mes[is_user="false"] .mes_buttons .extraMesButtons > div {
+  filter:none !important;
+  text-shadow:none !important;
+}

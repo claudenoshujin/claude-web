@@ -28,6 +28,11 @@ https://github.com/claudenoshujin/claude-web
 
 主题可以立即切换。手动更改布局后扩展会自动刷新。
 
+## 2.0.3 修复
+
+- 清除角色消息操作图标继承的酒馆原生黑色投影
+- 用户消息与角色消息的操作图标保持同样清晰
+
 ## 2.0.2 修复
 
 - 修复新版 SillyTavern 中普通消息仍显示编辑工具条
@@ -64,4 +69,4 @@ SillyTavern/public/scripts/extensions/third-party/claude-web/
 
 ## 版本
 
-当前版本：`2.0.2`
+当前版本：`2.0.3`
