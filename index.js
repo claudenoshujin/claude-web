@@ -142,13 +142,12 @@ const CLAUDE_BG_BLUR_OPACITY = (() => {
    靠色调堆出来。这里把下限降下来，颜色只留一点点存在感（让磨砂面板跟
    纯透明区分得出来），主要观感交给模糊，不是靠色调"糊脸"。 */
 const CLAUDE_DRAWER_TINT_OPACITY = Math.max(18, CLAUDE_BG_BLUR_OPACITY);
-/* 抽屉/弹层、聊天区、输入条这些"磨砂玻璃"表面统一用一个跟日夜主题脱钩的
-   中性灰做底色，不再用 --cw-surface-page（日间是纸白 #f8f8f6、夜间是
-   近黑 #1f1f1e）。之前日间在低浓度时，白色底色几乎不提供对比度，背景一
-   复杂文字就花；用中性灰打底，哪怕调到最低浓度，底色本身也还有一定明度
-   差，不会跟白纸一样被背景直接吃掉。日夜用同一个值，看起来才是统一的
-   "磨砂玻璃"质感，而不是"日间蒙了层白纱、夜间蒙了层黑纱"两种不同效果。 */
-const CLAUDE_GLASS_BASE = '#96968f';
+/* 中性灰这条路走过一轮，反馈是"显脏"——纯中灰不亮不暗，跟大多数背景
+   混在一起都是浑浊感，不管日夜用同一个色号反而两头不讨好。改回跟主题走
+   （日间纸白、夜间近黑），但把浓度压得很低（18%起，比最早 68% 那版淡
+   得多）再配模糊，是常见磨砂玻璃的标准做法——玻璃本身只留一点点存在感，
+   主要靠底下的颜色透出来，不会再糊成一片白/一片黑。 */
+const CLAUDE_GLASS_BASE = 'var(--cw-surface-page)';
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
@@ -1646,8 +1645,8 @@ if (CLAUDE_ENABLED) {
       }
       html[data-claude-bg-blur="on"] #sheld#sheld {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-bg-blur-opacity, 22%), transparent) !important;
-        backdrop-filter: blur(16px) saturate(1.08) !important;
-        -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+        backdrop-filter: blur(16px) saturate(1.2) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
       }
 
       /* 抽屉/弹层固定磨砂：世界书、扩展、角色管理、User Settings 这些
@@ -1697,14 +1696,14 @@ if (CLAUDE_ENABLED) {
       html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
-        backdrop-filter: blur(20px) saturate(1.1) !important;
-        -webkit-backdrop-filter: blur(20px) saturate(1.1) !important;
+        backdrop-filter: blur(20px) saturate(1.25) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(1.25) !important;
       }
       html :is(.drawer-content, .popup, .popup-content) {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
-        backdrop-filter: blur(20px) saturate(1.1) !important;
-        -webkit-backdrop-filter: blur(20px) saturate(1.1) !important;
+        backdrop-filter: blur(20px) saturate(1.25) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(1.25) !important;
       }
       /* --SmartThemeBlurTintColor 是酒馆自己给"磨砂面板"准备的原生变量，
          语义就是"配合模糊用的半透明底色"——不少第三方扩展（背景管理面板
