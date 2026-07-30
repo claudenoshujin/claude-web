@@ -117,9 +117,20 @@ function claudeReadSetting(key, allowed, fallback) {
 const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_MOTION_ENABLED = claudeReadSetting('motion', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'], 'on') !== 'off';
+/* 生成计时器默认开——是个实用小组件，不是装饰。
+   侧栏图标、背景透传、毛玻璃默认关——都是外观改动，不该在没人要求的情况下
+   突然把原本的白底/黑底换成透明，或者把侧栏图标藏起来。 */
+const CLAUDE_GEN_TIMER_ENABLED = claudeReadSetting('genTimer', ['on', 'off'], 'on') !== 'off';
+const CLAUDE_RAIL_ICONS_ENABLED = claudeReadSetting('railIcons', ['on', 'off'], 'on') !== 'off';
+const CLAUDE_BG_TRANSPARENT_ENABLED = claudeReadSetting('bgTransparent', ['on', 'off'], 'off') === 'on';
+const CLAUDE_BG_BLUR_ENABLED = claudeReadSetting('bgBlur', ['on', 'off'], 'off') === 'on';
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeGenTimer = CLAUDE_GEN_TIMER_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeRailIcons = CLAUDE_RAIL_ICONS_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeBgTransparent = CLAUDE_BG_TRANSPARENT_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeBgBlur = CLAUDE_BG_BLUR_ENABLED ? 'on' : 'off';
 
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
@@ -1500,6 +1511,74 @@ if (CLAUDE_ENABLED) {
         animation: none !important;
       }
 
+      /* 生成计时器：固定在输入区上方的小徽标，跟 clawd-cc-toast 同一套
+         视觉语言（surface-raised 背景 + hairline 边框），生成时数字跳动，
+         结束后定格几秒再淡出。html[data-claude-gen-timer="off"] 关闭时
+         直接不显示——JS 那边也不会建元素，这里是双保险。 */
+      .clawd-gen-timer {
+        position: fixed;
+        right: 16px;
+        bottom: 84px;
+        z-index: 10015;
+        padding: 4px 10px;
+        border-radius: 10px;
+        font-family: var(--cl-sans);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        color: var(--cw-text-body);
+        background: var(--cw-surface-raised);
+        border: 1px solid var(--cw-rule-hairline);
+        box-shadow: 0 6px 18px rgba(0,0,0,.18);
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 200ms ease, transform 200ms ease;
+        pointer-events: none;
+      }
+      .clawd-gen-timer.clawd-gen-timer-visible { opacity: .92; transform: translateY(0); }
+      .clawd-gen-timer.clawd-gen-timer-done { color: var(--cw-mark); }
+      html[data-claude-gen-timer="off"] .clawd-gen-timer { display: none !important; }
+      @media (prefers-reduced-motion: reduce) {
+        .clawd-gen-timer { transition: none !important; }
+      }
+
+      /* 侧栏图标开关：只藏图标字形，不改按钮的可点击区域和布局尺寸——
+         用 visibility 而不是 display，省得图标一关整排按钮宽度跟着塌。
+         输入框（send_form 系列）的图标不在 #top-settings-holder 范围里，
+         不受影响。 */
+      html[data-claude-rail-icons="off"] #top-settings-holder .drawer-icon,
+      html[data-claude-rail-icons="off"] #top-settings-holder :is(.fa, .fas, .fa-solid, .far, .fa-regular, .fab, .fa-brands) {
+        visibility: hidden !important;
+      }
+
+      /* 背景透传：主题原本给 body/#sheld/#chat/输入区整片刷了不透明的
+         --cw-surface-page（也就是现在的白底/黑底），把酒馆自己的背景图
+         盖住了。这里只清空这几层的背景色，不碰 background-image——
+         酒馆的背景图挂在更底层的元素上，本来就没被这几层挡住内容，
+         挡住的只是"看不看得见"。 */
+      html[data-claude-bg-transparent="on"],
+      html[data-claude-bg-transparent="on"] body,
+      html[data-claude-bg-transparent="on"] #sheld,
+      html[data-claude-bg-transparent="on"] #chat,
+      html[data-claude-bg-transparent="on"] #send_form,
+      html[data-claude-bg-transparent="on"] #form_sheld {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+
+      /* 毛玻璃：在透传的基础上，给内容区（不含 html/body 这两层最外层）
+         补一层很浅的同色调半透明底 + 模糊，读起来是"隔着磨砂玻璃看背景"，
+         不是完全透明导致文字糊在背景图上看不清。设置面板里这个开关依赖
+         背景透传先开，两个都关掉时都不生效，不会出现"糊了但看不出透明"
+         的死角状态。 */
+      html[data-claude-bg-blur="on"] #sheld,
+      html[data-claude-bg-blur="on"] #chat,
+      html[data-claude-bg-blur="on"] #send_form,
+      html[data-claude-bg-blur="on"] #form_sheld {
+        background: color-mix(in srgb, var(--cw-surface-page) 22%, transparent) !important;
+        backdrop-filter: blur(16px) saturate(1.08) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+      }
+
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
       html[data-claude-motion="off"] button.${BUTTON_CLASS}::before,
       html[data-claude-motion="off"] button.clawd-mobile-clawd-button,
@@ -1974,6 +2053,68 @@ if (CLAUDE_ENABLED) {
     return bridge ?? null;
   }
 
+  /* D2 生成计时器：measures how long the current streaming reply has been
+     running. 用同一套 GENERATION_STARTED/ENDED/STOPPED 事件驱动，跟原生
+     的 typing indicator 进出场是同一个事实来源，不用自己猜生成有没有
+     结束。可开关（html[data-claude-gen-timer]），关掉时直接不建元素，
+     不占任何一帧。 */
+  let genTimerEl = null;
+  let genTimerRaf = 0;
+  let genTimerStartedAt = 0;
+  let genTimerLingerTimer = 0;
+  const GEN_TIMER_LINGER_MS = 4000;
+
+  function genTimerEnabled() {
+    return hostDocument.documentElement.dataset.claudeGenTimer !== 'off';
+  }
+
+  function ensureGenTimerEl() {
+    if (genTimerEl && genTimerEl.isConnected) return genTimerEl;
+    genTimerEl = hostDocument.createElement('div');
+    genTimerEl.className = 'clawd-gen-timer';
+    genTimerEl.setAttribute('aria-hidden', 'true');
+    hostDocument.body.append(genTimerEl);
+    return genTimerEl;
+  }
+
+  function tickGenTimer() {
+    if (!genTimerEl || !genTimerStartedAt) return;
+    const elapsed = (hostWindow.performance.now() - genTimerStartedAt) / 1000;
+    genTimerEl.textContent = elapsed.toFixed(1) + 's';
+    genTimerRaf = hostWindow.requestAnimationFrame(tickGenTimer);
+  }
+
+  function startGenTimer() {
+    if (!genTimerEnabled()) return;
+    const el = ensureGenTimerEl();
+    if (genTimerLingerTimer) {
+      hostWindow.clearTimeout(genTimerLingerTimer);
+      genTimerLingerTimer = 0;
+    }
+    if (genTimerRaf) hostWindow.cancelAnimationFrame(genTimerRaf);
+    genTimerStartedAt = hostWindow.performance.now();
+    el.classList.remove('clawd-gen-timer-done');
+    el.classList.add('clawd-gen-timer-visible');
+    tickGenTimer();
+  }
+
+  function stopGenTimer() {
+    if (genTimerRaf) {
+      hostWindow.cancelAnimationFrame(genTimerRaf);
+      genTimerRaf = 0;
+    }
+    if (!genTimerStartedAt || !genTimerEl) return; // 没真的开始过（比如开关关闭时收到结束事件）
+    const elapsed = (hostWindow.performance.now() - genTimerStartedAt) / 1000;
+    genTimerEl.textContent = (ccPrefersChinese() ? '用时 ' : 'took ') + elapsed.toFixed(1) + 's';
+    genTimerEl.classList.add('clawd-gen-timer-done');
+    genTimerStartedAt = 0;
+    if (genTimerLingerTimer) hostWindow.clearTimeout(genTimerLingerTimer);
+    genTimerLingerTimer = hostWindow.setTimeout(() => {
+      genTimerEl?.classList.remove('clawd-gen-timer-visible');
+      genTimerLingerTimer = 0;
+    }, GEN_TIMER_LINGER_MS);
+  }
+
   function watchGenerationEvents() {
     if (generationSubscriptions.length || destroyed) return;
     const context = getContext();
@@ -1999,6 +2140,7 @@ if (CLAUDE_ENABLED) {
             .forEach(createTypingExitGhost);
         }
         generationEventActive = active;
+        if (active) startGenTimer(); else stopGenTimer();
         primeTypingTransition(active);
         scheduleRefresh();
       };
@@ -2682,6 +2824,13 @@ if (CLAUDE_ENABLED) {
       .forEach(element => element.remove());
   }
 
+  /* 三击踱步的冷却：原来每凑够 3 击就无条件切换一次，手快的人连续点
+     会在几秒内把踱步开了又关、关了又开，肉眼只看到抖来抖去分不清是
+     开还是关。切换后短时间内再凑够 3 击，只提示"冷却中"、不切换，
+     逼着连点停一下再打下一组三连击。 */
+  const LEG_BOUNCE_TOGGLE_COOLDOWN_MS = 2500;
+  let lastLegBounceToggleAt = 0;
+
   function handleCcCombo(button) {
     // 睡着的时候戳它，回一句梦话就好，不进连点彩蛋的计数
     if (!button) return true;
@@ -2712,6 +2861,12 @@ if (CLAUDE_ENABLED) {
       ccComboCount = 0;
       if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
       ccComboTimer = null;
+      const now = Date.now();
+      if (now - lastLegBounceToggleAt < LEG_BOUNCE_TOGGLE_COOLDOWN_MS) {
+        showCcToast(button, ccEscapeHtml(ccPrefersChinese() ? '等等…刚切过' : 'hold on… just switched'), 'hi');
+        return true;
+      }
+      lastLegBounceToggleAt = now;
       shyPokeTimestamps = [];
       button.classList.remove(SHY_AMBIENT_CLASS);
       clearCcTransientFeedback(button);
@@ -6351,6 +6506,10 @@ if (CLAUDE_ENABLED) {
     hostWindow.clearInterval(ccWobbleTimer);
     hostWindow.clearInterval(idleTimer);
     hostWindow.clearInterval(ccScanTimer);
+    if (genTimerRaf) hostWindow.cancelAnimationFrame(genTimerRaf);
+    if (genTimerLingerTimer) hostWindow.clearTimeout(genTimerLingerTimer);
+    genTimerEl?.remove();
+    genTimerEl = null;
     if (reconcileTimer) hostWindow.clearTimeout(reconcileTimer);
     reconcileTimer = 0;
     if (destroyed) return;
@@ -6762,6 +6921,25 @@ if (CLAUDE_ENABLED) {
           <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
             <input id="claude-web-decorations" type="checkbox">
             <span>启用粒子与提示气泡</span>
+          </label>
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
+            <input id="claude-web-gen-timer" type="checkbox">
+            <span>显示生成计时器</span>
+          </label>
+
+          <hr style="margin:10px 0;opacity:.25">
+          <div style="font-weight:600;margin-bottom:6px">界面</div>
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
+            <input id="claude-web-rail-icons" type="checkbox">
+            <span>显示侧栏图标</span>
+          </label>
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
+            <input id="claude-web-bg-transparent" type="checkbox">
+            <span>背景透传（显示酒馆背景，而不是白底/黑底）</span>
+          </label>
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
+            <input id="claude-web-bg-blur" type="checkbox">
+            <span>背景毛玻璃（需先开启背景透传）</span>
           </label>
 
           <hr style="margin:10px 0;opacity:.25">
@@ -7200,6 +7378,40 @@ if (CLAUDE_ENABLED) {
     decorationsBox.addEventListener('change', () => {
       if (!write('decorations', decorationsBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeDecorations = decorationsBox.checked ? 'on' : 'off';
+    });
+
+    const genTimerBox = panel.querySelector('#claude-web-gen-timer');
+    genTimerBox.checked = read('genTimer', ['on', 'off'], 'on') !== 'off';
+    genTimerBox.addEventListener('change', () => {
+      if (!write('genTimer', genTimerBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeGenTimer = genTimerBox.checked ? 'on' : 'off';
+    });
+
+    const railIconsBox = panel.querySelector('#claude-web-rail-icons');
+    railIconsBox.checked = read('railIcons', ['on', 'off'], 'on') !== 'off';
+    railIconsBox.addEventListener('change', () => {
+      if (!write('railIcons', railIconsBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeRailIcons = railIconsBox.checked ? 'on' : 'off';
+    });
+
+    const bgTransparentBox = panel.querySelector('#claude-web-bg-transparent');
+    const bgBlurBox = panel.querySelector('#claude-web-bg-blur');
+    bgTransparentBox.checked = read('bgTransparent', ['on', 'off'], 'off') === 'on';
+    bgBlurBox.checked = read('bgBlur', ['on', 'off'], 'off') === 'on';
+    bgTransparentBox.addEventListener('change', () => {
+      if (!write('bgTransparent', bgTransparentBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeBgTransparent = bgTransparentBox.checked ? 'on' : 'off';
+      // 关掉透传时毛玻璃没有意义（没有可透的背景），一起关掉，
+      // 避免出现「毛玻璃开着但背景是纯色」这种看不出效果的死角状态。
+      if (!bgTransparentBox.checked && bgBlurBox.checked) {
+        bgBlurBox.checked = false;
+        write('bgBlur', 'off');
+        document.documentElement.dataset.claudeBgBlur = 'off';
+      }
+    });
+    bgBlurBox.addEventListener('change', () => {
+      if (!write('bgBlur', bgBlurBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeBgBlur = bgBlurBox.checked ? 'on' : 'off';
     });
 
     mountPresets(panel);
