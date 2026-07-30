@@ -154,7 +154,7 @@ const CLAUDE_GLASS_BASE = 'var(--cw-surface-page)';
    文件那边），淡玻璃 + 黑遮罩叠在一起就是发暗发灰的根源。侧边栏是导航
    主入口，不该跟着主区域那根"用户可能调得很低"的滑条走——单独给它一个
    更高的浓度下限，其他抽屉/弹层不受影响。 */
-const CLAUDE_NAV_TINT_OPACITY = Math.max(38, CLAUDE_BG_BLUR_OPACITY);
+const CLAUDE_NAV_TINT_OPACITY = Math.max(58, CLAUDE_BG_BLUR_OPACITY);
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
@@ -1659,7 +1659,7 @@ if (CLAUDE_ENABLED) {
          "浓度下限"变量（不再用主区域那根可能被拖到 8% 的滑条），保证顶栏
          这种常驻功能区不会因为用户把主区域调得很透就跟着一起看不清。 */
       html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
-        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-nav-tint-opacity, 38%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-nav-tint-opacity, 58%), transparent) !important;
       }
       html[data-claude-bg-blur="on"] #top-bar#top-bar {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
