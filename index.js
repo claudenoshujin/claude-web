@@ -1639,14 +1639,39 @@ if (CLAUDE_ENABLED) {
          #send_form 这里不再单独给背景和滤镜，留空之后background-transparent
          那条规则已经把它们设成透明了，会自然透出 #sheld 这一层模糊后的
          底色，不会再有二次模糊/二次描边。 */
-      html[data-claude-bg-blur="on"] #top-bar#top-bar,
+      /* #top-settings-holder 还是不能上 backdrop-filter——它是里面那些
+         fixed 抽屉的祖先，加了模糊就会变成抽屉的定位参照系，重蹈"抽屉挤扁
+         关不掉"的覆辙（这条坑之前踩过，见下面抽屉那段的说明）。
+         #top-bar 不一样：查过 DOM，它跟 #top-settings-holder 是平级，
+         底下也没有任何 fixed 定位的子元素，加模糊不会影响别的东西的定位，
+         真机点关各种抽屉都正常。之前图省事把两个写在一条规则里、都不加
+         模糊，代价是顶栏标题、图标全都直接铺在没模糊过的原图上——背景图
+         细节一多，图标和文字的对比度就没保障，这也是反馈"字看不清"的
+         一部分原因。这里把 #top-bar 拆出来单独给模糊，并且改用抽屉同一根
+         "浓度下限"变量（不再用主区域那根可能被拖到 8% 的滑条），保证顶栏
+         这种常驻功能区不会因为用户把主区域调得很透就跟着一起看不清。 */
       html[data-claude-bg-blur="on"] #top-settings-holder#top-settings-holder {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-bg-blur-opacity, 22%), transparent) !important;
       }
+      html[data-claude-bg-blur="on"] #top-bar#top-bar {
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
+        backdrop-filter: blur(16px) saturate(1.4) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+      }
       html[data-claude-bg-blur="on"] #sheld#sheld {
         background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-bg-blur-opacity, 22%), transparent) !important;
-        backdrop-filter: blur(16px) saturate(1.2) !important;
-        -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+        backdrop-filter: blur(16px) saturate(1.4) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+      }
+      /* 消息区的次要文字（时间戳、"思考了一会"这类提示、操作图标）原来的
+         灰色是按"底下永远是纯色纸白/纸黑"校准的对比度，换成半透明background
+         露出背景图之后，这层灰经常卡在跟天空、云、浅色区域差不多的亮度，
+         看着就会"发灰看不清"——不是不透明度算错了，是文字颜色本身的对比度
+         保障没了。开了背景透传之后，把这个次要文字色朝主文字色（对比度
+         最高、每个主题下都验证过可读）拉近一截，不管日夜、不管背景图什么
+         内容，都能保住一个最低对比度。 */
+      html[data-claude-bg-transparent="on"] {
+        --cw-text-muted: color-mix(in srgb, var(--cw-text-muted) 55%, var(--cw-text-body) 45%) !important;
       }
 
       /* 抽屉/弹层固定磨砂：世界书、扩展、角色管理、User Settings 这些
