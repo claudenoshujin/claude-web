@@ -4117,7 +4117,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     margin:1px 0 2px !important;
     padding:0 10px !important;
     border:0 !important;
-    border-radius:50% !important;
+    border-radius:10px !important;
     background:transparent !important;
     color:var(--cw-text-body) !important;
     font:500 15px/1 var(--cl-sans) !important;
@@ -4141,7 +4141,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     margin:0 !important;
     padding:0 !important;
     border:0 !important;
-    border-radius:50% !important;
+    border-radius:10px !important;
     background:transparent !important;
     box-shadow:none !important;
     transform:none !important;

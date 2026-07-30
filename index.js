@@ -136,11 +136,12 @@ const CLAUDE_BG_BLUR_OPACITY = (() => {
   if (!Number.isFinite(num)) return 22;
   return Math.min(60, Math.max(8, Math.round(num)));
 })();
-/* 世界书编辑器、User Settings 这些字多的面板，如果直接用上面那个可能被
-   用户调得很低的浓度，字会花——现在这些抽屉/弹层自己也带了 backdrop-filter
-   模糊（见下面 CSS），但色调这层还是单独设个下限，两层一起兜底可读性，
-   用户把主区域调得再透，抽屉本身至少保持這个浓度。 */
-const CLAUDE_DRAWER_TINT_OPACITY = Math.max(68, CLAUDE_BG_BLUR_OPACITY);
+/* 之前这里给到 68%，是想靠"颜色"硬压住底下的图案——反馈是"看着不像磨砂
+   玻璃，像涂了层灰漆"。真机测过：抽屉现在自己带了 backdrop-filter 模糊
+   （见下面 CSS），单靠模糊本身就能把底下的图案/色块糊成一片，可读性不
+   靠色调堆出来。这里把下限降下来，颜色只留一点点存在感（让磨砂面板跟
+   纯透明区分得出来），主要观感交给模糊，不是靠色调"糊脸"。 */
+const CLAUDE_DRAWER_TINT_OPACITY = Math.max(18, CLAUDE_BG_BLUR_OPACITY);
 /* 抽屉/弹层、聊天区、输入条这些"磨砂玻璃"表面统一用一个跟日夜主题脱钩的
    中性灰做底色，不再用 --cw-surface-page（日间是纸白 #f8f8f6、夜间是
    近黑 #1f1f1e）。之前日间在低浓度时，白色底色几乎不提供对比度，背景一
@@ -1610,8 +1611,8 @@ if (CLAUDE_ENABLED) {
          ——这本来就是原设计里唯一带独立底色的控件，边界是有意的（一个
          圆角药丸形状的控件轮廓，不是贯穿整行的硬切线），不算视觉割裂。 */
       html[data-claude-bg-transparent="on"] #send_form#send_form {
-        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
+        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
         background-image: none !important;
       }
 
@@ -1694,16 +1695,16 @@ if (CLAUDE_ENABLED) {
          测试开关各个抽屉正常。 */
       html body #top-settings-holder > .drawer > .drawer-content,
       html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
-        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        backdrop-filter: blur(16px) saturate(1.08) !important;
-        -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
+        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
+        backdrop-filter: blur(20px) saturate(1.1) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(1.1) !important;
       }
       html :is(.drawer-content, .popup, .popup-content) {
-        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
-        backdrop-filter: blur(16px) saturate(1.08) !important;
-        -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+        background: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
+        background-color: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
+        backdrop-filter: blur(20px) saturate(1.1) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(1.1) !important;
       }
       /* --SmartThemeBlurTintColor 是酒馆自己给"磨砂面板"准备的原生变量，
          语义就是"配合模糊用的半透明底色"——不少第三方扩展（背景管理面板
@@ -1718,7 +1719,7 @@ if (CLAUDE_ENABLED) {
          受益），背景会自动跟着我们的日夜色调和毛玻璃浓度滑条走，不用每
          冒出一个新扩展就单独打一次补丁。 */
       html {
-        --SmartThemeBlurTintColor: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        --SmartThemeBlurTintColor: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
       }
 
       /* 真正在真实聊天页（非欢迎页）里把 #send_form 顶掉、让接缝 bug 复现的
@@ -1743,7 +1744,7 @@ if (CLAUDE_ENABLED) {
          day-pc.css 那份。 */
       html[data-claude-bg-transparent="on"],
       html[data-claude-bg-transparent="on"] body {
-        --cl-composer-chat: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        --cl-composer-chat: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
       }
 
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
@@ -7579,7 +7580,7 @@ if (CLAUDE_ENABLED) {
     const applyBgBlurOpacity = (n) => {
       const clamped = Math.min(60, Math.max(8, Math.round(n)));
       document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${clamped}%`);
-      document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${Math.max(68, clamped)}%`);
+      document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${Math.max(18, clamped)}%`);
       bgBlurOpacityValue.textContent = `${clamped}%`;
       return clamped;
     };
