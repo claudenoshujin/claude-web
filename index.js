@@ -1662,15 +1662,20 @@ if (CLAUDE_ENABLED) {
         background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
         background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
-      /* 背景管理面板（世界书/角色管理旁边那个"背景"抽屉）自己有个固定顶栏
-         #bg-header-fixed，用的是酒馆原生 --SmartThemeBlurTintColor 变量，
-         不是我们主题的 --cw-surface-page——这俩没有绑定关系，酒馆原生这个
-         变量当前值偏深色，跟日间模式下浅色的抽屉正文拼在一起就是一截黑色
-         的"Add Background"横条杵在白色面板顶上，明暗不一致。只在这一个
-         元素上用我们自己的浅色调色，不去动 --SmartThemeBlurTintColor 本身
-         ——那个变量别处也在用，改了影响面不可控，这里按元素单点修。 */
-      html #bg-header-fixed {
-        background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
+      /* --SmartThemeBlurTintColor 是酒馆自己给"磨砂面板"准备的原生变量，
+         语义就是"配合模糊用的半透明底色"——不少第三方扩展（背景管理面板
+         自己的顶栏 #bg-header-fixed、酒馆助手的脚本列表行……）都直接拿
+         这个变量当背景，不吃我们主题的 --cw-surface-page。我们的主题没
+         重新定义过它，酒馆原生给的默认值偏深、还不透明，跟这些扩展自己
+         "半透明磨砂"的设计初衷本来就对不上，遇上我们的日间浅色主题更是
+         直接糊出一块黑条/黑块，跟旁边区域完全脱节。
+         这里不是挨个元素去堵，是从根上把这个变量重新定义成跟我们抽屉
+         同一色调、同一浓度的半透明色——凡是照着酒馆官方约定使用这个变量
+         的扩展（不只是背景面板和酒馆助手，任何遵循这个约定的三方扩展都
+         受益），背景会自动跟着我们的日夜色调和毛玻璃浓度滑条走，不用每
+         冒出一个新扩展就单独打一次补丁。 */
+      html {
+        --SmartThemeBlurTintColor: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
       }
 
       html[data-claude-motion="off"] button.${BUTTON_CLASS},
