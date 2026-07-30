@@ -5188,6 +5188,48 @@ html body #user-settings-block-content input[type="range"].neo-range-slider {
   background-color:var(--cw-rule-hairline) !important;
   box-shadow:none !important;
 }
+
+/* 2.0.5: mobile messages use one clean text column.
+   The avatar only reserves the header row; it must not squeeze the whole reply.
+   User bubbles also drop the old desktop action-button gutter. */
+@media (max-width:700px) {
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] {
+    display:block !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] > .mesAvatarWrapper {
+    position:absolute !important;
+    top:12px !important;
+    left:8px !important;
+    width:42px !important;
+    height:60px !important;
+    margin:0 !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] > .mes_block {
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding-left:0 !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] .ch_name {
+    min-height:60px !important;
+    padding-left:50px !important;
+    box-sizing:border-box !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] :is(.mes_text,.mes_reasoning_details) {
+    width:100% !important;
+    max-width:100% !important;
+    margin-left:0 !important;
+    margin-right:0 !important;
+    box-sizing:border-box !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] .mes_text,
+  html body:not(.clawd-welcome) #chat > .mes[is_user="true"] .mes_text {
+    padding-right:0 !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] .mes_buttons {
+    left:0 !important;
+  }
+}
 html body #user-settings-block-content input[type="range"]::-webkit-slider-thumb {
   appearance:none !important;
   width:15px !important;

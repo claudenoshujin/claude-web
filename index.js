@@ -156,7 +156,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: '2.0.4-edit-toolbar-user-settings-controls-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.5-mobile-message-column-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
