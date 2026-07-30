@@ -1578,7 +1578,8 @@ if (CLAUDE_ENABLED) {
       html[data-claude-bg-transparent="on"] #top-bar#top-bar,
       html[data-claude-bg-transparent="on"] #top-settings-holder#top-settings-holder,
       html[data-claude-bg-transparent="on"] #sheld#sheld,
-      html[data-claude-bg-transparent="on"] #chat#chat {
+      html[data-claude-bg-transparent="on"] #chat#chat,
+      html[data-claude-bg-transparent="on"] #form_sheld#form_sheld {
         background: transparent !important;
         background-color: transparent !important;
         background-image: none !important;
@@ -1586,20 +1587,22 @@ if (CLAUDE_ENABLED) {
       html[data-claude-bg-transparent="on"] #chat#chat::before {
         background: transparent !important;
       }
-      /* 输入框（#send_form/#form_sheld）不跟着上面这批走完全透明——PC 和
-         手机两套布局里它们在 DOM 里挂的位置不一样：手机端是 #sheld 的
-         直接子元素，天然能透出 #sheld 那层已经做过模糊处理的底色；PC 端
-         不是这样挂的，同样设成 transparent 之后背后没有任何模糊层顶着，
-         直接把最原始、没模糊过的背景图硬生生露出来，跟手机端看着完全是
-         两种效果——用户反馈"PC 端不透明"，根子就是这个布局差异，不是
-         单纯的优先级问题。
-         干脆不依赖"透出父层模糊"这条路径，直接给输入框自己一份固定的
-         半透明色调（用跟抽屉一样的 --claude-drawer-tint-opacity 这个
-         带下限的浓度），不管 PC 还是手机、不管 #sheld 那层模糊算不算数，
-         输入框永远是"看得见背景但不刺眼、字也认得清"的同一种效果，不用
-         再猜它此刻是完全透明还是完全实心。 */
-      html[data-claude-bg-transparent="on"] #send_form#send_form,
-      html[data-claude-bg-transparent="on"] #form_sheld#form_sheld {
+      /* 上一版把 #form_sheld 也单独打了层色调，本意是想解决"PC 端输入框
+         看着不透"的问题，结果打歪了：真机调试查了 #sheld 的实际渲染盒子
+         （position:absolute，铺满整个 #sheld 区域），发现它的模糊背景其实
+         已经完整盖到 #form_sheld 那块地方了，PC 端"不透"的锅根本不在
+         #sheld 有没有漏——是 #send_form 自己在 day-pc.css 里原本就有一份
+         不透明的 --cw-surface-raised 背景（做成"浮起的输入控件"故意跟
+         正文区分开），跟透传开关没关系。
+         #form_sheld 单独叠一层色调，等于在"#sheld 已经模糊过一次"的底子上
+         又摞了一层不同浓度的色调，跟旁边同样透出 #sheld 底色、但没有额外
+         色调的 #chat 交界处，亮度/浓度对不上，就刷出了聊天区和输入条之间
+         那道硬边——就是这次反馈的新 bug。
+         #form_sheld 退回去跟 #chat 一样纯透传，边界就消失了。真正需要
+         "看得见但要跟正文区分开"的其实只有 #send_form 那个圆角输入条本身
+         ——这本来就是原设计里唯一带独立底色的控件，边界是有意的（一个
+         圆角药丸形状的控件轮廓，不是贯穿整行的硬切线），不算视觉割裂。 */
+      html[data-claude-bg-transparent="on"] #send_form#send_form {
         background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
         background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 45%), transparent) !important;
         background-image: none !important;
