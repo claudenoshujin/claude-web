@@ -1672,14 +1672,31 @@ if (CLAUDE_ENABLED) {
          选择器又高一级（多一个类），手机窄屏下实测抽屉还是纯色，就是被
          这条压过去了。这里把 .openDrawer 变体也一起列出来，两个布局
          都能盖住，不用再赌“加载顺序刚好在后面”那种运气。 */
+      /* 光调浓度治标不治本：抽屉之前只有色调、没有模糊，浓度调到 68% 还是
+         能看出背后角色卡缩略图/聊天气泡的轮廓，本质是"给一层有色玻璃纸"，
+         不是"磨砂玻璃"。真机反馈"日间的字看不清、头像也糊没了"，根子在
+         这——背后内容细节越多（图片、卡片），同样浓度下能看清的东西越多，
+         纯调浓度只能靠堆到接近不透明才压得住，代价是完全看不见背景，跟
+         "透传"这个功能本身的诉求（看得见背景）矛盾。
+         这里给抽屉/弹窗自己直接加 backdrop-filter：这些面板本身就是
+         position:fixed 定位的元素，模糊算在它们自己身上，不影响它们自己
+         的定位（filter 影响的是"内部子元素"的定位基准，不影响元素自己）。
+         之前踩过的坑是把模糊加在 #top-settings-holder 这个"祖先容器"上，
+         把它变成了里面 fixed 抽屉的定位基准，导致抽屉挤扁/关不掉——这次
+         是直接加在抽屉本身，不是加在抽屉的祖先上，两者不是一回事，真机
+         测试开关各个抽屉正常。 */
       html body #top-settings-holder > .drawer > .drawer-content,
       html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
         background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
         background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        backdrop-filter: blur(16px) saturate(1.08) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
       }
       html :is(.drawer-content, .popup, .popup-content) {
         background: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
         background-color: color-mix(in srgb, var(--cw-surface-page) var(--claude-drawer-tint-opacity, 68%), transparent) !important;
+        backdrop-filter: blur(16px) saturate(1.08) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
       }
       /* --SmartThemeBlurTintColor 是酒馆自己给"磨砂面板"准备的原生变量，
          语义就是"配合模糊用的半透明底色"——不少第三方扩展（背景管理面板
