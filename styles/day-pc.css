@@ -4782,3 +4782,48 @@ html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
   visibility:visible !important;
   pointer-events:auto !important;
 }
+
+/* 2.0.2: SillyTavern keeps one edit toolbar in every message header.
+   The older Claude rule had higher specificity than the 2.0.1 hotfix,
+   so normal messages still showed it. */
+html:not([data-claude-archive="on"]) body #chat .mes_edit_buttons {
+  display:none !important;
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
+  display:inline-flex !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+}
+
+/* New SillyTavern uses an intrinsic open-drawer height. Explicitly fill the
+   viewport so every desktop settings drawer has the same usable height. */
+@media (min-width:701px) {
+  html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    height:100dvh !important;
+    min-height:100dvh !important;
+    max-height:100dvh !important;
+  }
+}
+
+/* The extensions page is the only stock drawer with two wide columns.
+   Collapse those columns before they start clipping header controls. */
+@media (min-width:701px) and (max-width:1120px) {
+  html body #rm_extensions_block .extensions_block {
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+  }
+  html body #rm_extensions_block .extensions_block > * {
+    flex:none !important;
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+  }
+  html body #rm_extensions_block .extensions_block > :first-child {
+    flex-wrap:wrap !important;
+    gap:8px !important;
+  }
+}

@@ -5140,3 +5140,17 @@ html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
   visibility:visible !important;
   pointer-events:auto !important;
 }
+
+/* 2.0.2: keep the native edit toolbar hidden until a real textarea exists. */
+html:not([data-claude-archive="on"]) body #chat .mes_edit_buttons {
+  display:none !important;
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
+  display:inline-flex !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  pointer-events:auto !important;
+}
