@@ -1811,10 +1811,16 @@ if (CLAUDE_ENABLED) {
         }
       }
 
+      /* 像素画是单张 box-shadow 精灵，没有独立的"腿"部件可以单独动——
+         之前让整只 ::before 上下位移 2px，360ms 一轮、infinite 循环，
+         读出来就是全身反复往上跳，跟"抖腿"完全是两种动作。
+         改成左右方向的小幅位移（不带净位移，去回都在原地），
+         视觉上更接近腿在原地打颤，不是整只在弹跳。 */
       @keyframes clawd-leg-bounce {
         0%, 100% { translate: 0 0; }
-        34% { translate: 0 -2px; }
-        68% { translate: 0 1px; }
+        25% { translate: -1px 0; }
+        50% { translate: 0 0; }
+        75% { translate: 1px 0; }
       }
 
       @keyframes clawd-compose-bob {
@@ -2469,7 +2475,11 @@ if (CLAUDE_ENABLED) {
   let ccHasBeenPoked = false;
   let ccReturnedAt = 0;
   let ccHiddenAt = 0;
-  let ccPoseTimer = 0;
+  /* 每个 Clawd 按钮各自的姿势计时器。以前是单个全局变量：多个 Clawd（每条
+     AI 消息一个）同时存在时，后一个 Clawd 眨眼会 clearTimeout 掉前一个的
+     计时器，但不会摘掉前一个已经加上的 class —— 前一个就永久卡在眨眼/
+     看/缩起来的姿势，直到下次凑巧轮到它自己被摸一下。改成按钮各管各的。 */
+  const ccPoseTimers = new WeakMap();
   const ccBags = new Map();
   const CC_SILENT_RATE = 0.10;
 
@@ -2494,14 +2504,16 @@ if (CLAUDE_ENABLED) {
 
   function pulseCcPose(button, className, duration = 520) {
     if (!button) return;
-    if (ccPoseTimer) hostWindow.clearTimeout(ccPoseTimer);
+    const existing = ccPoseTimers.get(button);
+    if (existing) hostWindow.clearTimeout(existing);
     button.classList.remove('clawd-poke-blink', 'clawd-poke-look', 'clawd-poke-tucked');
     void button.offsetWidth;
     button.classList.add(className);
-    ccPoseTimer = hostWindow.setTimeout(() => {
+    const timer = hostWindow.setTimeout(() => {
       button.classList.remove(className);
-      ccPoseTimer = 0;
+      if (ccPoseTimers.get(button) === timer) ccPoseTimers.delete(button);
     }, duration);
+    ccPoseTimers.set(button, timer);
   }
 
   function ccContextSlot() {
@@ -5098,6 +5110,10 @@ if (CLAUDE_ENABLED) {
   let lastFocusReactionAt = 0;
   const handleFocusIn = event => {
     if (event.target?.id !== 'send_textarea') return;
+    /* 聚焦输入框本身就是「人在」的信号，得跟敲键盘一样刷新打盹计时——
+       不然 syncCcComposerState 只是切了一个视觉用的 class，用户光盯着
+       输入框想措辞、没按键，一分钟计时器照样把 Clawd 睡倒在人眼皮底下。 */
+    noteActivity();
     if (isMobileLayout()) {
       /* focusin 通常早于系统键盘真正缩放视口；在这里锁定关闭键盘后应回到的底边。 */
       mobileStableLayoutHeight = Math.max(
@@ -6206,7 +6222,8 @@ if (CLAUDE_ENABLED) {
     hostDocument.removeEventListener('focusout', handleFocusOut, true);
     if (throttleTimer) hostWindow.clearTimeout(throttleTimer);
     if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
-    if (ccPoseTimer) hostWindow.clearTimeout(ccPoseTimer);
+    /* ccPoseTimers 是按钮各自持有的 WeakMap，按钮节点被上面的清理/卸载
+       带走后计时器引用也跟着失效，不需要（也没法）在这里统一遍历清除。 */
     typingMotionTimers.forEach(timer => hostWindow.clearTimeout(timer));
     typingMotionTimers.clear();
     typingEntryTimers.forEach(timer => hostWindow.clearTimeout(timer));

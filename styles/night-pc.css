@@ -642,8 +642,8 @@ hr {
 .typing_indicator::after {
   content:"";
   position:absolute;
-  left:23px;
-  z-index:3;
+  left:38px;
+  z-index:1;
   width:3px;
   height:3px;
   background:transparent;
@@ -652,7 +652,7 @@ hr {
   opacity:.92;
   transform-origin:27px 12px;
   will-change:transform, opacity;
-  top:2px !important;
+  top:-6px !important;
   animation:var(--cl-greeting-particle-animation) !important;
 }
 :root {

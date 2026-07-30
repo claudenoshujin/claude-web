@@ -642,8 +642,8 @@ hr {
 .typing_indicator::after {
   content:"";
   position:absolute;
-  left:23px;
-  z-index:3;
+  left:38px;
+  z-index:1;
   width:3px;
   height:3px;
   background:transparent;
@@ -652,7 +652,7 @@ hr {
   opacity:.92;
   transform-origin:27px 12px;
   will-change:transform, opacity;
-  top:2px !important;
+  top:-6px !important;
   animation:var(--cl-greeting-particle-animation) !important;
 }
 :root {
@@ -4855,9 +4855,11 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     bottom:52px !important;
     margin:0 !important;
   }
+  /* 跟基础规则同一个毛病：手机生成态里问号锚点被单独覆盖回了身体
+     右上角（23px/5px），又踩回脸上。挪法跟基础规则一致，往右上让开。 */
   html body.claude-generation-active:not(.clawd-welcome) #chat .typing_indicator::after {
-    top:5px !important;
-    left:23px !important;
+    top:-3px !important;
+    left:38px !important;
   }
 
   /* Keep both sides on the public rem-based mobile size control. */
