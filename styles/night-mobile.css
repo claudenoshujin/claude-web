@@ -5238,6 +5238,31 @@ html body #sheld {
 html body #form_sheld {
   box-shadow:none !important;
 }
+
+/* 2.0.7: the fixed mobile composer must own real layout space. Padding alone
+   leaves the chat viewport behind it, so a text line can be cut in half at
+   the composer's top edge while scrolling. */
+@media (max-width:700px) {
+  html body.clawd-mobile-layout:not(.clawd-welcome) #chat {
+    height:calc(
+      var(--cl-mobile-viewport-height, 100dvh)
+      - var(--cl-mobile-top)
+      - var(--cl-mobile-composer-height, 132px)
+    ) !important;
+    min-height:calc(
+      var(--cl-mobile-viewport-height, 100dvh)
+      - var(--cl-mobile-top)
+      - var(--cl-mobile-composer-height, 132px)
+    ) !important;
+    max-height:calc(
+      var(--cl-mobile-viewport-height, 100dvh)
+      - var(--cl-mobile-top)
+      - var(--cl-mobile-composer-height, 132px)
+    ) !important;
+    padding-bottom:36px !important;
+    scroll-padding-bottom:36px !important;
+  }
+}
 html body #user-settings-block-content input[type="range"]::-webkit-slider-thumb {
   appearance:none !important;
   width:15px !important;

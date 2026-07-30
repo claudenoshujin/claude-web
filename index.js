@@ -115,6 +115,11 @@ function claudeReadSetting(key, allowed, fallback) {
 /* 总开关。默认开；只有明确写过 'off' 才算关，
    读不到 localStorage（无痕、被云端宿主禁用）时不能把整个扩展关掉。 */
 const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'off';
+const CLAUDE_MOTION_ENABLED = claudeReadSetting('motion', ['on', 'off'], 'on') !== 'off';
+const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'], 'on') !== 'off';
+
+document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
 
 const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
 
@@ -156,7 +161,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: '2.0.6-shell-edge-cleanup-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.7-clawd-states-composer-viewport-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -1175,6 +1180,9 @@ if (CLAUDE_ENABLED) {
   const EMPTY_CLASS = 'claude-empty-assistant';
   const GENERATING_CLASS = 'claude-generation-active';
   const BUTTON_CLASS = 'clawd-signoff-button';
+  const LEG_BOUNCE_CLASS = 'clawd-leg-bounce';
+  const INPUT_ACTIVE_CLASS = 'clawd-input-active';
+  const INPUT_TEXT_CLASS = 'clawd-input-has-text';
   const LEFT_SWIPE_PROXY_CLASS = 'claude-swipe-left-proxy';
   const SWIPE_PROXY_CLASS = 'claude-swipe-right-proxy';
   const REROLL_CLASS = 'claude-reroll-button';
@@ -1439,6 +1447,53 @@ if (CLAUDE_ENABLED) {
       button.${BUTTON_CLASS}.clawd-poke-tucked::before {
         animation: none !important;
         box-shadow: var(--clawd-f-tucked) !important;
+      }
+
+      /* D1/D2: three quick clicks toggle a persistent mirrored leg-bounce.
+         Individual scale/translate properties compose with the existing
+         one-shot transform reactions instead of replacing them. */
+      button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS},
+      button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS} {
+        scale: -1 1;
+      }
+
+      button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS}:not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before {
+        animation: clawd-leg-bounce 360ms ease-in-out infinite !important;
+      }
+
+      button.${BUTTON_CLASS}.${INPUT_ACTIVE_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping),
+      button.clawd-mobile-clawd-button.${INPUT_ACTIVE_CLASS}:not(.${LEG_BOUNCE_CLASS}) {
+        translate: 0 -3px;
+      }
+
+      button.${BUTTON_CLASS}.${INPUT_TEXT_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}:not(.${LEG_BOUNCE_CLASS})::before {
+        animation: clawd-compose-bob 900ms ease-in-out infinite !important;
+      }
+
+      body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before,
+      body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before {
+        animation: none !important;
+      }
+
+      html[data-claude-motion="off"] button.${BUTTON_CLASS},
+      html[data-claude-motion="off"] button.${BUTTON_CLASS}::before,
+      html[data-claude-motion="off"] button.clawd-mobile-clawd-button,
+      html[data-claude-motion="off"] button.clawd-mobile-clawd-button::before,
+      html[data-claude-motion="off"] #chat .typing_indicator::before,
+      html[data-claude-motion="off"] .clawd-typing-exit-ghost::before {
+        animation: none !important;
+        transition: none !important;
+        translate: 0 0 !important;
+      }
+
+      html[data-claude-decorations="off"] :is(
+        .clawd-click-particle,
+        .clawd-cc-toast,
+        .clawd-hi-toast
+      ) {
+        display: none !important;
       }
 
       .clawd-click-particle {
@@ -1756,6 +1811,17 @@ if (CLAUDE_ENABLED) {
         }
       }
 
+      @keyframes clawd-leg-bounce {
+        0%, 100% { translate: 0 0; }
+        34% { translate: 0 -2px; }
+        68% { translate: 0 1px; }
+      }
+
+      @keyframes clawd-compose-bob {
+        0%, 100% { translate: 0 0; }
+        50% { translate: 0 -1px; }
+      }
+
       @media (max-width: 700px) {
         button.${BUTTON_CLASS} {
           width: 38px !important;
@@ -1815,6 +1881,16 @@ if (CLAUDE_ENABLED) {
           transform: none !important;
         }
         .clawd-click-particle { animation-duration: 1ms !important; }
+        button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS}::before,
+        button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before,
+        button.${BUTTON_CLASS}.${INPUT_TEXT_CLASS}::before,
+        button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before {
+          animation: none !important;
+        }
+        button.${BUTTON_CLASS}.${INPUT_ACTIVE_CLASS},
+        button.clawd-mobile-clawd-button.${INPUT_ACTIVE_CLASS} {
+          translate: 0 0;
+        }
       }
     `;
     hostDocument.head.append(style);
@@ -2312,6 +2388,8 @@ if (CLAUDE_ENABLED) {
     button.className = BUTTON_CLASS;
     button.setAttribute('aria-label', 'Clawd');
     button.title = 'Clawd';
+    applyCcPersistentState(button);
+    applyCcComposerState(button);
     if (settle) {
       button.classList.add('clawd-button-settle');
       button.addEventListener('animationend', () => button.classList.remove('clawd-button-settle'), { once: true });
@@ -2320,6 +2398,7 @@ if (CLAUDE_ENABLED) {
     button.addEventListener('click', event => {
       event.preventDefault();
       event.stopPropagation();
+      if (handleCcCombo(button)) return;
       const reaction = animateButton(button);
       createParticle(button, reaction === 'clawd-react-shy' ? 'clawd-particle-heart' : '');
       if (reaction === 'clawd-react-hop' && Math.random() < .42) {
@@ -2328,7 +2407,6 @@ if (CLAUDE_ENABLED) {
       if (reaction === 'clawd-react-peek') pulseCcPose(button, 'clawd-poke-look', 680);
       else if (reaction === 'clawd-react-shy') pulseCcPose(button, 'clawd-poke-tucked', 720);
       else if (reaction === 'clawd-react-nod') pulseCcPose(button, 'clawd-poke-blink', 360);
-      handleCcCombo(button);
     });
     return button;
   }
@@ -2386,6 +2464,7 @@ if (CLAUDE_ENABLED) {
 
   let ccComboCount = 0;
   let ccComboTimer = null;
+  let ccLegBounceEnabled = false;
   let ccSleeping = false;
   let ccHasBeenPoked = false;
   let ccReturnedAt = 0;
@@ -2477,13 +2556,36 @@ if (CLAUDE_ENABLED) {
     return text.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   }
 
+  function ccInteractiveTargets() {
+    return hostDocument.querySelectorAll(
+      `button.${BUTTON_CLASS}, button.clawd-mobile-clawd-button`,
+    );
+  }
+
+  function applyCcPersistentState(button) {
+    if (!button) return;
+    button.classList.toggle(LEG_BOUNCE_CLASS, ccLegBounceEnabled);
+  }
+
+  function setCcLegBounce(on) {
+    ccLegBounceEnabled = Boolean(on);
+    ccInteractiveTargets().forEach(applyCcPersistentState);
+  }
+
+  function clearCcTransientFeedback(button) {
+    button?.classList.remove(...BUTTON_REACTIONS, 'clawd-button-pop');
+    button?.classList.remove('clawd-poke-blink', 'clawd-poke-look', 'clawd-poke-tucked');
+    hostDocument.querySelectorAll('.clawd-click-particle, .clawd-cc-toast, .clawd-hi-toast')
+      .forEach(element => element.remove());
+  }
+
   function handleCcCombo(button) {
     // 睡着的时候戳它，回一句梦话就好，不进连点彩蛋的计数
-    if (!button) return;
+    if (!button) return true;
     if (button.classList.contains('clawd-sleeping') || ccSleeping) {
       pulseCcPose(button, 'clawd-poke-blink', 620);
       showCcToast(button, ccEscapeHtml(takeCcLine('sleeping')), 'hi');
-      return;
+      return true;
     }
     ccComboCount += 1;
     if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
@@ -2497,29 +2599,23 @@ if (CLAUDE_ENABLED) {
       } else {
         showCcToast(button, ccEscapeHtml(takeCcLine(slot)), 'hi');
       }
+      return false;
     } else if (ccComboCount === 3) {
-      pulseCcPose(button, 'clawd-poke-look', 760);
-      showCcToast(button, ccEscapeHtml(takeCcLine('third')), 'hi');
-    } else if (ccComboCount === 4) {
-      pulseCcPose(button, 'clawd-poke-tucked', 900);
-      showCcToast(button, ccEscapeHtml(takeCcLine('fourth')), 'hi');
-    } else if (ccComboCount === 5) {
-      showCcToast(button, '<span class="asterisk">✳</span> Compacting conversation… (esc to interrupt)');
-    } else if (ccComboCount === 6) {
-      pulseCcPose(button, 'clawd-poke-tucked', 850);
-      showCcToast(button, 'Bash(poke clawd)&nbsp; ⎿&nbsp; permission denied');
-    } else if (ccComboCount === 7) {
-      showCcToast(button, 'context left: 3%');
-    } else if (ccComboCount >= 8) {
       ccComboCount = 0;
-      ccSleeping = true;
-      button.classList.add('clawd-sleeping');
-      showCcToast(button, 'usage limit reached · resets 3am');
-      hostWindow.setTimeout(() => {
-        button.classList.remove('clawd-sleeping');
-        ccSleeping = false;
-      }, 6000);
+      if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
+      ccComboTimer = null;
+      clearCcTransientFeedback(button);
+      setCcLegBounce(!ccLegBounceEnabled);
+      showCcToast(
+        button,
+        ccLegBounceEnabled
+          ? (ccPrefersChinese() ? '抖腿模式：开' : 'leg bounce: on')
+          : (ccPrefersChinese() ? '抖腿模式：关' : 'leg bounce: off'),
+        'hi',
+      );
+      return true;
     }
+    return false;
   }
 
   /* ===== v1.7 ===== */
@@ -4671,10 +4767,14 @@ if (CLAUDE_ENABLED) {
     clawd.type = 'button';
     clawd.className = 'clawd-mobile-clawd-button';
     clawd.setAttribute('aria-label', 'Clawd');
+    applyCcPersistentState(clawd);
+    applyCcComposerState(clawd);
     clawd.addEventListener('click', event => {
-      animateButton(clawd, 'clawd-hop');
-      createParticle(clawd, event);
-      handleCcCombo(clawd);
+      event.preventDefault();
+      event.stopPropagation();
+      if (handleCcCombo(clawd)) return;
+      animateButton(clawd);
+      createParticle(clawd);
     });
 
     const scrim = hostDocument.createElement('button');
@@ -4973,6 +5073,28 @@ if (CLAUDE_ENABLED) {
     hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
       .forEach(button => button.classList.toggle('clawd-perk', on));
   }
+
+  function applyCcComposerState(button, focusedOverride) {
+    if (!button) return;
+    const box = hostDocument.querySelector('#send_textarea');
+    const focused = typeof focusedOverride === 'boolean'
+      ? focusedOverride
+      : Boolean(box && hostDocument.activeElement === box);
+    const hasText = Boolean(box?.value?.trim());
+    button.classList.toggle(INPUT_ACTIVE_CLASS, focused);
+    button.classList.toggle(INPUT_TEXT_CLASS, focused && hasText);
+  }
+
+  function syncCcComposerState(focusedOverride) {
+    ccInteractiveTargets().forEach(button => applyCcComposerState(button, focusedOverride));
+  }
+
+  const handleComposerInput = event => {
+    if (event.target?.id !== 'send_textarea') return;
+    noteActivity();
+    syncCcComposerState(true);
+  };
+
   let lastFocusReactionAt = 0;
   const handleFocusIn = event => {
     if (event.target?.id !== 'send_textarea') return;
@@ -4985,6 +5107,7 @@ if (CLAUDE_ENABLED) {
       mobileKeyboardRecoveryActive = false;
     }
     scheduleMobileViewportSettle();
+    syncCcComposerState(true);
     /* 手机上聚焦输入框时不要触碰历史消息里的 Clawd 按钮。旧逻辑会给每一层
        按钮改 class，并逐个读取 offsetWidth 强制同步排版；重角色卡/长聊天因此
        正好在键盘弹出的关键帧冻结数秒。键盘避让不依赖这段装饰动画。 */
@@ -5006,6 +5129,7 @@ if (CLAUDE_ENABLED) {
     /* 不等下一帧：WebView 随后若开始重排长聊天，rAF/定时器都会被主线程堵住。
        在 focusout 的同一任务内先把旧键盘偏移清零，避免输入框沿用抬高位置。 */
     scheduleMobileViewportSettle();
+    syncCcComposerState(false);
     if (isMobileLayout()) {
       /* schedule 先打开恢复窗口，reset 再同步计算正向高度补偿；顺序不能反。
          用户停留在输入框超过 840ms 时，反过来会把矮视口误记成新的稳定高度。 */
@@ -5582,6 +5706,9 @@ if (CLAUDE_ENABLED) {
     'clawd-cheer',
     'clawd-button-settle',
     'clawd-button-press',
+    LEG_BOUNCE_CLASS,
+    INPUT_ACTIVE_CLASS,
+    INPUT_TEXT_CLASS,
     'clawd-idle-drowsy',
     'clawd-sleep-transition',
     'clawd-wobble-sway',
@@ -5993,6 +6120,7 @@ if (CLAUDE_ENABLED) {
     hostWindow.addEventListener('resize', handleViewportChange, { passive: true });
     hostDocument.addEventListener('mousemove', handleLook, { passive: true });
     hostDocument.addEventListener('keydown', noteActivity, { passive: true });
+    hostDocument.addEventListener('input', handleComposerInput, true);
     hostDocument.addEventListener('visibilitychange', noteCcVisibility, { passive: true });
     hostDocument.addEventListener('focusin', handleFocusIn, true);
     hostDocument.addEventListener('focusout', handleFocusOut, true);
@@ -6072,6 +6200,7 @@ if (CLAUDE_ENABLED) {
     hostWindow.removeEventListener('resize', handleViewportChange);
     hostDocument.removeEventListener('mousemove', handleLook);
     hostDocument.removeEventListener('keydown', noteActivity);
+    hostDocument.removeEventListener('input', handleComposerInput, true);
     hostDocument.removeEventListener('visibilitychange', noteCcVisibility);
     hostDocument.removeEventListener('focusin', handleFocusIn, true);
     hostDocument.removeEventListener('focusout', handleFocusOut, true);
@@ -6302,7 +6431,12 @@ if (CLAUDE_ENABLED) {
     const base = typeof CLAUDE_EXTENSION_BASE !== 'undefined'
       ? CLAUDE_EXTENSION_BASE
       : new URL('.', import.meta.url).href;
-    link.setAttribute('href', new URL(`styles/${variant}-${layout}.css`, base).href);
+    const styleUrl = new URL(`styles/${variant}-${layout}.css`, base);
+    styleUrl.searchParams.set(
+      'v',
+      typeof CLAUDE_KEYBOARD_BUILD !== 'undefined' ? CLAUDE_KEYBOARD_BUILD.id : 'live',
+    );
+    link.setAttribute('href', styleUrl.href);
     document.documentElement.dataset.claudeIntegratedTheme = variant;
     return true;
   }
@@ -6389,12 +6523,27 @@ if (CLAUDE_ENABLED) {
 
           <label for="claude-web-variant">明暗</label>
           <select id="claude-web-variant" class="text_pole"></select>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button id="claude-web-day" class="menu_button">日间</button>
+            <button id="claude-web-night" class="menu_button">夜间</button>
+          </div>
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
           <select id="claude-web-layout" class="text_pole"></select>
 
           <div id="claude-web-hint"
                style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+
+          <hr style="margin:10px 0;opacity:.25">
+          <div style="font-weight:600;margin-bottom:6px">Clawd</div>
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
+            <input id="claude-web-motion" type="checkbox">
+            <span>启用状态动画</span>
+          </label>
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
+            <input id="claude-web-decorations" type="checkbox">
+            <span>启用粒子与提示气泡</span>
+          </label>
 
           <hr style="margin:10px 0;opacity:.25">
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -6806,10 +6955,32 @@ if (CLAUDE_ENABLED) {
       if (ok) describe();
     });
 
+    panel.querySelector('#claude-web-day')?.addEventListener('click', () => {
+      variantSelect.value = 'day';
+      variantSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    panel.querySelector('#claude-web-night')?.addEventListener('click', () => {
+      variantSelect.value = 'night';
+      variantSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
     layoutSelect.addEventListener('change', () => {
       if (!write('layout', layoutSelect.value)) return;
       hint.textContent = '正在切换布局…';
       window.setTimeout(() => window.location.reload(), 120);
+    });
+
+    const motionBox = panel.querySelector('#claude-web-motion');
+    const decorationsBox = panel.querySelector('#claude-web-decorations');
+    motionBox.checked = read('motion', ['on', 'off'], 'on') !== 'off';
+    decorationsBox.checked = read('decorations', ['on', 'off'], 'on') !== 'off';
+    motionBox.addEventListener('change', () => {
+      if (!write('motion', motionBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeMotion = motionBox.checked ? 'on' : 'off';
+    });
+    decorationsBox.addEventListener('change', () => {
+      if (!write('decorations', decorationsBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeDecorations = decorationsBox.checked ? 'on' : 'off';
     });
 
     mountPresets(panel);

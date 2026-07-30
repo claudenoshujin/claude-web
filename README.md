@@ -28,6 +28,15 @@ https://github.com/claudenoshujin/claude-web
 
 主题可以立即切换。手动更改布局后扩展会自动刷新。
 
+## 2.0.7 更新
+
+- 手机聊天视口避开固定输入框，文字不再被输入框上沿切掉
+- 连续点击 Clawd 三次可切换持续抖腿状态，再点三次恢复
+- Clawd 增加输入框聚焦和有文字时的状态反馈
+- 统一生成中、睡眠、常驻状态和 reduced-motion 的动画优先级
+- 设置面板增加 Clawd 动效与粒子提示开关
+- 增加日间、夜间一键切换按钮
+
 ## 2.0.6 修复
 
 - 清除桌面与手机顶部重复预留的 35px 空白层
@@ -86,4 +95,4 @@ SillyTavern/public/scripts/extensions/third-party/claude-web/
 
 ## 版本
 
-当前版本：`2.0.6`
+当前版本：`2.0.7`
