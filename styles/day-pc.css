@@ -2780,7 +2780,10 @@ html body #form_sheld {
 
 @media (min-width:701px) {
   html body #chat :is(.mes_text,.mes_reasoning) {
-    font-size:var(--cl-pc-font-size) !important;
+    /* 正文字号放大功能：接入酒馆原生"字体缩放"滑杆(#font_scale)写入的
+       --fontScale。以前这个变量只被设进 root，没有任何规则消费它，
+       导致滑杆对正文完全没有效果。 */
+    font-size:calc(var(--cl-pc-font-size) * var(--fontScale, 1)) !important;
   }
 
   html body #send_textarea {
@@ -2791,7 +2794,7 @@ html body #form_sheld {
 
 @media (max-width:700px) {
   html body #chat :is(.mes_text,.mes_reasoning) {
-    font-size:var(--cl-mobile-font-size) !important;
+    font-size:calc(var(--cl-mobile-font-size) * var(--fontScale, 1)) !important;
   }
 
   html body #send_textarea {

@@ -2777,7 +2777,10 @@ html body #form_sheld {
 
 @media (min-width:701px) {
   html body #chat :is(.mes_text,.mes_reasoning) {
-    font-size:var(--cl-pc-font-size) !important;
+    /* 正文字号放大功能：接入酒馆原生"字体缩放"滑杆(#font_scale)写入的
+       --fontScale。以前这个变量只被设进 root，没有任何规则消费它，
+       导致滑杆对正文完全没有效果。 */
+    font-size:calc(var(--cl-pc-font-size) * var(--fontScale, 1)) !important;
   }
 
   html body #send_textarea {
@@ -2788,7 +2791,7 @@ html body #form_sheld {
 
 @media (max-width:700px) {
   html body #chat :is(.mes_text,.mes_reasoning) {
-    font-size:var(--cl-mobile-font-size) !important;
+    font-size:calc(var(--cl-mobile-font-size) * var(--fontScale, 1)) !important;
   }
 
   html body #send_textarea {
@@ -5207,6 +5210,29 @@ html body #user-settings-block-content input[type="range"].neo-range-slider {
     width:42px !important;
     height:60px !important;
     margin:0 !important;
+  }
+  /* 头像卡一半 bug：这个 wrapper 是 42x60 的非正方形盒子（多出的 18px
+     只是用来对齐标题行高度，不是给头像用的）。酒馆原生 .avatar/.avatar img
+     会吃满父级的宽高，配合 object-fit:cover 就会把方形头像纵向拉伸后裁掉
+     一截——看起来像"卡了一半"。这里把头像本体钉死成 42x42 并贴在盒子顶部，
+     不再随 wrapper 的高度被拉伸/裁切。 */
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] > .mesAvatarWrapper .avatar {
+    position:absolute !important;
+    top:0 !important;
+    left:0 !important;
+    width:42px !important;
+    height:42px !important;
+    max-width:42px !important;
+    max-height:42px !important;
+    margin:0 !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] > .mesAvatarWrapper .avatar img {
+    width:42px !important;
+    height:42px !important;
+    max-width:42px !important;
+    max-height:42px !important;
+    object-fit:cover !important;
+    object-position:center !important;
   }
   html body:not(.clawd-welcome) #chat > .mes[is_user="false"] > .mes_block {
     width:100% !important;
