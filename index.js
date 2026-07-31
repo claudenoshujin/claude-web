@@ -206,7 +206,11 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: '2.1.0-clawd-states-composer-viewport-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  /* 这个 id 是 CSS 的缓存破坏 key（见下面 CLAUDE_STYLE_URL 的 ?v=）。
+     只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
+     缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
+     以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
+  id: '2.0.8-mobile-avatar-fontscale-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
