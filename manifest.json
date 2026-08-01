@@ -3,9 +3,15 @@
     "loading_order": 100,
     "requires": [],
     "optional": [],
+<<<<<<< HEAD
     "js": "loader-2.0.17.js",
     "author": "lulu",
     "version": "2.0.17",
+=======
+    "js": "loader-2.0.16.js",
+    "author": "lulu",
+    "version": "2.0.16",
+>>>>>>> d768388 (fix: 眨眼计时器/focusin活跃状态/抖腿位移/问号层级 Sat 08/01/2026  3:44)
     "homePage": "https://github.com/claudenoshujin/claude-web",
     "auto_update": true
 }

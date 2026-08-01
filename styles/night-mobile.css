@@ -5720,6 +5720,7 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     animation:none !important;
   }
 }
+<<<<<<< HEAD
 
 /* Claude Web 2.0.17 - compositor-only mobile drawer motion.
    clip-path forced full-screen drawer repainting on every frame. */
@@ -5756,3 +5757,5 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     animation:none !important;
   }
 }
+=======
+>>>>>>> d768388 (fix: 眨眼计时器/focusin活跃状态/抖腿位移/问号层级 Sat 08/01/2026  3:44)
