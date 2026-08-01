@@ -5010,44 +5010,49 @@ html body.clawd-welcome #rightSendForm > * {
   }
 }
 /* 2.0.19: colored rail assets render directly; never treat their background plates as masks. */
-html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/01-presets.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/02-api-connections.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/03-format.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/04-world-book.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/05-preferences.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#logo_block > .drawer-toggle > .drawer-icon::before{background:url("../icons/06-background.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon:is(.fa-panorama,.fa-image,.fa-images)::before{width:22px!important;height:22px!important;background:url("../icons/06-background.svg") center/22px 22px no-repeat!important;-webkit-mask:none!important;mask:none!important}
-html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/07-extensions.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background:url("../icons/08-character-card.svg") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
-html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important}
+html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/01-presets.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/02-api-connections.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/03-format.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/04-world-book.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/05-preferences.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer#logo_block > .drawer-toggle > .drawer-icon::before{background:url("../icons/06-background.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon:is(.fa-panorama,.fa-image,.fa-images)::before{width:30px!important;height:30px!important;background:url("../icons/06-background.svg") center/30px 30px no-repeat!important;-webkit-mask:none!important;mask:none!important}
+html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/07-extensions.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background:url("../icons/08-character-card.svg") center/30px 30px no-repeat!important}
+html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:30px!important;height:30px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
+html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:30px!important;height:30px!important}
 
-/* 2.0.20: the left edge is the last part reached by the closing clip-path.
-   Fade the drawer content with the reveal so headings cannot linger alone. */
+/* 2.0.23: closed drawers animate as one clipped surface. Keeping overflow
+   hidden also prevents an off-screen drawer from painting a page scrollbar. */
+@keyframes clawd-drawer-open-v2023 {
+  from { clip-path:inset(0 100% 0 0); translate:-18px 0; }
+  to { clip-path:inset(0); translate:0 0; }
+}
+@keyframes clawd-drawer-close-v2023 {
+  from { clip-path:inset(0); translate:0 0; }
+  to { clip-path:inset(0 100% 0 0); translate:-18px 0; }
+}
 @media (min-width:701px) {
-  html body #top-settings-holder > .drawer > .drawer-content {
-    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
-               translate 280ms cubic-bezier(.22,.8,.3,1),
-               opacity 120ms ease-out,
-               visibility 0s linear 280ms !important;
-  }
   html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    visibility:visible !important;
     opacity:1 !important;
-    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
-               translate 280ms cubic-bezier(.22,.8,.3,1),
-               opacity 100ms ease-out,
-               visibility 0s linear 0s !important;
+    overflow-y:auto !important;
+    animation:clawd-drawer-open-v2023 280ms cubic-bezier(.22,.8,.3,1) both !important;
   }
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
-    opacity:0 !important;
+    visibility:visible !important;
+    opacity:1 !important;
+    overflow:hidden !important;
+    scrollbar-width:none !important;
+    pointer-events:none !important;
+    animation:clawd-drawer-close-v2023 280ms cubic-bezier(.22,.8,.3,1) both !important;
   }
-  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer *,
-  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) * {
-    visibility:hidden !important;
-    opacity:0 !important;
-    transition:none !important;
-    animation:none !important;
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer::-webkit-scrollbar,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer)::-webkit-scrollbar {
+    display:none !important;
+    width:0 !important;
+    height:0 !important;
   }
 }
 
@@ -5062,4 +5067,33 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
   width:1px;
   background:var(--cl-rail-edge);
   pointer-events:none;
+}
+
+.clawd-pc-top-actions {
+  position:fixed;
+  top:13px;
+  right:18px;
+  z-index:3998;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  color:#a5a39d;
+  background:transparent;
+  pointer-events:none;
+}
+.clawd-pc-top-actions > span {
+  display:grid;
+  width:22px;
+  height:22px;
+  place-items:center;
+  background:transparent;
+}
+.clawd-pc-top-actions svg {
+  width:19px;
+  height:19px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
 }

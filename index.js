@@ -251,7 +251,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.22-fixed-rail-divider-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.23-drawer-close-and-pc-actions-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -3939,6 +3939,7 @@ if (CLAUDE_ENABLED) {
   /* 侧栏品牌区 + Recents。只在完整版包里跑。 */
   const RAIL_BRAND_CLASS = 'clawd-rail-brand';
   const RAIL_RECENTS_CLASS = 'clawd-rail-recents';
+  const PC_TOP_ACTIONS_CLASS = 'clawd-pc-top-actions';
   // 侧栏的东西看 rail 开关，不是 welcome。写错的时候侧栏版（rail 开、welcome 关）
   // 会一条聊天记录都不显示，而完整版看着是好的 —— 很难注意到。
   const railEnabled = typeof CLAUDE_FEATURES !== 'undefined' && CLAUDE_FEATURES.rail;
@@ -3957,6 +3958,23 @@ if (CLAUDE_ENABLED) {
       brand.textContent = 'Claude';
       holder.prepend(brand);
     }
+  }
+
+  function refreshPcTopActions() {
+    if (!railEnabled) return;
+    const existing = hostDocument.querySelector('.' + PC_TOP_ACTIONS_CLASS);
+    if (hostWindow.matchMedia('(max-width: 700px)').matches) {
+      existing?.remove();
+      return;
+    }
+    if (existing?.isConnected) return;
+    const actions = hostDocument.createElement('div');
+    actions.className = PC_TOP_ACTIONS_CLASS;
+    actions.setAttribute('aria-hidden', 'true');
+    actions.innerHTML =
+      '<span><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg></span>' +
+      '<span><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"></rect><path d="M9 4v16"></path></svg></span>';
+    hostDocument.body.append(actions);
   }
 
   /* ===== 侧栏 Recents：自己渲染，不再搬酒馆的 DOM =====
@@ -6582,6 +6600,7 @@ if (CLAUDE_ENABLED) {
     dirtyMessages.clear();
     refreshWelcomeMode(messages);
     refreshRailBrand();
+    refreshPcTopActions();
     refreshRailLabels();
     watchChatDeleted();   // 上下文晚于脚本就绪，所以每轮试一次，接上就不再重复
     watchUserSend();
@@ -6866,6 +6885,7 @@ if (CLAUDE_ENABLED) {
     stopKeyboardTrace();
     restoreVirtualKeyboardOverlay();
     hostDocument.querySelectorAll('.' + RAIL_BRAND_CLASS).forEach(brand => brand.remove());
+    hostDocument.querySelectorAll('.' + PC_TOP_ACTIONS_CLASS).forEach(actions => actions.remove());
     hostDocument.querySelectorAll('.' + CHARACTER_SWITCHER_CLASS).forEach(button => button.remove());
     hostDocument.querySelectorAll('.' + FAKE_MIC_CLASS).forEach(mic => mic.remove());
     hostDocument.querySelectorAll('.clawd-mobile-new-chat').forEach(button => button.remove());
