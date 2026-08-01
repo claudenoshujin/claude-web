@@ -5361,9 +5361,14 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     padding:12px !important;
     overflow:auto !important;
     transform:translateX(0) !important;
-    animation:none !important;
-    transition:none !important;
+    animation:clawd-mobile-drawer-slide-in 280ms cubic-bezier(.22,.8,.3,1) both !important;
+    will-change:transform,opacity;
   }
+}
+
+@keyframes clawd-mobile-drawer-slide-in {
+  from { translate:-100% 0; }
+  to { translate:0 0; }
 }
 
 @media (max-width:700px) {

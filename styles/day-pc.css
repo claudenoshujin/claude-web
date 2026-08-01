@@ -4937,37 +4937,39 @@ html body.clawd-welcome #rightSendForm > * {
   margin-block:0 !important;
 }
 
-/* Claude Web 2.0.12 — desktop drawers use a state-driven left-to-right
-   transition on every open instead of a one-shot load animation. */
+/* Claude Web 2.0.13 — keep closed drawers rendered off-canvas so the host's
+   display:none cannot erase the animation start frame. */
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content {
     width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
     max-width:calc(100vw - var(--cl-rail,288px) - 32px) !important;
     box-sizing:border-box !important;
     transform:translateX(-100%) !important;
-    transition:transform 230ms cubic-bezier(.22,.8,.3,1), opacity 160ms ease,
-      visibility 0s linear 230ms !important;
-    animation:none !important;
+    transition:visibility 0s linear 280ms !important;
+    will-change:transform,opacity;
   }
   html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
     transform:translateX(0) !important;
     visibility:visible !important;
     opacity:1 !important;
-    transition:transform 230ms cubic-bezier(.22,.8,.3,1), opacity 160ms ease,
-      visibility 0s linear 0s !important;
+    transition:visibility 0s linear 0s !important;
+    animation:clawd-drawer-slide-in 280ms cubic-bezier(.22,.8,.3,1) both !important;
   }
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
+    display:block !important;
     transform:translateX(-100%) !important;
     visibility:hidden !important;
     opacity:0 !important;
+    pointer-events:none !important;
+    animation:none !important;
   }
   html body #rm_extensions_block.drawer-content,
   html body #top-settings-holder > .drawer:has(#rm_extensions_block) > .drawer-content {
     width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
   }
 }
-@keyframes clawd-drawer-in {
-  from { opacity:0; transform:translateX(-100%); }
-  to { opacity:1; transform:translateX(0); }
+@keyframes clawd-drawer-slide-in {
+  from { translate:-100% 0; }
+  to { translate:0 0; }
 }
