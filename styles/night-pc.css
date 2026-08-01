@@ -4088,7 +4088,9 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     /* 欢迎态下容器不许被压到比问候语还矮 —— 压矮了配合下面的 overflow-y:auto
        和酒馆的「载入时滚到底」，表现就是问候语顶部被切掉一截。 */
     min-height:min-content !important;
-    overflow-y:auto !important;
+    /* 欢迎态只有问候语；基础 #chat 的顶部 padding 会让 scrollHeight 多出 20px，
+       这里若保留 auto，就会在页面最右侧画出一根没有用途的滚动条。 */
+    overflow-y:hidden !important;
     padding-bottom:8px !important;
     background:transparent !important;
   }
