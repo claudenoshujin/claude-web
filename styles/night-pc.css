@@ -4940,12 +4940,16 @@ html body.clawd-welcome #rightSendForm > * {
     max-width:calc(100vw - var(--cl-rail,288px) - 32px) !important;
     box-sizing:border-box !important;
     transform:translateX(-100%) !important;
-    animation:clawd-drawer-in 230ms cubic-bezier(.22,.8,.3,1) both !important;
+    transition:transform 230ms cubic-bezier(.22,.8,.3,1), opacity 160ms ease,
+      visibility 0s linear 230ms !important;
+    animation:none !important;
   }
   html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
     transform:translateX(0) !important;
     visibility:visible !important;
     opacity:1 !important;
+    transition:transform 230ms cubic-bezier(.22,.8,.3,1), opacity 160ms ease,
+      visibility 0s linear 0s !important;
   }
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
