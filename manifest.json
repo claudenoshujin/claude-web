@@ -3,9 +3,9 @@
     "loading_order": 100,
     "requires": [],
     "optional": [],
-    "js": "loader-2.0.16.js",
+    "js": "loader-2.0.17.js",
     "author": "lulu",
-    "version": "2.0.16",
+    "version": "2.0.17",
     "homePage": "https://github.com/claudenoshujin/claude-web",
     "auto_update": true
 }

@@ -5720,3 +5720,39 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     animation:none !important;
   }
 }
+
+/* Claude Web 2.0.17 - compositor-only mobile drawer motion.
+   clip-path forced full-screen drawer repainting on every frame. */
+@media (max-width:700px) {
+  html body #top-settings-holder > .drawer > .drawer-content {
+    clip-path:none !important;
+    translate:none !important;
+    transform:translate3d(-100%,0,0) !important;
+    visibility:hidden !important;
+    contain:layout paint !important;
+    backface-visibility:hidden;
+    will-change:auto !important;
+    transition:transform 220ms cubic-bezier(.22,.8,.3,1),
+               visibility 0s linear 220ms !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    clip-path:none !important;
+    translate:none !important;
+    transform:translate3d(0,0,0) !important;
+    visibility:visible !important;
+    will-change:transform !important;
+    transition:transform 220ms cubic-bezier(.22,.8,.3,1),
+               visibility 0s linear 0s !important;
+    animation:none !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
+    clip-path:none !important;
+    translate:none !important;
+    transform:translate3d(-100%,0,0) !important;
+    visibility:hidden !important;
+    pointer-events:none !important;
+    will-change:auto !important;
+    animation:none !important;
+  }
+}

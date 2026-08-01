@@ -166,7 +166,48 @@ document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CL
 document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
 document.documentElement.style.setProperty('--claude-nav-tint-opacity', `${CLAUDE_NAV_TINT_OPACITY}%`);
 
-const CLAUDE_THEME_VARIANT = claudeReadSetting('variant', ['day', 'night'], 'day');
+function claudeReadClockSetting(key, fallback) {
+  try {
+    const value = window.localStorage.getItem('claude-web:' + key);
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(value || '') ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function claudeClockMinutes(value) {
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function claudeResolveThemeVariant() {
+  const manual = claudeReadSetting('variant', ['day', 'night'], 'day');
+  const mode = claudeReadSetting('theme-auto', ['manual', 'system', 'time'], 'manual');
+  if (mode === 'system') {
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day'; }
+    catch { return manual; }
+  }
+  if (mode === 'time') {
+    const dayStart = claudeClockMinutes(claudeReadClockSetting('theme-day-start', '07:00'));
+    const nightStart = claudeClockMinutes(claudeReadClockSetting('theme-night-start', '19:00'));
+    if (dayStart === nightStart) return manual;
+    const now = new Date();
+    const minute = now.getHours() * 60 + now.getMinutes();
+    const isDay = dayStart < nightStart
+      ? minute >= dayStart && minute < nightStart
+      : minute >= dayStart || minute < nightStart;
+    return isDay ? 'day' : 'night';
+  }
+  return manual;
+}
+
+const CLAUDE_THEME_VARIANT = claudeResolveThemeVariant();
+/* Preset families still read the effective scheme from localStorage. Keep the
+   resolved automatic value there too, so startup cannot pair night CSS with
+   the day palette (or vice versa) before the settings panel mounts. */
+if (claudeReadSetting('theme-auto', ['manual', 'system', 'time'], 'manual') !== 'manual') {
+  try { window.localStorage.setItem('claude-web:variant', CLAUDE_THEME_VARIANT); } catch { /* storage may be blocked */ }
+}
 
 const CLAUDE_LAYOUT_CHOICE = claudeReadSetting('layout', ['auto', 'pc', 'mobile'], 'auto');
 
@@ -210,7 +251,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.16-mobile-composer-action-track-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.17-auto-theme-smooth-mobile-drawer-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -7004,6 +7045,11 @@ if (CLAUDE_ENABLED) {
     { value: 'day', label: '日间' },
     { value: 'night', label: '夜间' },
   ];
+  const AUTO_THEME_MODES = [
+    { value: 'manual', label: '关闭（手动）' },
+    { value: 'system', label: '跟随手机系统' },
+    { value: 'time', label: '按时间自动切换' },
+  ];
   const LAYOUTS = [
     { value: 'auto', label: '自动（跨 700px 自动切换）' },
     { value: 'pc', label: '桌面' },
@@ -7027,6 +7073,39 @@ if (CLAUDE_ENABLED) {
       console.warn('[Claude Web] 设置写入失败：', error);
       return false;
     }
+  }
+
+  function readClock(key, fallback) {
+    try {
+      const value = window.localStorage.getItem(KEY_PREFIX + key);
+      return /^([01]\d|2[0-3]):[0-5]\d$/.test(value || '') ? value : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function clockMinutes(value) {
+    const [hours, minutes] = value.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  function resolveAutomaticVariant(mode, dayClock, nightClock, manual) {
+    if (mode === 'system') {
+      try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day'; }
+      catch { return manual; }
+    }
+    if (mode === 'time') {
+      const dayStart = clockMinutes(dayClock);
+      const nightStart = clockMinutes(nightClock);
+      if (dayStart === nightStart) return manual;
+      const now = new Date();
+      const minute = now.getHours() * 60 + now.getMinutes();
+      const isDay = dayStart < nightStart
+        ? minute >= dayStart && minute < nightStart
+        : minute >= dayStart || minute < nightStart;
+      return isDay ? 'day' : 'night';
+    }
+    return manual;
   }
 
   /* 2.0.1 撤下未完成的档案版式。升级用户可能还留着旧 localStorage，
@@ -7103,6 +7182,16 @@ if (CLAUDE_ENABLED) {
           width:100% !important;
         }
         #${PANEL_ID} label { display:block; margin-bottom:3px; }
+        #${PANEL_ID} .claude-web-auto-theme {
+          margin:0 0 10px; padding:9px; border:1px solid color-mix(in srgb,currentColor 16%,transparent);
+          border-radius:10px;
+        }
+        #${PANEL_ID} .claude-web-auto-times {
+          display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:7px;
+        }
+        #${PANEL_ID} .claude-web-auto-times input[type="time"] {
+          display:block !important; width:100% !important; min-width:0 !important;
+        }
         /* 取色器一行两个。酒馆的设置栏很窄，三个一行色块会小到点不准。 */
         #${PANEL_ID} .claude-web-swatches {
           display:grid; grid-template-columns:1fr 1fr; gap:5px 8px; margin-top:8px;
@@ -7156,7 +7245,17 @@ if (CLAUDE_ENABLED) {
 
           <hr style="margin:10px 0;opacity:.25">
 
-          <label for="claude-web-variant">明暗</label>
+          <div class="claude-web-auto-theme">
+            <label for="claude-web-theme-auto"><b>自动主题</b></label>
+            <select id="claude-web-theme-auto" class="text_pole"></select>
+            <div id="claude-web-auto-times" class="claude-web-auto-times" hidden>
+              <label>日间开始<input id="claude-web-day-start" type="time" class="text_pole" value="07:00"></label>
+              <label>夜间开始<input id="claude-web-night-start" type="time" class="text_pole" value="19:00"></label>
+            </div>
+            <div id="claude-web-auto-hint" style="margin-top:6px;font-size:.85em;opacity:.7"></div>
+          </div>
+
+          <label for="claude-web-variant">手动明暗</label>
           <select id="claude-web-variant" class="text_pole"></select>
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
@@ -7581,11 +7680,20 @@ if (CLAUDE_ENABLED) {
     const variantSelect = panel.querySelector('#claude-web-variant');
     const layoutSelect = panel.querySelector('#claude-web-layout');
     const hint = panel.querySelector('#claude-web-hint');
+    const autoSelect = panel.querySelector('#claude-web-theme-auto');
+    const autoTimes = panel.querySelector('#claude-web-auto-times');
+    const autoHint = panel.querySelector('#claude-web-auto-hint');
+    const dayStartInput = panel.querySelector('#claude-web-day-start');
+    const nightStartInput = panel.querySelector('#claude-web-night-start');
 
     const variant = read('variant', ['day', 'night'], 'day');
     const layout = read('layout', ['auto', 'pc', 'mobile'], 'auto');
+    const autoMode = read('theme-auto', ['manual', 'system', 'time'], 'manual');
     fillSelect(variantSelect, VARIANTS, variant);
     fillSelect(layoutSelect, LAYOUTS, layout);
+    fillSelect(autoSelect, AUTO_THEME_MODES, autoMode);
+    dayStartInput.value = readClock('theme-day-start', '07:00');
+    nightStartInput.value = readClock('theme-night-start', '19:00');
 
     const describe = () => {
       const effective = resolveLayout(layoutSelect.value);
@@ -7593,9 +7701,10 @@ if (CLAUDE_ENABLED) {
     };
     describe();
 
-    variantSelect.addEventListener('change', () => {
-      if (!write('variant', variantSelect.value)) return;
-      const ok = applyVariantLive(variantSelect.value);
+    const applyVariant = nextVariant => {
+      variantSelect.value = nextVariant;
+      if (!write('variant', nextVariant)) return;
+      const ok = applyVariantLive(nextVariant);
       /* 明暗变了，配色也得跟着换到同家族的另一半 —— 否则会出现
          浅色配色配深色样式表。这一步必须和样式表换在同一次操作里。 */
       const api = window.__claudeWebPresets;
@@ -7609,7 +7718,54 @@ if (CLAUDE_ENABLED) {
       syncSwatchesRef();
       hint.textContent = ok ? '' : '主题已保存，刷新后生效。';
       if (ok) describe();
+    };
+
+    variantSelect.addEventListener('change', () => applyVariant(variantSelect.value));
+
+    const systemTheme = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const syncAutomaticTheme = () => {
+      const mode = autoSelect.value;
+      const automatic = mode !== 'manual';
+      variantSelect.disabled = automatic;
+      autoTimes.hidden = mode !== 'time';
+      if (!automatic) {
+        autoHint.textContent = '自动切换已关闭。';
+        return;
+      }
+      const next = resolveAutomaticVariant(
+        mode,
+        dayStartInput.value || '07:00',
+        nightStartInput.value || '19:00',
+        variantSelect.value,
+      );
+      if (next !== variantSelect.value) applyVariant(next);
+      autoHint.textContent = mode === 'system'
+        ? `跟随系统 · 当前${next === 'night' ? '夜间' : '日间'}`
+        : `${dayStartInput.value} 日间 / ${nightStartInput.value} 夜间 · 当前${next === 'night' ? '夜间' : '日间'}`;
+    };
+
+    autoSelect.addEventListener('change', () => {
+      if (!write('theme-auto', autoSelect.value)) return;
+      syncAutomaticTheme();
     });
+    for (const [input, key] of [
+      [dayStartInput, 'theme-day-start'],
+      [nightStartInput, 'theme-night-start'],
+    ]) {
+      input.addEventListener('change', () => {
+        if (!write(key, input.value)) return;
+        syncAutomaticTheme();
+      });
+    }
+    const onSystemThemeChange = () => {
+      if (autoSelect.value === 'system') syncAutomaticTheme();
+    };
+    if (typeof systemTheme?.addEventListener === 'function') systemTheme.addEventListener('change', onSystemThemeChange);
+    else if (typeof systemTheme?.addListener === 'function') systemTheme.addListener(onSystemThemeChange);
+    window.setInterval(() => {
+      if (autoSelect.value === 'time') syncAutomaticTheme();
+    }, 30000);
+    syncAutomaticTheme();
 
     layoutSelect.addEventListener('change', () => {
       if (!write('layout', layoutSelect.value)) return;
