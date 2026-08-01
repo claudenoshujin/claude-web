@@ -5566,47 +5566,6 @@ if (CLAUDE_ENABLED) {
     if (!holder) return;
     holder.querySelectorAll(':scope > .drawer > .drawer-toggle').forEach(toggle => {
       const icon = toggle.querySelector('.drawer-icon') ?? toggle;
-      const iconFile = {
-        'ai-config-button': '01-presets.svg',
-        'sys-settings-button': '02-api-connections.svg',
-        'advanced-formatting-button': '03-format.svg',
-        'WI-SP-button': '04-world-book.svg',
-        'user-settings-button': '05-preferences.svg',
-        'logo_block': '06-background.svg',
-        'extensions-settings-button': '07-extensions.svg',
-        'persona-management-button': '08-character-card.svg',
-        'rightNavHolder': '08-character-card.svg',
-      }[toggle.closest('.drawer')?.id];
-      if (iconFile && !icon.querySelector(':scope > .clawd-custom-rail-icon')) {
-        const image = hostDocument.createElement('img');
-        icon.classList.add('clawd-custom-rail-icon-host');
-        image.className = 'clawd-custom-rail-icon';
-        image.src = `${CLAUDE_EXTENSION_BASE}icons/${iconFile}`;
-        image.alt = '';
-        image.setAttribute('aria-hidden', 'true');
-        icon.append(image);
-      }
-      if (!hostDocument.getElementById('clawd-custom-rail-icon-style')) {
-        const style = hostDocument.createElement('style');
-        style.id = 'clawd-custom-rail-icon-style';
-        style.textContent = `
-          html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon.clawd-custom-rail-icon-host::before,
-          html body #top-bar .drawer-icon.clawd-custom-rail-icon-host::before {
-            display:none!important;content:none!important;width:0!important;height:0!important;
-            background:none!important;-webkit-mask:none!important;mask:none!important;
-          }
-          html body #top-settings-holder .drawer-icon.clawd-custom-rail-icon-host,
-          html body #top-bar .drawer-icon.clawd-custom-rail-icon-host {
-            background:none!important;-webkit-mask:none!important;mask:none!important;font-size:0!important;
-          }
-          html body #top-settings-holder .clawd-custom-rail-icon,
-          html body #top-bar .clawd-custom-rail-icon {
-            display:block!important;width:22px!important;height:22px!important;max-width:none!important;
-            margin:0!important;padding:0!important;object-fit:contain;pointer-events:none;
-          }
-        `;
-        hostDocument.head.append(style);
-      }
       if (toggle.querySelector(':scope > .clawd-rail-label')) return;
       const raw = (icon.getAttribute('title') || toggle.getAttribute('title') || '').trim();
       if (!raw) return;
