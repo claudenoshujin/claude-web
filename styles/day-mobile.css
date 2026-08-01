@@ -5145,6 +5145,18 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   }
 }
 
+/* Claude Web 2.0.16 - keep the QR and send actions inside the composer. */
+@media (max-width:900px) {
+  html body:not(.clawd-welcome) #send_form #nonQRFormItems {
+    grid-template-columns:auto minmax(0,1fr) 78px !important;
+  }
+  html body:not(.clawd-welcome) #send_form #rightSendForm {
+    grid-column:3 !important;
+    justify-self:end !important;
+    box-sizing:border-box !important;
+  }
+}
+
 /* ===================== 兼容层 =====================
  *
  * 把旧的 --cl-* 改成从 --cw-* 取值。**值必须和原来一模一样**，
