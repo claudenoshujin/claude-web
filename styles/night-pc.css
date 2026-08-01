@@ -5020,3 +5020,32 @@ html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-to
 html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background:url("../icons/08-character-card.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
 html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important}
+
+/* 2.0.20: the left edge is the last part reached by the closing clip-path.
+   Fade the drawer content with the reveal so headings cannot linger alone. */
+@media (min-width:701px) {
+  html body #top-settings-holder > .drawer > .drawer-content {
+    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
+               translate 280ms cubic-bezier(.22,.8,.3,1),
+               opacity 120ms ease-out,
+               visibility 0s linear 280ms !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    opacity:1 !important;
+    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
+               translate 280ms cubic-bezier(.22,.8,.3,1),
+               opacity 100ms ease-out,
+               visibility 0s linear 0s !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
+    opacity:0 !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer *,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) * {
+    visibility:hidden !important;
+    opacity:0 !important;
+    transition:none !important;
+    animation:none !important;
+  }
+}
