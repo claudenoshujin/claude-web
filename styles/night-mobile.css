@@ -5446,6 +5446,11 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     pointer-events:none !important;
     z-index:1 !important;
   }
+  /* The open left rail owns the title; suppress the duplicate top-bar copy. */
+  html body.clawd-mobile-menu-open #top-bar::after {
+    content:none !important;
+    display:none !important;
+  }
   html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer)
     #top-settings-holder > :is(.clawd-rail-brand,.clawd-mobile-new-chat,.clawd-rail-toggles,.clawd-rail-recents) {
     display:none !important;
