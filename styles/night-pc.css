@@ -4932,12 +4932,13 @@ html body.clawd-welcome #rightSendForm > * {
   margin-block:0 !important;
 }
 
-/* Claude Web 2.0.13 — keep closed drawers rendered off-canvas so the host's
-   display:none cannot erase the animation start frame. */
+/* Claude Web 2.0.14 — reveal the full remaining workspace from behind the rail. */
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content {
-    width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
-    max-width:calc(100vw - var(--cl-rail,288px) - 32px) !important;
+    right:0 !important;
+    left:var(--cl-rail,288px) !important;
+    width:auto !important;
+    max-width:none !important;
     box-sizing:border-box !important;
     transform:translateX(-100%) !important;
     transition:visibility 0s linear 280ms !important;
@@ -4961,10 +4962,11 @@ html body.clawd-welcome #rightSendForm > * {
   }
   html body #rm_extensions_block.drawer-content,
   html body #top-settings-holder > .drawer:has(#rm_extensions_block) > .drawer-content {
-    width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
+    width:auto !important;
+    max-width:none !important;
   }
 }
 @keyframes clawd-drawer-slide-in {
-  from { translate:-100% 0; }
-  to { translate:0 0; }
+  from { clip-path:inset(0 100% 0 0); translate:-18px 0; }
+  to { clip-path:inset(0); translate:0 0; }
 }

@@ -37,6 +37,81 @@
   --cl-greeting-particle-animation:clawd-question-float 2.83s cubic-bezier(.37,0,.22,1) .41s infinite;
 }
 
+/* Claude Web 2.0.14 — mobile compatibility with SillyTavern-Layout and QR Assistant. */
+@media (max-width:700px) {
+  html body #top-settings-holder > .clawd-rail-brand,
+  html body.clawd-mobile-menu-open #top-settings-holder > .clawd-rail-brand {
+    padding-right:50px !important;
+    padding-left:50px !important;
+    transform:none !important;
+  }
+  html body.clawd-mobile-menu-open #top-settings-holder {
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+  }
+  html body.clawd-mobile-menu-open #top-settings-holder > .clawd-rail-recents {
+    flex:1 1 auto !important;
+    min-height:0 !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] .ch_name .mesIDDisplay {
+    position:static !important;
+    inset:auto !important;
+    flex:0 0 auto !important;
+    margin:0 0 0 6px !important;
+    transform:none !important;
+  }
+  html body.te-input-onlySend #send_form:has(#send_textarea:focus, #send_but:hover) #leftSendForm:has(#input_helper_toolbar) {
+    display:flex !important;
+  }
+  html body #qr--bar:has(> #input_helper_toolbar:not(.qrq-hidden-by-plugin)),
+  html body #qr--bar:has(.qrq-wrapper-visible #input_helper_toolbar) {
+    display:flex !important;
+    min-width:0 !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch;
+  }
+  html body #input_helper_toolbar:not(.qrq-hidden-by-plugin) {
+    visibility:visible !important;
+    opacity:1 !important;
+  }
+  html body #rightSendForm > #quick-reply-rocket-button,
+  html body.te-input-onlySend #send_form:has(#send_textarea:focus, #send_but:hover) #rightSendForm > #quick-reply-rocket-button {
+    flex:0 0 34px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:34px !important;
+    min-width:34px !important;
+    height:34px !important;
+    margin:0 !important;
+    visibility:visible !important;
+    opacity:1 !important;
+  }
+  html body #rm_print_characters_block.group_overlay_mode_select {
+    display:flex !important;
+    flex-flow:row nowrap !important;
+    justify-content:flex-start !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    overscroll-behavior-x:contain !important;
+    touch-action:pan-x !important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  html body #rm_print_characters_block.group_overlay_mode_select > .character_select { flex:0 0 auto !important; }
+  html body.te-fixed-reasoning #chat .mes_reasoning_details[open] .mes_reasoning {
+    max-height:min(500px, 55dvh) !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    overscroll-behavior:contain !important;
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch;
+  }
+}
+
 * {
   text-shadow:none !important;
 }
@@ -5444,5 +5519,74 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
   html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer)
     #top-settings-holder > :is(.clawd-rail-brand,.clawd-mobile-new-chat,.clawd-rail-toggles,.clawd-rail-recents) {
     display:none !important;
+  }
+}
+
+/* Claude Web 2.0.14 - final mobile plugin compatibility overrides. */
+@media (max-width:700px) {
+  html body #top-settings-holder > .clawd-rail-brand,
+  html body.clawd-mobile-menu-open #top-settings-holder > .clawd-rail-brand {
+    padding-right:50px !important;
+    padding-left:50px !important;
+    transform:none !important;
+  }
+  html body:not(.clawd-welcome) #chat > .mes[is_user="false"] .ch_name .mesIDDisplay {
+    position:static !important;
+    inset:auto !important;
+    flex:0 0 auto !important;
+    margin:0 0 0 6px !important;
+    transform:none !important;
+  }
+  html body.te-input-onlySend #send_form:has(#send_textarea:focus, #send_but:hover) #leftSendForm:has(#input_helper_toolbar) {
+    display:flex !important;
+  }
+  html body #qr--bar:has(> #input_helper_toolbar:not(.qrq-hidden-by-plugin)),
+  html body #qr--bar:has(.qrq-wrapper-visible #input_helper_toolbar) {
+    display:flex !important;
+    min-width:0 !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch;
+  }
+  html body #input_helper_toolbar:not(.qrq-hidden-by-plugin) {
+    visibility:visible !important;
+    opacity:1 !important;
+  }
+  html body #rightSendForm > #quick-reply-rocket-button,
+  html body.te-input-onlySend #send_form:has(#send_textarea:focus, #send_but:hover) #rightSendForm > #quick-reply-rocket-button {
+    flex:0 0 34px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:34px !important;
+    min-width:34px !important;
+    height:34px !important;
+    margin:0 !important;
+    visibility:visible !important;
+    opacity:1 !important;
+  }
+  html body #rm_print_characters_block.group_overlay_mode_select {
+    display:flex !important;
+    flex-flow:row nowrap !important;
+    justify-content:flex-start !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    overscroll-behavior-x:contain !important;
+    touch-action:pan-x !important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  html body #rm_print_characters_block.group_overlay_mode_select > .character_select {
+    flex:0 0 auto !important;
+  }
+  html body.te-fixed-reasoning #chat .mes_reasoning_details[open] .mes_reasoning {
+    max-height:min(500px, 55dvh) !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    overscroll-behavior:contain !important;
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch;
   }
 }
