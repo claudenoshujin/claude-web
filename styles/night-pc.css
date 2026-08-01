@@ -4932,8 +4932,8 @@ html body.clawd-welcome #rightSendForm > * {
   margin-block:0 !important;
 }
 
-/* Claude Web 2.0.11 — the desktop drawers use the same fixed size and
-   left-to-right entrance as the mobile settings surface. */
+/* Claude Web 2.0.12 — desktop drawers use a state-driven left-to-right
+   transition on every open instead of a one-shot load animation. */
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content {
     width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;

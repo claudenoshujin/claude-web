@@ -28,6 +28,11 @@ https://github.com/claudenoshujin/claude-web
 
 主题可以立即切换。手动更改布局后扩展会自动刷新。
 
+## 2.0.12 修复
+
+- 修复桌面抽屉仍然直接出现的问题：改为由 `openDrawer/closedDrawer` 状态驱动的左侧滑入过渡
+- 更新扩展入口和 CSS 缓存标识，避免 TauriTavern/浏览器继续加载 2.0.11 的旧样式
+
 ## 2.0.11 修复
 
 - 移除主页顶栏的额外 Claude 标题，侧栏打开时只保留侧栏自己的 Claude 标题
