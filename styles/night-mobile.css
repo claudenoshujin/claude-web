@@ -5763,6 +5763,7 @@ html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-to
 html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/04-world-book.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/05-preferences.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer#logo_block > .drawer-toggle > .drawer-icon::before{background:url("../icons/06-background.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon:is(.fa-panorama,.fa-image,.fa-images)::before{width:22px!important;height:22px!important;background:url("../icons/06-background.svg") center/22px 22px no-repeat!important;-webkit-mask:none!important;mask:none!important}
 html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/07-extensions.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background:url("../icons/08-character-card.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
