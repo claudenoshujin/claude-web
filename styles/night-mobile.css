@@ -5590,3 +5590,121 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     -webkit-overflow-scrolling:touch;
   }
 }
+
+/* Claude Web 2.0.15 - mobile alignment, QR, HotSwaps and closing motion. */
+@media (max-width:700px) {
+  html body.clawd-mobile-menu-open #top-settings-holder {
+    overflow:visible !important;
+  }
+  html body.clawd-mobile-menu-open #top-settings-holder > .clawd-rail-brand {
+    position:absolute !important;
+    top:calc(-1 * var(--cl-mobile-top, 56px)) !important;
+    right:auto !important;
+    left:50px !important;
+    display:flex !important;
+    width:auto !important;
+    height:var(--cl-mobile-top, 56px) !important;
+    min-height:var(--cl-mobile-top, 56px) !important;
+    margin:0 !important;
+    padding:0 12px !important;
+    align-items:center !important;
+    transform:none !important;
+    z-index:2 !important;
+  }
+  html body.clawd-mobile-menu-open #top-settings-holder > .clawd-rail-recents {
+    flex:1 1 auto !important;
+    min-height:0 !important;
+  }
+  html body:not(.clawd-welcome) #send_form #rightSendForm {
+    flex:0 0 78px !important;
+    width:78px !important;
+    min-width:78px !important;
+    gap:4px !important;
+  }
+  html body:not(.clawd-welcome) #send_form #rightSendForm > #quick-reply-rocket-button,
+  html body.te-input-onlySend:not(.clawd-welcome) #send_form:has(#send_textarea:focus, #send_but:hover)
+    #rightSendForm > #quick-reply-rocket-button {
+    flex:0 0 34px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:34px !important;
+    min-width:34px !important;
+    height:34px !important;
+    margin:0 !important;
+    visibility:visible !important;
+    opacity:1 !important;
+  }
+  html body #rm_print_characters_block.group_overlay_mode_select {
+    display:flex !important;
+    flex-flow:column nowrap !important;
+    justify-content:flex-start !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    overscroll-behavior-y:contain !important;
+    touch-action:pan-y !important;
+    -webkit-overflow-scrolling:touch;
+  }
+  html body #rm_print_characters_block.group_overlay_mode_select > .character_select {
+    flex:0 0 auto !important;
+    align-self:stretch !important;
+  }
+  html body #CharListButtonAndHotSwaps,
+  html body #HotSwapWrapper {
+    min-width:0 !important;
+    max-width:100% !important;
+  }
+  html body #HotSwapWrapper {
+    flex:1 1 auto !important;
+    overflow:hidden !important;
+  }
+  html body #HotSwapWrapper > .hotswap.avatars_inline {
+    display:flex !important;
+    flex-flow:row nowrap !important;
+    justify-content:flex-start !important;
+    box-sizing:border-box !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:5px 0 !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    overscroll-behavior-x:contain !important;
+    touch-action:pan-x !important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  html body #HotSwapWrapper > .hotswap.avatars_inline > .avatar {
+    flex:0 0 auto !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content {
+    display:block !important;
+    transform:none !important;
+    clip-path:inset(0 100% 0 0);
+    translate:-18px 0;
+    visibility:hidden !important;
+    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
+               translate 280ms cubic-bezier(.22,.8,.3,1),
+               visibility 0s linear 280ms !important;
+    will-change:clip-path,translate;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    clip-path:inset(0);
+    translate:0 0;
+    visibility:visible !important;
+    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
+               translate 280ms cubic-bezier(.22,.8,.3,1),
+               visibility 0s linear 0s !important;
+    animation:none !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
+    display:block !important;
+    clip-path:inset(0 100% 0 0);
+    translate:-18px 0;
+    visibility:hidden !important;
+    pointer-events:none !important;
+    animation:none !important;
+  }
+}

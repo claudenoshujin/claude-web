@@ -4975,3 +4975,42 @@ html body.clawd-welcome #rightSendForm > * {
   from { clip-path:inset(0 100% 0 0); translate:-18px 0; }
   to { clip-path:inset(0); translate:0 0; }
 }
+
+/* Claude Web 2.0.15 - reversible drawer reveal from behind the rail. */
+@media (min-width:701px) {
+  html body #top-settings-holder > .drawer > .drawer-content {
+    right:0 !important;
+    left:var(--cl-rail,288px) !important;
+    width:auto !important;
+    max-width:none !important;
+    transform:none !important;
+    clip-path:inset(0 100% 0 0);
+    translate:-18px 0;
+    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
+               translate 280ms cubic-bezier(.22,.8,.3,1),
+               visibility 0s linear 280ms !important;
+    will-change:clip-path,translate;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    transform:none !important;
+    clip-path:inset(0);
+    translate:0 0;
+    visibility:visible !important;
+    opacity:1 !important;
+    transition:clip-path 280ms cubic-bezier(.22,.8,.3,1),
+               translate 280ms cubic-bezier(.22,.8,.3,1),
+               visibility 0s linear 0s !important;
+    animation:none !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
+    display:block !important;
+    transform:none !important;
+    clip-path:inset(0 100% 0 0);
+    translate:-18px 0;
+    visibility:hidden !important;
+    opacity:1 !important;
+    pointer-events:none !important;
+    animation:none !important;
+  }
+}
