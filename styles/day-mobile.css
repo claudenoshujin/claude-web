@@ -36,6 +36,7 @@
   --cl-typing-float-animation:clawd-question-float 2.36s cubic-bezier(.37,0,.22,1) infinite;
   --cl-greeting-particle-animation:clawd-question-float 2.83s cubic-bezier(.37,0,.22,1) .41s infinite;
 }
+
 * {
   text-shadow:none !important;
 }
@@ -5412,5 +5413,41 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     min-height:60px !important;
     padding-left:50px !important;
     box-sizing:border-box !important;
+  }
+}
+
+/* Claude Web 2.0.11 — keep the original mobile header stable while a drawer opens. */
+@media (max-width:700px) {
+  html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer) #top-bar {
+    visibility:visible !important;
+    opacity:1 !important;
+    pointer-events:auto !important;
+    background:var(--cw-topbar-surface, var(--cw-surface-page)) !important;
+    background-image:none !important;
+    box-shadow:none !important;
+  }
+  html body .clawd-mobile-scrim {
+    top:var(--cl-mobile-top, 56px) !important;
+    right:0 !important;
+    bottom:0 !important;
+    left:0 !important;
+  }
+  html body #top-bar::after {
+    content:'Claude' !important;
+    position:absolute !important;
+    top:0 !important;
+    left:62px !important;
+    display:flex !important;
+    align-items:center !important;
+    height:var(--cl-mobile-top, 56px) !important;
+    color:var(--cw-hero) !important;
+    font:300 23px/1 var(--cl-serif) !important;
+    letter-spacing:-.01em !important;
+    pointer-events:none !important;
+    z-index:1 !important;
+  }
+  html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer)
+    #top-settings-holder > :is(.clawd-rail-brand,.clawd-mobile-new-chat,.clawd-rail-toggles,.clawd-rail-recents) {
+    display:none !important;
   }
 }

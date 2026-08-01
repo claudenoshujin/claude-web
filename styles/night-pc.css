@@ -4931,3 +4931,34 @@ html body.clawd-welcome #rightSendForm > * {
   align-self:center !important;
   margin-block:0 !important;
 }
+
+/* Claude Web 2.0.11 — the desktop drawers use the same fixed size and
+   left-to-right entrance as the mobile settings surface. */
+@media (min-width:701px) {
+  html body #top-settings-holder > .drawer > .drawer-content {
+    width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
+    max-width:calc(100vw - var(--cl-rail,288px) - 32px) !important;
+    box-sizing:border-box !important;
+    transform:translateX(-100%) !important;
+    animation:clawd-drawer-in 230ms cubic-bezier(.22,.8,.3,1) both !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
+    transform:translateX(0) !important;
+    visibility:visible !important;
+    opacity:1 !important;
+  }
+  html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
+  html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
+    transform:translateX(-100%) !important;
+    visibility:hidden !important;
+    opacity:0 !important;
+  }
+  html body #rm_extensions_block.drawer-content,
+  html body #top-settings-holder > .drawer:has(#rm_extensions_block) > .drawer-content {
+    width:min(var(--cw-drawer, 820px), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
+  }
+}
+@keyframes clawd-drawer-in {
+  from { opacity:0; transform:translateX(-100%); }
+  to { opacity:1; transform:translateX(0); }
+}
