@@ -5050,3 +5050,16 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
     animation:none !important;
   }
 }
+
+/* 2.0.22: the holder border sits below drawer motion. Paint the divider on
+   the fixed resize grip instead, which already stays above every drawer. */
+.clawd-rail-grip::after {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:1px;
+  width:1px;
+  background:var(--cl-rail-edge);
+  pointer-events:none;
+}
