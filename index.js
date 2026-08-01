@@ -251,7 +251,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.23-drawer-close-and-pc-actions-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.24-whole-drawer-retract-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -3962,10 +3962,16 @@ if (CLAUDE_ENABLED) {
 
   function refreshPcTopActions() {
     if (!railEnabled) return;
-    const existing = hostDocument.querySelector('.' + PC_TOP_ACTIONS_CLASS);
+    const holder = hostDocument.querySelector('#top-settings-holder');
+    if (!holder) return;
+    let existing = hostDocument.querySelector('.' + PC_TOP_ACTIONS_CLASS);
     if (hostWindow.matchMedia('(max-width: 700px)').matches) {
       existing?.remove();
       return;
+    }
+    if (existing && existing.parentElement !== holder) {
+      existing.remove();
+      existing = null;
     }
     if (existing?.isConnected) return;
     const actions = hostDocument.createElement('div');
@@ -3974,7 +3980,7 @@ if (CLAUDE_ENABLED) {
     actions.innerHTML =
       '<span><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg></span>' +
       '<span><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"></rect><path d="M9 4v16"></path></svg></span>';
-    hostDocument.body.append(actions);
+    holder.append(actions);
   }
 
   /* ===== 侧栏 Recents：自己渲染，不再搬酒馆的 DOM =====

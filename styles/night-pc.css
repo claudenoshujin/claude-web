@@ -5022,22 +5022,22 @@ html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNav
 html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:30px!important;height:30px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
 html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:30px!important;height:30px!important}
 
-/* 2.0.23: closed drawers animate as one clipped surface. Keeping overflow
-   hidden also prevents an off-screen drawer from painting a page scrollbar. */
-@keyframes clawd-drawer-open-v2023 {
-  from { clip-path:inset(0 100% 0 0); translate:-18px 0; }
+/* 2.0.24: move the whole surface behind the rail. A right-to-left shrinking
+   clip left the heading visible at the leading edge until the final frame. */
+@keyframes clawd-drawer-open-v2024 {
+  from { clip-path:inset(0 0 0 100%); translate:-100% 0; }
   to { clip-path:inset(0); translate:0 0; }
 }
-@keyframes clawd-drawer-close-v2023 {
+@keyframes clawd-drawer-close-v2024 {
   from { clip-path:inset(0); translate:0 0; }
-  to { clip-path:inset(0 100% 0 0); translate:-18px 0; }
+  to { clip-path:inset(0 0 0 100%); translate:-100% 0; }
 }
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
     visibility:visible !important;
     opacity:1 !important;
     overflow-y:auto !important;
-    animation:clawd-drawer-open-v2023 280ms cubic-bezier(.22,.8,.3,1) both !important;
+    animation:clawd-drawer-open-v2024 280ms cubic-bezier(.22,.8,.3,1) both !important;
   }
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
@@ -5046,7 +5046,7 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
     overflow:hidden !important;
     scrollbar-width:none !important;
     pointer-events:none !important;
-    animation:clawd-drawer-close-v2023 280ms cubic-bezier(.22,.8,.3,1) both !important;
+    animation:clawd-drawer-close-v2024 280ms cubic-bezier(.22,.8,.3,1) both !important;
   }
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer::-webkit-scrollbar,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer)::-webkit-scrollbar {
@@ -5070,10 +5070,10 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
 }
 
 .clawd-pc-top-actions {
-  position:fixed;
+  position:absolute !important;
   top:13px;
-  right:18px;
-  z-index:3998;
+  right:12px;
+  z-index:3;
   display:flex;
   align-items:center;
   gap:13px;
