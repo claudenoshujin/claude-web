@@ -251,11 +251,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-<<<<<<< HEAD
   id: '2.0.17-auto-theme-smooth-mobile-drawer-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
-=======
-  id: '2.0.16-mobile-composer-action-track-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
->>>>>>> d768388 (fix: 眨眼计时器/focusin活跃状态/抖腿位移/问号层级 Sat 08/01/2026  3:44)
   mode: 'full',
 };
 
