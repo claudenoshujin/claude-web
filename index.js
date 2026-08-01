@@ -251,7 +251,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.17-auto-theme-smooth-mobile-drawer-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.18-rail-icon-replacement-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -5579,6 +5579,7 @@ if (CLAUDE_ENABLED) {
       }[toggle.closest('.drawer')?.id];
       if (iconFile && !icon.querySelector(':scope > .clawd-custom-rail-icon')) {
         const image = hostDocument.createElement('img');
+        icon.classList.add('clawd-custom-rail-icon-host');
         image.className = 'clawd-custom-rail-icon';
         image.src = `${CLAUDE_EXTENSION_BASE}icons/${iconFile}`;
         image.alt = '';
@@ -5589,9 +5590,20 @@ if (CLAUDE_ENABLED) {
         const style = hostDocument.createElement('style');
         style.id = 'clawd-custom-rail-icon-style';
         style.textContent = `
-          #top-settings-holder .drawer-icon:has(> .clawd-custom-rail-icon)::before { display:none!important;content:none!important }
-          #top-settings-holder .drawer-icon:has(> .clawd-custom-rail-icon) { background:none!important;-webkit-mask:none!important;mask:none!important;font-size:0!important }
-          #top-settings-holder .clawd-custom-rail-icon { display:block!important;width:22px!important;height:22px!important;max-width:none!important;object-fit:contain;pointer-events:none }
+          html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon.clawd-custom-rail-icon-host::before,
+          html body #top-bar .drawer-icon.clawd-custom-rail-icon-host::before {
+            display:none!important;content:none!important;width:0!important;height:0!important;
+            background:none!important;-webkit-mask:none!important;mask:none!important;
+          }
+          html body #top-settings-holder .drawer-icon.clawd-custom-rail-icon-host,
+          html body #top-bar .drawer-icon.clawd-custom-rail-icon-host {
+            background:none!important;-webkit-mask:none!important;mask:none!important;font-size:0!important;
+          }
+          html body #top-settings-holder .clawd-custom-rail-icon,
+          html body #top-bar .clawd-custom-rail-icon {
+            display:block!important;width:22px!important;height:22px!important;max-width:none!important;
+            margin:0!important;padding:0!important;object-fit:contain;pointer-events:none;
+          }
         `;
         hostDocument.head.append(style);
       }
