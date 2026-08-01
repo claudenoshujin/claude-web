@@ -5768,3 +5768,22 @@ html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-to
 html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background:url("../icons/08-character-card-night.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
 html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important}
+
+/* 2.0.27: the supplied SVGs use a roomy 48px canvas. At 22px the actual
+   drawing shrinks to roughly 11px, so render a larger canvas inside the
+   existing 22px icon slot. Keep the mobile Clawd anchored while typing. */
+@media (max-width:700px) {
+  html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before {
+    background-position:center !important;
+    background-size:36px 36px !important;
+    background-repeat:no-repeat !important;
+  }
+  html body button.clawd-mobile-clawd-button {
+    top:calc(env(safe-area-inset-top, 0px) + 7px) !important;
+    right:8px !important;
+    bottom:auto !important;
+    left:auto !important;
+    translate:0 0 !important;
+    transform:none !important;
+  }
+}
