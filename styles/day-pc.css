@@ -4803,6 +4803,12 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
 /* New SillyTavern uses an intrinsic open-drawer height. Explicitly fill the
    viewport so every desktop settings drawer has the same usable height. */
 @media (min-width:701px) {
+  html body #top-settings-holder > .drawer > .drawer-content {
+    height:100dvh !important;
+    min-height:100dvh !important;
+    max-height:100dvh !important;
+    box-sizing:border-box !important;
+  }
   html body #top-settings-holder > .drawer > .drawer-content.openDrawer {
     height:100dvh !important;
     min-height:100dvh !important;
