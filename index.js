@@ -210,7 +210,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.8-mobile-avatar-fontscale-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.9-ui-bug-report-fix-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -2203,6 +2203,13 @@ if (CLAUDE_ENABLED) {
           opacity:.22 !important;
           pointer-events:none !important;
         }
+
+        body.${MOBILE_LAYOUT_CLASS}:not(.clawd-welcome) #chat > .mes[is_user="false"]:not(.${SWIPE_VIEW_CLASS}) > button.${LEFT_SWIPE_PROXY_CLASS},
+        body.${MOBILE_LAYOUT_CLASS}:not(.clawd-welcome) #chat > .mes[is_user="false"]:not(.${SWIPE_VIEW_CLASS}) > button.${SWIPE_PROXY_CLASS} {
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -3781,6 +3788,18 @@ if (CLAUDE_ENABLED) {
       box.dataset.clawdCollapsed = '1';
       box.removeAttribute('open');
     }
+  }
+
+  /* Streaming reasoning is inserted after the generation-start refresh. Mark
+     those live details as initialized without closing them; otherwise the
+     generation-end refresh can close a box the user just opened. Only the
+     latest assistant message is inspected. */
+  function preserveStreamingReasoning(typingActive) {
+    if (!typingActive) return;
+    const latest = [...hostDocument.querySelectorAll('#chat > .mes[is_user="false"]')].at(-1);
+    latest?.querySelectorAll('.mes_reasoning_details').forEach(box => {
+      box.dataset.clawdCollapsed = '1';
+    });
   }
 
   /* 酒馆编辑思维链时，会把 <textarea> 插进当前仍是 closed 的 <details>，
@@ -6147,9 +6166,30 @@ if (CLAUDE_ENABLED) {
     button.className = isLeft ? LEFT_SWIPE_PROXY_CLASS : SWIPE_PROXY_CLASS;
     button.setAttribute('aria-label', isLeft ? '上一条回复' : '下一条回复');
     button.title = isLeft ? '上一条回复' : '下一条回复（到末端重新生成）';
+    button.style.touchAction = 'pan-y';
+    let pointerStart = null;
+    let dragged = false;
+    button.addEventListener('pointerdown', event => {
+      pointerStart = { x: event.clientX, y: event.clientY };
+      dragged = false;
+    });
+    button.addEventListener('pointermove', event => {
+      if (!pointerStart) return;
+      if (Math.abs(event.clientX - pointerStart.x) > 8
+        || Math.abs(event.clientY - pointerStart.y) > 8) dragged = true;
+    });
+    button.addEventListener('pointercancel', () => {
+      pointerStart = null;
+      dragged = true;
+    });
     button.addEventListener('click', async event => {
       event.preventDefault();
       event.stopPropagation();
+      const blockedByScroll = isMobileLayout()
+        && (dragged || Date.now() - lastManualScrollAt < 350);
+      pointerStart = null;
+      dragged = false;
+      if (blockedByScroll) return;
       if (button.getAttribute('aria-busy') === 'true') return;
       button.setAttribute('aria-busy', 'true');
       try {
@@ -6474,6 +6514,7 @@ if (CLAUDE_ENABLED) {
     refreshTypingInteractions(typingActive, generationJustEnded);
     applyMobileViewportMetrics();
     refreshMobileComposerInset();
+    preserveStreamingReasoning(typingActive);
     if (continuingGeneration) {
       refreshComposerPhrase(true);
       return;
@@ -6666,6 +6707,7 @@ if (CLAUDE_ENABLED) {
     observer = new hostWindow.MutationObserver(records => {
       refreshStats.recordsSeen += records.length;
       trackDirtyMessages(records);
+      preserveStreamingReasoning(isTypingActive());
       if (!records.some(mutationNeedsFullRefresh)) return;
       refreshStats.recordsPassedFilter += records.length;
       if (refreshing) { dirtyWhileRefreshing = true; return; }
@@ -6857,6 +6899,9 @@ if (CLAUDE_ENABLED) {
     hostDocument.querySelectorAll(`.${EMPTY_CLASS}`).forEach(message => message.classList.remove(EMPTY_CLASS));
     hostDocument.querySelectorAll(`.${PRESET_REASONING_CLASS}`).forEach(message => message.classList.remove(PRESET_REASONING_CLASS));
     hostDocument.querySelectorAll(`.${SWIPE_VIEW_CLASS}`).forEach(message => message.classList.remove(SWIPE_VIEW_CLASS));
+    hostDocument
+      .querySelectorAll('.mes_reasoning_details[data-clawd-collapsed]')
+      .forEach(box => box.removeAttribute('data-clawd-collapsed'));
     hostDocument.querySelectorAll(`.${REGEX_SURFACE_CLASS}`).forEach(element => element.classList.remove(REGEX_SURFACE_CLASS));
     hostDocument.documentElement.style.removeProperty('--clawd-signoff-image');
     hostDocument.documentElement.style.removeProperty(MOBILE_COMPOSER_HEIGHT_PROPERTY);
