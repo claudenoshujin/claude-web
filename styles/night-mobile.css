@@ -5788,3 +5788,30 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
   from { visibility:hidden; opacity:0; }
   to { visibility:visible; opacity:1; }
 }
+
+/* 2.0.31: draw the custom asset on the icon element itself. Some mobile
+   themes re-create Font Awesome's ::before glyph after this stylesheet loads,
+   which covered our image and looked like broken strokes. */
+@media (max-width:700px) {
+  html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/01-presets-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/02-api-connections-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/03-format-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/04-world-book-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/05-preferences-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer:is(#logo_block,#backgrounds-button) > .drawer-toggle > .drawer-icon { background-image:url("../icons/06-background-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/07-extensions-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon { background-image:url("../icons/08-character-card-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon {
+    background-position:11px center !important;
+    background-size:22px 22px !important;
+    background-repeat:no-repeat !important;
+  }
+  html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before,
+  html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::after {
+    content:none !important;
+    display:none !important;
+    background:none !important;
+    -webkit-mask:none !important;
+    mask:none !important;
+  }
+}

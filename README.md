@@ -1,5 +1,9 @@
 # Claude Web 2.0
 
+## 2.0.31 修复
+
+- 手机图标直接绘制在 `.drawer-icon` 元素上，并彻底隐藏 Font Awesome 的伪元素字形。
+
 ## 2.0.30 修复
 
 - 手机侧栏改用预渲染的 22px PNG，绕过 WebView 对小尺寸 SVG 的断线栅格化。
