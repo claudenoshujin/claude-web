@@ -117,11 +117,15 @@ function claudeReadSetting(key, allowed, fallback) {
 const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_MOTION_ENABLED = claudeReadSetting('motion', ['on', 'off'], 'on') !== 'off';
 const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'], 'on') !== 'off';
-/* 生成计时器默认开——是个实用小组件，不是装饰。
+/* 生成计时器默认关（2.0.33 起改的，原来默认开）。
+   原因是性能：这个徽标是 position:fixed + z-index:10015 + 18px 扩散阴影，
+   而且计时循环只在生成期间跑，正好压在流式出字的绘制通道上。真机实测，
+   开着它的时候不但掉帧，连正文出字的节奏都跟关掉时不一样。已经把每帧 rAF
+   换成 100ms 定时器，但收益还没验够，暂时默认关掉，想要的人自己去设置里开。
    背景透传、毛玻璃默认关——都是外观改动，不该在没人要求的情况下
    突然把原本的白底/黑底换成透明。
    （侧栏图标开关已废弃移除：实测在真机上不生效，留着只会误导用户。） */
-const CLAUDE_GEN_TIMER_ENABLED = claudeReadSetting('genTimer', ['on', 'off'], 'on') !== 'off';
+const CLAUDE_GEN_TIMER_ENABLED = claudeReadSetting('genTimer', ['on', 'off'], 'off') !== 'off';
 const CLAUDE_BG_TRANSPARENT_ENABLED = claudeReadSetting('bgTransparent', ['on', 'off'], 'off') === 'on';
 const CLAUDE_BG_BLUR_ENABLED = claudeReadSetting('bgBlur', ['on', 'off'], 'off') === 'on';
 /* 毛玻璃浓度：8~60 之间的整数，表示 color-mix 里 --cw-surface-page 的占比。
@@ -156,6 +160,28 @@ const CLAUDE_GLASS_BASE = 'var(--cw-surface-page)';
    更高的浓度下限，其他抽屉/弹层不受影响。 */
 const CLAUDE_NAV_TINT_OPACITY = Math.max(58, CLAUDE_BG_BLUR_OPACITY);
 
+/* FR-1 背景图模糊。跟「背景透传」「毛玻璃」是三个独立开关，别合并：
+   - 透传：把我们自己的不透明底色清掉，让酒馆的背景图露出来
+   - 毛玻璃：给前景面板上 backdrop-filter
+   - 这个：只糊背景图那一层，前景一律不碰
+   合并的话就没法「背景糊、文字清楚」——而那正是它存在的理由。
+
+   实现上不新建图层：酒馆自己的 #bg1 / #bg_custom 已经是铺满视口的固定层，
+   直接对它上 filter 就行。自己再糊一层意味着要跟着酒馆同步背景图地址、
+   淡入淡出、切换动画，多一份必然要坏的复制品。
+
+   默认关。开着才有意义的功能不该在没人要求时改变别人的界面。 */
+const CLAUDE_BG_IMAGE_BLUR_ENABLED = claudeReadSetting('bgImageBlur', ['on', 'off'], 'off') !== 'off';
+function claudeReadNumberSetting(key, fallback, min, max) {
+  let raw = null;
+  try { raw = window.localStorage.getItem('claude-web:' + key); } catch { /* 无痕或被禁用 */ }
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(num)));
+}
+const CLAUDE_BG_IMAGE_BLUR = claudeReadNumberSetting('bgImageBlurRadius', 12, 0, 32);
+const CLAUDE_BG_IMAGE_DIM = claudeReadNumberSetting('bgImageDim', 28, 0, 70);
+
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeGenTimer = CLAUDE_GEN_TIMER_ENABLED ? 'on' : 'off';
@@ -165,6 +191,9 @@ document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE
 document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
 document.documentElement.style.setProperty('--claude-nav-tint-opacity', `${CLAUDE_NAV_TINT_OPACITY}%`);
+document.documentElement.dataset.claudeBgImageBlur = CLAUDE_BG_IMAGE_BLUR_ENABLED ? 'on' : 'off';
+document.documentElement.style.setProperty('--claude-bg-image-blur', `${CLAUDE_BG_IMAGE_BLUR}px`);
+document.documentElement.style.setProperty('--claude-bg-image-dim', String(CLAUDE_BG_IMAGE_DIM / 100));
 
 function claudeReadClockSetting(key, fallback) {
   try {
@@ -251,7 +280,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.32-mobile-thin-raster-icons-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.46-crab-on-top-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -283,8 +312,8 @@ if (CLAUDE_ENABLED) {
  *
  * 预设的形状：
  *   core   9 个色 + scheme 标记。**社区作者只需要填这 9 个。**
- *   extra  可选的精确覆盖。classic 两套用它把当前主题的取值一字不差地搬过来，
- *          保证「上了令牌层但看起来没变」。社区预设不用管这个字段。
+ *   extra  可选的精确覆盖。「官网」用它钉死官方给了精确值、而 derive() 推
+ *          不准的那几条。社区预设不用管这个字段。
  *
  * 应用方式只有一种：往 documentElement 的 inline style 上设 CSS 变量。
  * **绝不换 stylesheet** —— Moonlit 的 README 自己写了手机上切主题会卡几秒，
@@ -301,7 +330,7 @@ if (CLAUDE_ENABLED) {
      1.x 存的是扁平令牌表，读的时候迁移到当前明暗那一半。 */
   const STORAGE_CUSTOM = 'claude-web:custom';
   /* 自定义的取值起点。用户从哪个家族点进调色，就从那套色开始改，
-     而不是从空白或者写死的 classic 开始。 */
+     而不是从空白或者写死的某一套开始。 */
   const STORAGE_BASE = 'claude-web:custom-base';
   const CUSTOM_ID = 'custom';
   const CUSTOM_NAME = '我的配色';
@@ -314,7 +343,8 @@ if (CLAUDE_ENABLED) {
     '--cw-clay',
   ];
 
-  /* extra 里允许的键。都是能从 core 推导、但 classic 需要精确值的那些。 */
+  /* extra 里允许的键。都是能从 core 推导、但某些预设需要精确值的那些
+     （比如「官网」的边框透明度和 clay hover，推导值跟官方取值对不上）。 */
   const EXTRA_KEYS = [
     '--cw-line', '--cw-line-strong', '--cw-hero', '--cw-icon',
     '--cw-clay-soft', '--cw-clay-strong', '--cw-code-surface', '--cw-code-ink',
@@ -327,83 +357,6 @@ if (CLAUDE_ENABLED) {
   const ALLOWED = new Set([...CORE_KEYS, ...EXTRA_KEYS]);
 
   /* ---------- 内置预设 ---------- */
-
-  /* classic 两套 = 现在 theme-day.css / theme-night.css 的原值，一字不改。
-     它们存在的意义是「换上令牌层之后界面看起来完全没变」，
-     是这一步的验收基准，不是给人日常用的漂亮预设。 */
-  const CLASSIC_LIGHT = {
-    id: 'classic-light',
-    name: '经典 · 日间',
-    scheme: 'light',
-    core: {
-      '--cw-paper-0': '#f8f8f6',
-      '--cw-paper-1': '#ffffff',
-      '--cw-paper-2': '#f4f4f1',
-      '--cw-paper-3': '#efeeeb',
-      '--cw-ink-0': '#121212',
-      '--cw-ink-1': '#686660',
-      '--cw-ink-2': '#7b7974',
-      '--cw-ink-3': '#c9c5bc',
-      '--cw-clay': '#d97757',
-    },
-    extra: {
-      '--cw-line': 'rgba(31,31,30,.15)',
-      '--cw-line-strong': 'rgba(31,31,30,.25)',
-      '--cw-hero': '#373734',
-      '--cw-icon': '#0b0b0b',
-      '--cw-clay-soft': '#f3e0d8',
-      '--cw-clay-strong': '#c6613f',
-      '--cw-code-surface': '#f0eee6',
-      '--cw-code-ink': '#633a2e',
-      '--cw-em': '#6c6b66',
-      '--cw-selection': '#efcfc2',
-      '--cw-scrollbar': '#c9c5bc',
-      '--cw-scrollbar-hover': '#aaa59b',
-      '--cw-shadow-dialog': '0 12px 36px rgba(50,45,35,.12)',
-      '--cw-shadow-composer': '0 10px 30px rgba(43,40,34,.10)',
-      '--cw-shadow-floating': '0 14px 38px rgba(43,40,34,.11)',
-      '--cw-topbar-surface': 'rgba(248,248,246,.98)',
-      '--cw-body-weight': '430',
-      '--cw-color-scheme': 'light',
-    },
-  };
-
-  const CLASSIC_DARK = {
-    id: 'classic-dark',
-    name: '经典 · 夜间',
-    scheme: 'dark',
-    core: {
-      '--cw-paper-0': '#1f1f1e',
-      '--cw-paper-1': '#2c2c2a',
-      '--cw-paper-2': '#2c2c2a',
-      '--cw-paper-3': '#373734',
-      '--cw-ink-0': '#f8f8f6',
-      '--cw-ink-1': '#b8b6ae',
-      '--cw-ink-2': '#97958c',
-      '--cw-ink-3': '#44423d',
-      '--cw-clay': '#d97757',
-    },
-    extra: {
-      '--cw-line': 'rgba(226,225,218,.15)',
-      '--cw-line-strong': 'rgba(226,225,218,.25)',
-      '--cw-hero': '#c3c2b7',
-      '--cw-icon': '#ffffff',
-      '--cw-clay-soft': '#3a2a22',
-      '--cw-clay-strong': '#c6613f',
-      '--cw-code-surface': '#131211',
-      '--cw-code-ink': '#e6a58c',
-      '--cw-em': '#c3c2b7',
-      '--cw-selection': '#5a3a2c',
-      '--cw-scrollbar': '#44423d',
-      '--cw-scrollbar-hover': '#55534c',
-      '--cw-shadow-dialog': '0 12px 36px rgba(0,0,0,.55)',
-      '--cw-shadow-composer': '0 12px 34px rgba(0,0,0,.38)',
-      '--cw-shadow-floating': '0 16px 42px rgba(0,0,0,.44)',
-      '--cw-topbar-surface': 'rgba(31,31,30,.98)',
-      '--cw-body-weight': '400',
-      '--cw-color-scheme': 'dark',
-    },
-  };
 
   /* 暖纸 = 标本册那版设计的取色。只填 9 个核心色，其余靠推导 ——
      这也是给社区看的样板：一个预设长这么大就够了。 */
@@ -441,15 +394,82 @@ if (CLAUDE_ENABLED) {
     },
   };
 
+  /* 官网配色（FR-2）。色值不是从需求文档抄的近似值，是 2026-08-03 从
+     www.anthropic.com 的 --swatch--* / --_color-theme---* 直接读出来的官方
+     brand token，下面每一行都标了它在官网叫什么名字。
+
+     跟需求文档对不上的两处，以官网为准：
+     - 文档的 Coral hover 写 #C96645，官网 --swatch--accent 实际是 #c6613f。
+     - 文档把 Canvas 写成 #F0EEE6，但官网自己的 background 是 #faf9f5，
+       #f0eee6 是 background-secondary。2.0.43 曾按文档取，整个日间偏黄；
+       2.0.44 改回官网的层级：页面底 ivory-light、卡片 white、输入框
+       ivory-medium、悬停 ivory-dark。四层依然全部是官网 swatch，只是整体
+       白了一档。oat(#e3dacc) 退出 —— 它在官网是卡片底色，当悬停太重。
+
+     只有深色那半的 paper-1/2/3 是推的 —— 官网基本是浅色站，深色区块只给了
+     背景 #141413 和边框透明度，没有完整的表面阶梯。推的那三个都标了「推」。 */
+  const ANTHROPIC_LIGHT = {
+    id: 'anthropic-light',
+    name: '官网 · 日间',
+    scheme: 'light',
+    core: {
+      '--cw-paper-0': '#faf9f5',  /* swatch--ivory-light   页面底 */
+      '--cw-paper-1': '#ffffff',  /* swatch--white         卡片 / 抽屉 / 弹窗 */
+      '--cw-paper-2': '#f0eee6',  /* swatch--ivory-medium  输入框 */
+      '--cw-paper-3': '#e8e6dc',  /* swatch--ivory-dark    悬停 */
+      '--cw-ink-0': '#141413',    /* swatch--slate-dark    正文 */
+      '--cw-ink-1': '#5e5d59',    /* swatch--slate-light   次文字 */
+      '--cw-ink-2': '#87867f',    /* swatch--cloud-dark    弱文字 */
+      '--cw-ink-3': '#d1cfc5',    /* swatch--cloud-light   极弱 / 分隔线 */
+      '--cw-clay': '#d97757',     /* swatch--clay          强调 */
+    },
+    /* 这三条 derive() 推得出来但推不准，官网有精确值就用精确值：
+       边框官网是 10% / 20%（slate-faded-10/20），derive 一律 15% / 25%；
+       clay-strong 官网是另调的一个更红的橙，derive 只会把 clay 压暗，发浑。 */
+    extra: {
+      '--cw-line': 'rgba(20,20,19,.10)',        /* swatch--slate-faded-10 #1414131a */
+      '--cw-line-strong': 'rgba(20,20,19,.20)', /* swatch--slate-faded-20 #14141333 */
+      '--cw-clay-strong': '#c6613f',            /* swatch--accent */
+    },
+  };
+
+  const ANTHROPIC_DARK = {
+    id: 'anthropic-dark',
+    name: '官网 · 夜间',
+    scheme: 'dark',
+    core: {
+      '--cw-paper-0': '#141413',  /* swatch--slate-dark    页面底（官网深色区块底色） */
+      '--cw-paper-1': '#1f1f1e',  /* 推：官网没给深色表面阶梯 */
+      '--cw-paper-2': '#262625',  /* 推 */
+      '--cw-paper-3': '#333230',  /* 推 */
+      '--cw-ink-0': '#faf9f5',    /* swatch--ivory-light   正文（官网深底上的字） */
+      '--cw-ink-1': '#d1cfc5',    /* swatch--cloud-light   次文字 */
+      '--cw-ink-2': '#b0aea5',    /* swatch--cloud-medium  弱文字（官网 text-agate 就是它） */
+      '--cw-ink-3': '#3d3d3a',    /* swatch--slate-medium  极弱 / 分隔线 */
+      '--cw-clay': '#d97757',     /* swatch--clay */
+    },
+    extra: {
+      '--cw-line': 'rgba(250,249,245,.10)',        /* swatch--ivory-faded-10 #faf9f51a */
+      '--cw-line-strong': 'rgba(250,249,245,.20)', /* swatch--ivory-faded-20 #faf9f533 */
+      '--cw-clay-strong': '#c6613f',               /* swatch--accent */
+    },
+  };
+
   /* 按「家族 × 明暗」组织，而不是把四套平铺成一个下拉。
      平铺的问题：样式表的明暗（CLAUDE_THEME_VARIANT）和预设自带的明暗是两个
      独立选择，用户可以选出「浅色配色 + 深色样式表」这种半新半旧的组合。
      拆成两个维度之后，明暗只有一个来源，打不起来。 */
+  /* 「官网」放第一位不是排版顺手 —— defaultPresetId() 取的就是 FAMILIES[0]，
+     所以第一项即默认配色。2.0.43 删掉「经典」之后由它接任。
+
+     「暖纸」和「墨」本来就是配对写的（暖纸是浅色半、墨是深色半），合成一个
+     家族而不是各占一格 —— 各占一格的话每套都缺另一半，切明暗会掉回默认。 */
   const FAMILIES = [
-    { id: 'classic', name: '经典', light: CLASSIC_LIGHT, dark: CLASSIC_DARK },
+    { id: 'anthropic', name: '官网', light: ANTHROPIC_LIGHT, dark: ANTHROPIC_DARK },
+    { id: 'paper', name: '暖纸', light: WARM_PAPER, dark: INK },
   ];
 
-  const BUILT_IN = [CLASSIC_LIGHT, CLASSIC_DARK];
+  const BUILT_IN = [ANTHROPIC_LIGHT, ANTHROPIC_DARK, WARM_PAPER, INK];
 
   function familyOf(presetId) {
     return FAMILIES.find(f => f.light.id === presetId || f.dark.id === presetId) ?? FAMILIES[0];
@@ -544,18 +564,22 @@ if (CLAUDE_ENABLED) {
     }
   }
 
-  /* 没选过预设时按 variant 回落到 classic，保证「装上之后和以前一样」。 */
+  /* 没选过预设时回落到 FAMILIES[0]，也就是「官网」。 */
   function defaultPresetId() {
     return FAMILIES[0][currentScheme()].id;
   }
 
-  /* 存的是家族 id，不是具体预设 id —— 这样切换明暗时配色家族保持不变。 */
+  /* 存的是家族 id，不是具体预设 id —— 这样切换明暗时配色家族保持不变。
+
+     要校验存的 id 现在还存不存在：2.0.43 删掉了「经典」，之前选过它的人
+     localStorage 里还是 'classic'。不校验的话下拉会空选（找不到匹配项），
+     而 activateFamily 那边有 ?? FAMILIES[0] 兜底、实际用的是默认配色 ——
+     于是「显示的」和「生效的」对不上。 */
   function currentFamilyId() {
-    try {
-      return window.localStorage.getItem('claude-web:family') || 'classic';
-    } catch {
-      return 'classic';
-    }
+    let stored = null;
+    try { stored = window.localStorage.getItem('claude-web:family'); } catch { /* 无痕 */ }
+    if (stored === CUSTOM_ID) return stored;
+    return FAMILIES.some(f => f.id === stored) ? stored : FAMILIES[0].id;
   }
 
   /* ---------- 自定义配色 ---------- */
@@ -982,6 +1006,35 @@ if (CLAUDE_ENABLED) {
     return changed;
   }
 
+  /* Bug 2：运行时（跟随系统/按时间自动切换）换明暗只走了设置面板那边的
+     applyVariantLive()——换了 <link href> 和 dataset.claudeIntegratedTheme，
+     就完了。没人告诉这里（主题运行时模块）"该换的其实是 night 那一套值"。
+     这个模块自己的 THEME_VALUES/THEME_NAME 是脚本刚加载那一刻，按当时的
+     variant 算出来的 const，之后不会自己变——于是 powerUserSettings.theme、
+     custom_css、主题下拉框全部继续停在启动时那个明暗，跟已经切换过去的
+     样式表对不上：界面已经是夜间，下拉框和酒馆自己的主题记录还留着日间。
+     这里补一个能接受"目标 variant"的入口，从 CLAUDE_THEMES 里现查一份新值
+     再走一遍 persistFullTheme 同一套流程（写 powerUserSettings、CSS 变量、
+     UI 状态、下拉框、保存），暴露成 api.applyVariant，供设置面板在切换
+     明暗后调用，两边真正共用同一个真相来源。 */
+  function applyThemeValuesFor(variant) {
+    const theme = typeof CLAUDE_THEMES !== 'undefined' ? CLAUDE_THEMES?.[variant] : null;
+    if (!theme) return false;
+    const context = getContext();
+    const settings = context?.powerUserSettings;
+    if (!settings) return false;
+    const previousName = settings.theme;
+    rememberRestorePoint(settings);
+    const values = Object.fromEntries(Object.entries(theme).filter(([key]) => key !== 'name'));
+    Object.assign(settings, values);
+    settings.theme = theme.name;
+    applyCssVariables(settings);
+    applyUiState(settings);
+    syncControls(settings, previousName);
+    context.saveSettingsDebounced?.();
+    return true;
+  }
+
   function nativeThemeFallback(themeSelect) {
     if (!(themeSelect instanceof hostWindow.HTMLSelectElement)) return false;
     const candidates = [...themeSelect.options].filter(option => (
@@ -1233,7 +1286,7 @@ if (CLAUDE_ENABLED) {
     runnerPresenceObserver.observe(hostDocument.body, { childList: true, subtree: true });
   }
 
-  const api = { token: INSTANCE_TOKEN, destroy, apply: persistFullTheme };
+  const api = { token: INSTANCE_TOKEN, destroy, apply: persistFullTheme, applyVariant: applyThemeValuesFor };
   hostWindow[INSTANCE_KEY] = api;
   hostWindow.addEventListener('beforeunload', markHostPageUnloading, true);
   hostWindow.addEventListener('pagehide', markHostPageUnloading, true);
@@ -1270,7 +1323,6 @@ if (CLAUDE_ENABLED) {
   const EMPTY_CLASS = 'claude-empty-assistant';
   const GENERATING_CLASS = 'claude-generation-active';
   const BUTTON_CLASS = 'clawd-signoff-button';
-  const LEG_BOUNCE_CLASS = 'clawd-leg-bounce';
   const INPUT_ACTIVE_CLASS = 'clawd-input-active';
   const INPUT_TEXT_CLASS = 'clawd-input-has-text';
   /* D2：害羞（环境触发）与被冷落。两个都是常驻状态的 class，不是
@@ -1543,45 +1595,32 @@ if (CLAUDE_ENABLED) {
         box-shadow: var(--clawd-f-tucked) !important;
       }
 
-      /* D1: three quick clicks toggle a persistent sideways scuttle —
-         not a mirrored flip. Real crabs walk sideways without turning
-         their body around, and a static scale:-1 1 mirror made the face
-         pop to the other side the instant the mode switched on, which
-         read as a glitch rather than a walk. Movement stays on the
-         translate/rotate channel so it still composes with the
-         one-shot transform reactions instead of replacing them. */
-      button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS}:not(.clawd-sleeping)::before,
-      button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before {
-        animation: clawd-leg-bounce 640ms linear infinite !important;
-      }
-
-      button.${BUTTON_CLASS}.${INPUT_ACTIVE_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping),
-      button.clawd-mobile-clawd-button.${INPUT_ACTIVE_CLASS}:not(.${LEG_BOUNCE_CLASS}) {
+      button.${BUTTON_CLASS}.${INPUT_ACTIVE_CLASS}:not(.clawd-sleeping),
+      button.clawd-mobile-clawd-button.${INPUT_ACTIVE_CLASS} {
         translate: 0 -3px;
       }
 
-      button.${BUTTON_CLASS}.${INPUT_TEXT_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping)::before,
-      button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}:not(.${LEG_BOUNCE_CLASS})::before {
+      button.${BUTTON_CLASS}.${INPUT_TEXT_CLASS}:not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before {
         animation: clawd-compose-bob 900ms ease-in-out infinite !important;
       }
 
-      body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before,
       body.${GENERATING_CLASS} button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before {
         animation: none !important;
       }
 
-      /* D2 被冷落 / 害羞（环境触发）。跟 D1 一样只占 translate/rotate 通道，
-         不碰 transform（呼吸/打盹/入睡都在那条通道上），也用 :not() 让三击
-         踱步和入睡继续按既有优先级压过它们——这两条常驻状态谁都不该覆盖
-         已经更明确的用户操作（toggle）或更需要表达的「不在」（睡着）。
-         生成中（GENERATING_CLASS）也整体让位，避免跟专属动作抢注意力。 */
-      button.${BUTTON_CLASS}.${NEGLECTED_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping)::before,
-      button.clawd-mobile-clawd-button.${NEGLECTED_CLASS}:not(.${LEG_BOUNCE_CLASS})::before {
+      /* D2 被冷落 / 害羞（环境触发）。只占 translate/rotate 通道，不碰
+         transform（呼吸/打盹/入睡都在那条通道上），并用 :not(.clawd-sleeping)
+         让入睡压过它们——「不在」比「没被搭理」更该被表达。
+         生成中（GENERATING_CLASS）也整体让位，避免跟专属动作抢注意力。
+         （原来这里还要让位给三击踱步，踱步已在 2.0.40 删除。） */
+      button.${BUTTON_CLASS}.${NEGLECTED_CLASS}:not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${NEGLECTED_CLASS}::before {
         animation: clawd-neglected-droop 3.4s ease-in-out infinite !important;
       }
 
-      button.${BUTTON_CLASS}.${SHY_AMBIENT_CLASS}:not(.${LEG_BOUNCE_CLASS}):not(.clawd-sleeping)::before,
-      button.clawd-mobile-clawd-button.${SHY_AMBIENT_CLASS}:not(.${LEG_BOUNCE_CLASS})::before {
+      button.${BUTTON_CLASS}.${SHY_AMBIENT_CLASS}:not(.clawd-sleeping)::before,
+      button.clawd-mobile-clawd-button.${SHY_AMBIENT_CLASS}::before {
         animation: clawd-shy-ambient-tilt 2.2s ease-in-out infinite !important;
       }
 
@@ -1616,6 +1655,20 @@ if (CLAUDE_ENABLED) {
       .clawd-gen-timer.clawd-gen-timer-visible { opacity: .92; transform: translateY(0); }
       .clawd-gen-timer.clawd-gen-timer-done { color: var(--cw-mark); }
       html[data-claude-gen-timer="off"] .clawd-gen-timer { display: none !important; }
+
+      /* 欢迎内容的兜底遮挡。
+         酒馆的欢迎面板（#chat > .welcomePanel）和欢迎助手那条消息本来应该由酒馆
+         自己在切换对话时清掉；PC 上实测四次都清得干净，手机上却会留在 #chat 里，
+         跟真实的角色消息排成一列——用户看到的是"上面三条是欢迎页，往下划才是对话"。
+         这里不去删别人的节点（删了可能打断酒馆自己的重建逻辑），只在「已经不是
+         欢迎态」时把它们藏起来。body.clawd-welcome 由 refreshWelcomeMode 维护，
+         实测在 PC 上四次进对话都被正确 toggle(false)，可以作为判据。
+         纯 CSS 兜底，不管酒馆那边清不清、清得及不及时，都不会露出来。 */
+      body:not(.clawd-welcome) #chat > .welcomePanel,
+      body:not(.clawd-welcome) #chat > .mes.claude-welcome-clawd-assistant,
+      body:not(.clawd-welcome) #chat > .mes.claude-welcome-prompt {
+        display: none !important;
+      }
       @media (prefers-reduced-motion: reduce) {
         .clawd-gen-timer { transition: none !important; }
       }
@@ -1646,6 +1699,28 @@ if (CLAUDE_ENABLED) {
       }
       html[data-claude-bg-transparent="on"] #chat#chat::before {
         background: transparent !important;
+      }
+
+      /* FR-1 背景图模糊。只作用在酒馆自己的背景层上，前景一个都不碰 ——
+         需求文档特别强调「不要对聊天内容容器用 filter」，理由不只是观感：
+         给元素上 filter 会让它变成后代 position:fixed 的包含块，抽屉、
+         弹层、浮动菜单会被摁进那个盒子里。这个坑毛玻璃那边已经踩过一次
+         （见下面 #top-settings-holder 那段注释）。
+
+         scale(1.08) 是必须的，不是保险：blur 会让边缘像素向外采样到透明，
+         不放大的话四周会露出一圈渐隐的缝。放大比例要够覆盖模糊半径，
+         32px 的上限对应约 8% 的外扩。
+
+         压暗用 inset box-shadow 铺满，不另加元素 —— 加元素就要考虑它的
+         层级、指针事件、以及卸载时的清理。 */
+      html[data-claude-bg-image-blur="on"] :is(#bg1, #bg_custom, #bg_animation) {
+        filter: blur(var(--claude-bg-image-blur, 12px)) !important;
+        transform: scale(1.08) !important;
+        transform-origin: center center !important;
+        box-shadow: inset 0 0 0 100vmax rgb(20 20 19 / var(--claude-bg-image-dim, .28)) !important;
+      }
+      html[data-claude-bg-image-blur="on"][data-claude-motion="off"] :is(#bg1, #bg_custom, #bg_animation) {
+        transition: none !important;
       }
       /* 上一版把 #form_sheld 也单独打了层色调，本意是想解决"PC 端输入框
          看着不透"的问题，结果打歪了：真机调试查了 #sheld 的实际渲染盒子
@@ -1803,7 +1878,23 @@ if (CLAUDE_ENABLED) {
          的扩展（不只是背景面板和酒馆助手，任何遵循这个约定的三方扩展都
          受益），背景会自动跟着我们的日夜色调和毛玻璃浓度滑条走，不用每
          冒出一个新扩展就单独打一次补丁。 */
+      /* Bug 5：上面这条重定义之前是挂在裸 html 选择器上的，不受
+         data-claude-bg-transparent / data-claude-bg-blur 任何一个开关控制——
+         两个都关掉之后，这条半透明 color-mix 仍然原样生效。角色卡
+         Advanced Definitions 这类弹窗走的正是酒馆原生
+         --SmartThemeBlurTintColor 这条约定（不吃我们主题给 .popup 写的
+         那份不透明 --cw-surface-page，日间/夜间 CSS 里那份规则管不到它），
+         于是就算用户把透传和毛玻璃都关了，这些弹窗背后仍然是当初写死的
+         18% 浓度玻璃色，跟设置语义（都关闭 = 实体不透明背景）对不上。
+         这里拆成两条：默认（两个开关都关）时把这个变量还原成主题本身的
+         不透明 --cw-surface-page；只有背景透传打开时才切回半透明
+         color-mix。毛玻璃单独开、透传没开的组合不会走到这条规则——它依赖
+         透传先开这条既有约束在设置面板里已经保证（见 bgBlur 的 change
+         处理器，勾选毛玻璃会连带勾上透传）。 */
       html {
+        --SmartThemeBlurTintColor: var(--cw-surface-page) !important;
+      }
+      html[data-claude-bg-transparent="on"] {
         --SmartThemeBlurTintColor: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
       }
 
@@ -2166,23 +2257,6 @@ if (CLAUDE_ENABLED) {
         }
       }
 
-      /* D1 螃蟹横向踱步。像素画是单张 box-shadow 精灵，没有独立的"腿"
-         部件可以单独动，所以走路感不能靠换帧，只能靠位移的节奏来演。
-         第一版让整只 ::before 上下位移 2px，读出来是原地弹跳；改成左右
-         小抖（±1px）又太小、没有方向感，读成原地打颤/抽搐。
-         这版换成"停顿-快速切换-停顿"的四段节奏，而不是连续正弦滑动——
-         纯正弦滑动读出来是滑冰，不是走路。停顿段（0-40%、50-90%）身体
-         略微倾向落脚的一侧，快速切换段（40-50%、90-100%）模拟迈步时的
-         重心转移。不做镜像翻转：朝向来回跳变比原地抖腿更像故障，横着
-         走本来就该正脸不转身，靠位移和倾斜给方向感就够了。 */
-      @keyframes clawd-leg-bounce {
-        0% { translate: -3px 0; rotate: -2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
-        40% { translate: -3px 0; rotate: -2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
-        50% { translate: 3px 0; rotate: 2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
-        90% { translate: 3px 0; rotate: 2deg; animation-timing-function: cubic-bezier(.3,0,.7,1); }
-        100% { translate: -3px 0; rotate: -2deg; }
-      }
-
       @keyframes clawd-compose-bob {
         0%, 100% { translate: 0 0; }
         50% { translate: 0 -1px; }
@@ -2271,8 +2345,6 @@ if (CLAUDE_ENABLED) {
           transform: none !important;
         }
         .clawd-click-particle { animation-duration: 1ms !important; }
-        button.${BUTTON_CLASS}.${LEG_BOUNCE_CLASS}::before,
-        button.clawd-mobile-clawd-button.${LEG_BOUNCE_CLASS}::before,
         button.${BUTTON_CLASS}.${INPUT_TEXT_CLASS}::before,
         button.clawd-mobile-clawd-button.${INPUT_TEXT_CLASS}::before,
         button.${BUTTON_CLASS}.${NEGLECTED_CLASS}::before,
@@ -2319,7 +2391,7 @@ if (CLAUDE_ENABLED) {
      结束。可开关（html[data-claude-gen-timer]），关掉时直接不建元素，
      不占任何一帧。 */
   let genTimerEl = null;
-  let genTimerRaf = 0;
+  let genTimerRaf = 0; /* 现在存的是 setInterval 的 id，不再是 rAF 句柄 */
   let genTimerStartedAt = 0;
   let genTimerLingerTimer = 0;
   const GEN_TIMER_LINGER_MS = 4000;
@@ -2340,8 +2412,8 @@ if (CLAUDE_ENABLED) {
   function tickGenTimer() {
     if (!genTimerEl || !genTimerStartedAt) return;
     const elapsed = (hostWindow.performance.now() - genTimerStartedAt) / 1000;
-    genTimerEl.textContent = elapsed.toFixed(1) + 's';
-    genTimerRaf = hostWindow.requestAnimationFrame(tickGenTimer);
+    const nextText = elapsed.toFixed(1) + 's';
+    if (genTimerEl.textContent !== nextText) genTimerEl.textContent = nextText;
   }
 
   function startGenTimer() {
@@ -2351,16 +2423,25 @@ if (CLAUDE_ENABLED) {
       hostWindow.clearTimeout(genTimerLingerTimer);
       genTimerLingerTimer = 0;
     }
-    if (genTimerRaf) hostWindow.cancelAnimationFrame(genTimerRaf);
+    if (genTimerRaf) hostWindow.clearInterval(genTimerRaf);
     genTimerStartedAt = hostWindow.performance.now();
     el.classList.remove('clawd-gen-timer-done');
     el.classList.add('clawd-gen-timer-visible');
     tickGenTimer();
+    /* 计时器原来靠 requestAnimationFrame 递归自己跑，也就是每一帧醒一次：
+       高刷屏上是每秒 ~175 次。但显示只到 0.1 秒，一秒里只有 10 次是真要改字。
+       更麻烦的是 rAF 回调坐在渲染管线的关键路径上 —— 每帧都被唤醒一次，正好跟
+       流式正文抢同一个绘制通道；这个徽标还是 position:fixed + z-index:10015 +
+       18px 扩散的 box-shadow，每次重绘都要重新合成它底下那片输入区。
+       表现出来就是"关掉计时器不但不卡了，连出字的节奏都不一样"。
+       改成 100ms 定时器：显示精度一点不损失（本来就只有 0.1 秒），
+       唤醒次数从 ~175 次/秒降到 10 次/秒，而且离开了每帧渲染路径。 */
+    genTimerRaf = hostWindow.setInterval(tickGenTimer, 100);
   }
 
   function stopGenTimer() {
     if (genTimerRaf) {
-      hostWindow.cancelAnimationFrame(genTimerRaf);
+      hostWindow.clearInterval(genTimerRaf);
       genTimerRaf = 0;
     }
     if (!genTimerStartedAt || !genTimerEl) return; // 没真的开始过（比如开关关闭时收到结束事件）
@@ -2845,7 +2926,6 @@ if (CLAUDE_ENABLED) {
     button.className = BUTTON_CLASS;
     button.setAttribute('aria-label', 'Clawd');
     button.title = 'Clawd';
-    applyCcPersistentState(button);
     applyCcComposerState(button);
     if (settle) {
       button.classList.add('clawd-button-settle');
@@ -2921,15 +3001,13 @@ if (CLAUDE_ENABLED) {
 
   let ccComboCount = 0;
   let ccComboTimer = null;
-  let ccLegBounceEnabled = false;
   let ccSleeping = false;
   let ccHasBeenPoked = false;
   let ccReturnedAt = 0;
   let ccHiddenAt = 0;
-  /* D2 害羞（环境触发）：短时间内连续被戳（软戳，没有攒到三连击那种切换
-     抖腿的重击），读成「被摸得有点不好意思」。窗口内记录每一次软戳的
-     时间戳，超过阈值就触发一次有限时长的害羞姿势——跟点击彩蛋里那个
-     一次性的 clawd-react-shy 是两套 class，互不覆盖。 */
+  /* D2 害羞（环境触发）：短时间内被连续轻戳，读成「被摸得有点不好意思」。
+     窗口内记录每一次软戳的时间戳，超过阈值就触发一次有限时长的害羞姿势
+     ——跟点击彩蛋里那个一次性的 clawd-react-shy 是两套 class，互不覆盖。 */
   const SHY_TRIGGER_WINDOW_MS = 8000;
   const SHY_TRIGGER_COUNT = 4;
   const SHY_POSE_MS = 2600;
@@ -3003,7 +3081,7 @@ if (CLAUDE_ENABLED) {
     const now = Date.now();
     shyPokeTimestamps.push(now);
     shyPokeTimestamps = shyPokeTimestamps.filter(t => now - t < SHY_TRIGGER_WINDOW_MS);
-    if (shyPokeTimestamps.length >= SHY_TRIGGER_COUNT && !isTypingActive() && !ccLegBounceEnabled) {
+    if (shyPokeTimestamps.length >= SHY_TRIGGER_COUNT && !isTypingActive()) {
       shyPokeTimestamps = [];
       pulseShyAmbient(button);
     }
@@ -3067,29 +3145,12 @@ if (CLAUDE_ENABLED) {
     );
   }
 
-  function applyCcPersistentState(button) {
-    if (!button) return;
-    button.classList.toggle(LEG_BOUNCE_CLASS, ccLegBounceEnabled);
-  }
-
-  function setCcLegBounce(on) {
-    ccLegBounceEnabled = Boolean(on);
-    ccInteractiveTargets().forEach(applyCcPersistentState);
-  }
-
   function clearCcTransientFeedback(button) {
     button?.classList.remove(...BUTTON_REACTIONS, 'clawd-button-pop');
     button?.classList.remove('clawd-poke-blink', 'clawd-poke-look', 'clawd-poke-tucked');
     hostDocument.querySelectorAll('.clawd-click-particle, .clawd-cc-toast, .clawd-hi-toast')
       .forEach(element => element.remove());
   }
-
-  /* 三击踱步的冷却：原来每凑够 3 击就无条件切换一次，手快的人连续点
-     会在几秒内把踱步开了又关、关了又开，肉眼只看到抖来抖去分不清是
-     开还是关。切换后短时间内再凑够 3 击，只提示"冷却中"、不切换，
-     逼着连点停一下再打下一组三连击。 */
-  const LEG_BOUNCE_TOGGLE_COOLDOWN_MS = 2500;
-  let lastLegBounceToggleAt = 0;
 
   function handleCcCombo(button) {
     // 睡着的时候戳它，回一句梦话就好，不进连点彩蛋的计数
@@ -3117,30 +3178,23 @@ if (CLAUDE_ENABLED) {
         showCcToast(button, ccEscapeHtml(takeCcLine(slot)), 'hi');
       }
       return false;
-    } else if (ccComboCount === 3) {
-      ccComboCount = 0;
-      if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
-      ccComboTimer = null;
-      const now = Date.now();
-      if (now - lastLegBounceToggleAt < LEG_BOUNCE_TOGGLE_COOLDOWN_MS) {
-        showCcToast(button, ccEscapeHtml(ccPrefersChinese() ? '等等…刚切过' : 'hold on… just switched'), 'hi');
-        return true;
-      }
-      lastLegBounceToggleAt = now;
-      shyPokeTimestamps = [];
-      button.classList.remove(SHY_AMBIENT_CLASS);
-      clearCcTransientFeedback(button);
-      setCcLegBounce(!ccLegBounceEnabled);
-      showCcToast(
-        button,
-        ccLegBounceEnabled
-          ? (ccPrefersChinese() ? '抖腿模式：开' : 'leg bounce: on')
-          : (ccPrefersChinese() ? '抖腿模式：关' : 'leg bounce: off'),
-        'hi',
-      );
-      return true;
     }
-    return false;
+    /* 连点第三下：只眨一下眼，不弹气泡，然后把计数清零。
+       原来这里是「三击切换踱步」—— 一个可开关的持久摇摆。去掉了，两个原因：
+       一是它不表达任何状态，纯装饰，而持久高频的动静在余光里就是噪音
+       （同样的教训在 ccMaybeCheer 那里已经吃过一次，见那段注释）；
+       二是「三下」和「踱步」之间没有意义关联，记不住。
+       现在连点的语义是「它被戳烦了，懒得回话」。
+
+       清零这一步不能省。旧代码在这个分支里做过 ccComboCount = 0，
+       2.0.40 换掉整段时把它一起删了 —— 结果只要点击间隔小于 1400ms，
+       计数就一路往上加，永远进不了上面 <= 2 那条分支，Clawd 从第三下起
+       再也不说话。节奏应当是「说、说、静一下、再说」，不是「说两句就哑」。 */
+    ccComboCount = 0;
+    if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
+    ccComboTimer = null;
+    pulseCcPose(button, 'clawd-poke-blink', 320);
+    return true;
   }
 
   /* ===== v1.7 ===== */
@@ -3154,8 +3208,8 @@ if (CLAUDE_ENABLED) {
   /* 打盹：3 分钟没输入就睡，敲键盘就醒。
      只认键盘，不认鼠标移动和滚动 —— 读长回复的时候鼠标和滚轮一直在动，
      但人其实没在「操作」，把那些算进来它就永远睡不着。
-     连点 8 下的彩蛋走同一套 clawd-sleeping 类，两边不冲突：
-     彩蛋睡固定 6 秒，打盹睡到你回来为止。
+     （曾经有个「连点 8 下睡 6 秒」的彩蛋，早已移除；ccSleeping 现在恒为
+     false，留着只是给 handleCcCombo 的梦话分支当哨兵。）
      阈值原来是 1 分钟，跟被冷落的窗口几乎重叠——冷落刚冒出来一小会儿
      就被入睡盖过去，等于白做。改成 3 分钟，给冷落留出 1~2:15 的
      显示窗口（drowsy 门槛是本值的 75%，会跟着一起挪，不用单独调）。 */
@@ -3176,20 +3230,23 @@ if (CLAUDE_ENABLED) {
   let lastPokeAt = Date.now();
   let neglected = false;
 
+  /* 这三个 set* 原来只查 BUTTON_CLASS（PC 那只），手机端的
+     .clawd-mobile-clawd-button 从来拿不到这些 class —— 于是它永远不睡、
+     不打盹、也不会被冷落，而 CSS 里给它写好的规则一直是死的。
+     改用 ccInteractiveTargets() 把两只都覆盖到。两种布局同时只存在一只，
+     所以不会互相干扰。 */
   function setSleeping(on) {
-    hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
-      .forEach(button => button.classList.toggle('clawd-sleeping', on));
+    ccInteractiveTargets().forEach(button => button.classList.toggle('clawd-sleeping', on));
   }
 
   function setDrowsy(on) {
-    hostDocument.querySelectorAll('button.' + BUTTON_CLASS)
-      .forEach(button => button.classList.toggle('clawd-idle-drowsy', on));
+    ccInteractiveTargets().forEach(button => button.classList.toggle('clawd-idle-drowsy', on));
   }
 
   function setNeglected(on) {
     if (neglected === on) return;
     neglected = on;
-    const buttons = hostDocument.querySelectorAll('button.' + BUTTON_CLASS);
+    const buttons = ccInteractiveTargets();
     buttons.forEach(button => button.classList.toggle(NEGLECTED_CLASS, on));
     if (on && buttons.length) {
       showCcToast(buttons[0], ccEscapeHtml(ccPrefersChinese() ? '有点被冷落了…' : 'feeling a bit ignored…'), 'hi');
@@ -3227,8 +3284,7 @@ if (CLAUDE_ENABLED) {
        触发条件互斥，害羞优先，冷落让位。 */
     const shouldBeNeglected = elapsed < IDLE_SLEEP_MS * .75
       && !isTypingActive()
-      && !ccLegBounceEnabled
-      && !hostDocument.querySelector('button.' + BUTTON_CLASS + '.' + SHY_AMBIENT_CLASS)
+      && ![...ccInteractiveTargets()].some(b => b.classList.contains(SHY_AMBIENT_CLASS))
       && Date.now() - lastPokeAt > NEGLECT_POKE_MS;
     setNeglected(shouldBeNeglected);
 
@@ -3271,6 +3327,14 @@ if (CLAUDE_ENABLED) {
   function trackSwipeArrows() {
     swipeTrackRaf = 0;
     if (destroyed) return;
+    /* 生成期间整个暂停跟随。
+       下面那些 getBoundingClientRect() 会强制浏览器立刻重算整页布局；平时不贵，
+       但生成时正文每帧都在长，DOM 一直是脏的，于是每一次读取都摊上一次完整重排。
+       真机实测：生成期间这个函数吃掉 3823ms，是该时段第二大的阻塞源；
+       而整体 88% 的卡顿都发生在生成期间（生成中掉帧 72961ms vs 平时 9794ms）。
+       生成中用户也不会去点左右翻页，箭头停在原地没有代价，
+       生成一结束由 generationJustEnded 那轮补排一次，立刻归位。 */
+    if (isTypingActive()) return;
     if (isMobileLayout()) {
       observedSwipeMessages.forEach(message => {
         message.querySelectorAll(`:scope > button.${LEFT_SWIPE_PROXY_CLASS}, :scope > button.${SWIPE_PROXY_CLASS}`)
@@ -4111,8 +4175,23 @@ if (CLAUDE_ENABLED) {
     }
 
     /* 置顶的排前面，组内按最后一条消息倒序。 */
+    /* dateText 是服务端 last_mes 原样带过来的人类可读串，形如
+       "August 2, 2026 11:36am"。原来这里直接 localeCompare，等于按字母顺序排：
+       "August" 排在 "July" 前面纯属字母巧合，跨月直接乱；同一天里
+       "11:36am" 因为首字符 '1' < '6'，被排到 "6:08am" 后面。
+       真机实测，服务端返回的第一条（也就是最新的那条）在侧栏被排到了列表末尾，
+       表现出来就是"发了消息侧栏完全没反应"——其实数据是新的，只是排错了位置。
+       解析成时间戳再比。"11:36am" 中间没空格，Date.parse 认不出来，先补一个。
+       解析不出来的记 0 排到最后，并退回字符串比较做兜底，保证顺序稳定。 */
+    const timeOf = value => {
+      const text = String(value ?? '').replace(/(\d)\s*(am|pm)\b/i, '$1 $2');
+      const parsed = Date.parse(text);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
     entries.sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const diff = timeOf(b.dateText) - timeOf(a.dateText);
+      if (diff) return diff;
       return String(b.dateText).localeCompare(String(a.dateText));
     });
     return entries;
@@ -4388,9 +4467,13 @@ if (CLAUDE_ENABLED) {
   function shouldFetchRecents(force, now) {
     if (force) return true;
     if (!recentLoadedOnce) return true;
-    /* 用户没在看这个列表的时候不刷 —— 侧栏在聊天页是收着的，
-       刷了也没人看，纯粹是白花一次往返。 */
-    if (!hostDocument.body.classList.contains(WELCOME_CLASS)) return false;
+    /* 原来这里写的是「不是欢迎页就不刷」，理由是"侧栏在聊天页是收着的，
+       刷了也没人看"。这个前提不成立：侧栏在聊天页照样可以是展开的，
+       用户实测就是"聊天时左边历史列表明明在眼前，却一直不更新"。
+       改成直接问列表本身可不可见。getClientRects().length 对 display:none、
+       祖先隐藏、position:fixed 都判得准，比 offsetParent 可靠。 */
+    const slot = hostDocument.querySelector('.' + RAIL_RECENTS_CLASS);
+    if (!slot || !slot.getClientRects().length) return false;
     return now - recentFetchedAt > RECENT_FETCH_TTL;
   }
 
@@ -5370,7 +5453,6 @@ if (CLAUDE_ENABLED) {
     clawd.type = 'button';
     clawd.className = 'clawd-mobile-clawd-button';
     clawd.setAttribute('aria-label', 'Clawd');
-    applyCcPersistentState(clawd);
     applyCcComposerState(clawd);
     clawd.addEventListener('click', event => {
       event.preventDefault();
@@ -5719,7 +5801,7 @@ if (CLAUDE_ENABLED) {
   function ccMaybeScan() {
     if (destroyed) return;
     if (Date.now() - lastMouseMoveAt < SCAN_IDLE_MS) return;
-    if (isTypingActive() || ccLegBounceEnabled || ccSleeping) return;
+    if (isTypingActive() || ccSleeping) return;
     if (Math.random() > 0.18) return;
     hostDocument.querySelectorAll('button.' + BUTTON_CLASS).forEach(button => {
       if (button.classList.contains('clawd-sleeping')
@@ -6393,7 +6475,6 @@ if (CLAUDE_ENABLED) {
     'clawd-cheer',
     'clawd-button-settle',
     'clawd-button-press',
-    LEG_BOUNCE_CLASS,
     INPUT_ACTIVE_CLASS,
     INPUT_TEXT_CLASS,
     NEGLECTED_CLASS,
@@ -6429,6 +6510,16 @@ if (CLAUDE_ENABLED) {
     '.clawd-rail-grip',
     '.clawd-welcome-hero',
     '.clawd-welcome-shortcuts',
+    /* 生成计时器是扩展自己创建、自己每 100ms 改一次文本的元素，
+       但它一直漏在这份"我的元素"名单外面。后果：每跳一秒，它自己写出来的
+       childList 记录都被当成"酒馆那边的外部改动"，换来一整轮全量刷新。
+       真机实测 426 秒里，.clawd-gen-timer 产生 1440 条记录，是所有记录里
+       最多的一类；同期全量刷新 836 次、平均 64.7ms，refreshClawd 独占
+       31.5 秒主线程，等于掉帧总量的四成。生成中计时器一直在跳，所以表现
+       就是"AI 回复时一顿一顿"，而且从 2.0.17 加进这个计时器那版开始出现。
+       3.0 那条源码线上这个元素已经改叫 clawd-stream-timer 并进了名单，
+       2.0 这条线漏掉了，补上。 */
+    '.clawd-gen-timer',
   ].join(',');
 
   function classMutationIsCosmetic(record, target) {
@@ -6436,7 +6527,24 @@ if (CLAUDE_ENABLED) {
     const before = new Set(String(record.oldValue || '').split(/\s+/).filter(Boolean));
     const after = new Set(String(target.getAttribute('class') || '').split(/\s+/).filter(Boolean));
     const changed = new Set([...before, ...after].filter(name => before.has(name) !== after.has(name)));
-    return changed.size > 0 && [...changed].every(name => (
+    /* Bug 7 真根因：欢迎消息头像那条 (#chat > .mes.claude-welcome-clawd-assistant)
+       每次 refreshClawdInner() 都会被重新写一次 class 属性——不是用
+       classList.add/toggle（值不变时浏览器会自己判定 no-op、根本不产生
+       MutationObserver 记录），而是某处整串重新赋值，哪怕新值和旧值
+       完全相同也照样触发一条 class 属性变更记录。
+       这种"值没变但属性被重写"的记录，before/after 集合完全一样，
+       changed.size 是 0。改之前的逻辑在 changed.size === 0 时直接判定
+       "不算 cosmetic"（因为 `changed.size > 0 && ...` 这个前提不成立），
+       于是 mutationNeedsFullRefresh 把这种真正意义上"什么都没变"的记录
+       当成"需要整轮刷新"处理——refresh 又把这同一个元素的 class 原样重写
+       一遍，自己生成的记录又被判定成"需要刷新"，刷新完再重写……在真机上
+       实测是持续 ~15 次/秒的自循环，占了 8%+ 的 CPU，跟用户是否在操作
+       抽屉动画完全无关，是这套刷新过滤逻辑本身的一个洞。
+       语义上很清楚：class 属性被重新赋值但实际包含的 token 集合一个都
+       没变，就是彻头彻尾的空写，任何情况下都不该触发刷新——不需要判断
+       改动的是不是"认识的装饰类"，压根没有改动。 */
+    if (changed.size === 0) return true;
+    return [...changed].every(name => (
       OBSERVER_COSMETIC_CLASSES.has(name)
       || name.startsWith('clawd-react-')
       || name.startsWith('clawd-poke-')
@@ -6485,6 +6593,14 @@ if (CLAUDE_ENABLED) {
       if (!hostWindow.ResizeObserver) scheduleMobileComposerInset();
       return false;
     }
+
+    /* 提示词管理器的条目列表：87 个 li 躺在一个「关着的」左侧设置抽屉里
+       (#completion_prompt_manager → #openai_settings → #left-nav-panel)，
+       每次组装 prompt 都会被整体重写一遍 class。它跟聊天界面长什么样毫无关系，
+       这个扩展也从不给它套样式，但每条记录都换来一轮全量刷新。
+       真机实测：生成期间它产生 1566 条记录，是全场最多的一类，比第二名还多 57%。
+       整个 #completion_prompt_manager 子树直接不参与刷新判断。 */
+    if (target.closest('#completion_prompt_manager')) return false;
 
     if (target.matches(OWNED_MUTATION_SELECTOR) || target.closest(OWNED_MUTATION_SELECTOR)) return false;
     if (record.type === 'attributes' && classMutationIsCosmetic(record, target)) return false;
@@ -6601,6 +6717,18 @@ if (CLAUDE_ENABLED) {
          replaying the settle/pop animation on the previous real answer; that
          was the visible one-frame "tremble" reported for blank replies. */
       if (!latestAssistant || !hasMessageContent(latestAssistant)) settlePending = false;
+      /* 生成期间 trackSwipeArrows 是整个跳过的（见那里的注释），
+         这里补排一次，让翻页箭头在回复落地的同一轮里归位。 */
+      if (!isMobileLayout()) scheduleSwipeTrack();
+      /* 侧栏近期对话只订阅了「切换对话」和「删除对话」两个事件，唯独漏了
+         「在当前对话里发了新消息」—— 而这恰恰是最常发生的一件事。
+         后果：在同一个对话里聊多久，左边那条记录的时间戳都不会动，
+         列表顺序也不会重排，只能干等 60 秒 TTL 碰巧被某轮全量刷新撞上。
+         用户实测就是「发了条消息，侧栏完全没反应」。
+         一次生成结束 = 一次完整往返，在这里补一刀最准，也不会过度拉取。
+         指纹要一起作废，否则重拉回来的内容会被「和上次一样」判定跳过。 */
+      recentSignature = null;
+      refreshRailRecents({ force: true });
     }
     // 这一轮该读的都读完了，脏标记清空；下一批 mutation 记录会重新标记
     dirtyMessages.clear();
@@ -6709,6 +6837,29 @@ if (CLAUDE_ENABLED) {
     drawerStats.blocked += 1;
   }
 
+  /* Bug 4：角色卡 Advanced Definitions 弹窗里点 Prompt Overrides 的展开按钮，
+     会连带把外层角色卡抽屉一起收回。
+
+     根因和上面 blockDrawerAutoClose 是同一类问题：酒馆在更外层（html /
+     document）绑了"点击处理不到内部折叠项的区域就当成点了外面，关掉当前
+     开着的抽屉"这条自动关闭逻辑。Prompt Overrides 是酒馆原生的
+     .inline-drawer，它本身只负责展开/收起自己，但它常被渲染在弹窗
+     （.popup / .popup-content）里，而弹窗多半是挂在 body 下、不在角色卡
+     抽屉的 DOM 子树里——于是点它在外层监听眼里就是"点了抽屉外面"，
+     顺手把角色卡抽屉也关了。
+
+     不改酒馆自己的 inline-drawer 折叠逻辑（原生代码，跟着升级会失效），
+     只在 document 捕获阶段先一步拦截：只要这一下点在任意
+     .inline-drawer-toggle / .inline-drawer-header 上，就不让事件继续往上
+     冒泡到外层的"点击别处即关闭"监听器。内部折叠项该展开/收起还是正常
+     展开/收起（原生逻辑在这层监听器执行完才轮到，不受影响），只是不再
+     被误判成一次"点击外部"。 */
+  function blockInlineDrawerAutoClose(event) {
+    if (destroyed) return;
+    if (!event.target?.closest?.('.inline-drawer-toggle, .inline-drawer-header')) return;
+    event.stopPropagation();
+  }
+
   function drawerAnimationMs() {
     const raw = Number(hostWindow.SillyTavern?.getContext?.()?.powerUserSettings?.animation_duration);
     return Number.isFinite(raw) ? Math.min(Math.max(raw, 0), 350) : 125;
@@ -6805,6 +6956,8 @@ if (CLAUDE_ENABLED) {
     hostDocument.addEventListener('click', guardDrawerClick, true);
     hostDocument.addEventListener('mousedown', blockDrawerAutoClose, true);
     hostDocument.addEventListener('touchstart', blockDrawerAutoClose, true);
+    hostDocument.addEventListener('mousedown', blockInlineDrawerAutoClose, true);
+    hostDocument.addEventListener('touchstart', blockInlineDrawerAutoClose, true);
     hostDocument.addEventListener('pointerdown', releaseDrawerGuard, true);
     hostDocument.addEventListener('keydown', releaseDrawerGuard, true);
     hostDocument.addEventListener('pointerdown', dismissCharacterMenu, true);
@@ -6826,7 +6979,7 @@ if (CLAUDE_ENABLED) {
     hostWindow.clearInterval(ccWobbleTimer);
     hostWindow.clearInterval(idleTimer);
     hostWindow.clearInterval(ccScanTimer);
-    if (genTimerRaf) hostWindow.cancelAnimationFrame(genTimerRaf);
+    if (genTimerRaf) hostWindow.clearInterval(genTimerRaf);
     if (genTimerLingerTimer) hostWindow.clearTimeout(genTimerLingerTimer);
     genTimerEl?.remove();
     genTimerEl = null;
@@ -6862,6 +7015,8 @@ if (CLAUDE_ENABLED) {
     hostDocument.removeEventListener('click', guardDrawerClick, true);
     hostDocument.removeEventListener('mousedown', blockDrawerAutoClose, true);
     hostDocument.removeEventListener('touchstart', blockDrawerAutoClose, true);
+    hostDocument.removeEventListener('mousedown', blockInlineDrawerAutoClose, true);
+    hostDocument.removeEventListener('touchstart', blockInlineDrawerAutoClose, true);
     hostDocument.removeEventListener('pointerdown', releaseDrawerGuard, true);
     hostDocument.removeEventListener('keydown', releaseDrawerGuard, true);
     hostDocument.removeEventListener('pointerdown', dismissCharacterMenu, true);
@@ -7110,6 +7265,21 @@ if (CLAUDE_ENABLED) {
     }
   }
 
+  /* Bug 3：毛玻璃透明度初始化之前是不带 try/catch 直接读 localStorage，
+     隐私模式 / 禁第三方存储的 WebView / 部分云端宿主里 localStorage.getItem
+     本身就会抛异常，读取一炸就中断了 mount()，设置面板后面一截（预设、
+     版本号、更新按钮）全部不会挂载。这里补一个和 read()/readClock() 同风格
+     的安全读取函数，读不到就退回默认值，不让存储受限变成整个面板挂不上。 */
+  function readNumber(key, fallback, min, max) {
+    try {
+      const value = Number(window.localStorage.getItem(KEY_PREFIX + key));
+      if (!Number.isFinite(value)) return fallback;
+      return Math.min(max, Math.max(min, value));
+    } catch {
+      return fallback;
+    }
+  }
+
   function clockMinutes(value) {
     const [hours, minutes] = value.split(':').map(Number);
     return hours * 60 + minutes;
@@ -7143,7 +7313,7 @@ if (CLAUDE_ENABLED) {
     delete root.dataset.claudeArchiveGhost;
     try {
       if (window.localStorage.getItem(KEY_PREFIX + 'family') === 'archive') {
-        window.localStorage.setItem(KEY_PREFIX + 'family', 'classic');
+        window.localStorage.setItem(KEY_PREFIX + 'family', 'anthropic');
       }
       window.localStorage.removeItem(KEY_PREFIX + 'style');
       window.localStorage.removeItem(KEY_PREFIX + 'ghost');
@@ -7176,9 +7346,41 @@ if (CLAUDE_ENABLED) {
       'v',
       typeof CLAUDE_KEYBOARD_BUILD !== 'undefined' ? CLAUDE_KEYBOARD_BUILD.id : 'live',
     );
+
+    /* Bug 2 修复：这里以前只换了 <link href> 和 dataset，
+       酒馆自己的 powerUserSettings.theme / custom_css / SmartTheme 变量 /
+       主题下拉框全都没跟着换，出现"界面已经是夜间，酒馆自己的主题记录
+       还是日间"的状态混合。
+       统一入口现在做两件事：
+       1. 立刻调用主题运行时暴露的 applyVariant(variant)——它会现查
+          CLAUDE_THEMES[variant]，重新走一遍写 powerUserSettings + CSS 变量
+          + 下拉框同步的完整流程，不用等样式表网络请求完成（这部分是纯
+          JS/DOM 操作，跟 <link> 是否加载成功无关）。
+       2. 不再假定 setAttribute('href', ...) 就等于切换成功——监听这个
+          <link> 自己的 load / error：加载失败就把 href 和 dataset 都退回
+          旧值，同时把 powerUserSettings 也退回旧 variant，向用户提示切换
+          失败，不留一个"样式表 404 但主题记录已经跳到新明暗"的坏状态。 */
+    const previousHref = link.getAttribute('href');
+    const previousVariant = document.documentElement.dataset.claudeIntegratedTheme;
+    const revertOnFailure = () => {
+      if (previousHref) link.setAttribute('href', previousHref);
+      document.documentElement.dataset.claudeIntegratedTheme = previousVariant;
+      if (previousVariant) window.__claudeIntegratedTheme?.applyVariant?.(previousVariant);
+      hostToast?.('主题切换失败，已保留原主题。');
+    };
+    link.addEventListener('error', revertOnFailure, { once: true });
+    link.addEventListener('load', () => link.removeEventListener('error', revertOnFailure), { once: true });
+
     link.setAttribute('href', styleUrl.href);
     document.documentElement.dataset.claudeIntegratedTheme = variant;
+    window.__claudeIntegratedTheme?.applyVariant?.(variant);
     return true;
+  }
+
+  function hostToast(message) {
+    try {
+      window.toastr?.info?.(message, 'Claude Web');
+    } catch { /* toastr 不可用时静默，不阻断切换流程 */ }
   }
 
   function buildPanel() {
@@ -7324,6 +7526,25 @@ if (CLAUDE_ENABLED) {
             数字越大越糊、底色越浓；越小越透。世界书/角色管理这些抽屉面板
             不跟着上面两个开关走，固定带浅浅的磨砂色调，浓度也吃这根滑条，
             但有个可读性下限，不会被拖到看不清字。
+          </div>
+
+          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px;margin-top:10px">
+            <input id="claude-web-bg-image-blur" type="checkbox">
+            <span>背景图模糊</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="font-size:0.9em;opacity:.75;white-space:nowrap">模糊半径</span>
+            <input id="claude-web-bg-image-blur-radius" type="range" min="0" max="32" step="1" style="flex:1">
+            <span id="claude-web-bg-image-blur-radius-value" style="font-size:0.9em;opacity:.75;width:2.8em;text-align:right"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="font-size:0.9em;opacity:.75;white-space:nowrap">背景压暗</span>
+            <input id="claude-web-bg-image-dim" type="range" min="0" max="70" step="1" style="flex:1">
+            <span id="claude-web-bg-image-dim-value" style="font-size:0.9em;opacity:.75;width:2.8em;text-align:right"></span>
+          </div>
+          <div style="font-size:0.85em;opacity:.6;line-height:1.5;margin-top:2px">
+            只糊背景图，文字、角色列表、弹窗都保持清晰 —— 跟上面的毛玻璃是
+            两回事，可以单独开。要看得见背景图，得先开「背景透传」。
           </div>
 
           <hr style="margin:10px 0;opacity:.25">
@@ -7690,9 +7911,25 @@ if (CLAUDE_ENABLED) {
       /* 直接刷新，不给「刷新生效」按钮。
          总开关和别的设置不一样：开关之间的中间态（样式撤了但 JS 还挂着，
          或者反过来）本身就是坏界面，让用户停在那里没有意义。 */
-      if (!box.checked) teardownLive();
+      if (!box.checked) {
+        /* Bug 1：之前这里只做了 teardownLive()（撤运行时样式表 + 清 dataset/CSS
+           变量），没有触发 integrated-theme-runtime 里已经存在的
+           restorePreviousTheme()。结果是 powerUserSettings、custom_css、主题
+           下拉框都还停在 Claude Web 覆盖后的值，刷新完得到「原生主题 +
+           Claude Web 设置」的混合状态，得用户手动重新选一次原主题才能恢复
+           干净。__claudeIntegratedTheme 是主题运行时暴露到 window 上的实例
+           API，destroy({ restore: true }) 会同步：清运行时产物 → 从快照恢复
+           powerUserSettings/custom_css/主题下拉框 → 保存 → 才轮到这里刷新。
+           它内部有 destroyed 状态保护，重复调用（比如刷新时的 pagehide）
+           是安全的。 */
+        window.__claudeIntegratedTheme?.destroy?.({ restore: true });
+        teardownLive();
+      }
       hint.textContent = box.checked ? '正在启用，刷新中…' : '正在关闭，刷新中…';
-      window.setTimeout(() => window.location.reload(), 150);
+      /* 恢复走的是酒馆的 saveSettingsDebounced，不是立即写盘的接口；
+         这里把关闭时的刷新延迟从 150ms 提到 320ms，给防抖保存留出落盘窗口，
+         降低"主题已恢复但刷新抢先发生，恢复结果没保存住"的概率。 */
+      window.setTimeout(() => window.location.reload(), box.checked ? 150 : 320);
     });
   }
 
@@ -7856,14 +8093,52 @@ if (CLAUDE_ENABLED) {
       return clamped;
     };
     {
-      const rawSaved = Number(window.localStorage.getItem(KEY_PREFIX + 'bgBlurOpacity'));
-      const initial = Number.isFinite(rawSaved) ? rawSaved : 22;
-      bgBlurOpacitySlider.value = String(Math.min(60, Math.max(8, Math.round(initial))));
+      const initial = readNumber('bgBlurOpacity', 22, 8, 60);
+      bgBlurOpacitySlider.value = String(Math.round(initial));
       applyBgBlurOpacity(Number(bgBlurOpacitySlider.value));
     }
     bgBlurOpacitySlider.addEventListener('input', () => {
       const clamped = applyBgBlurOpacity(Number(bgBlurOpacitySlider.value));
       write('bgBlurOpacity', String(clamped));
+    });
+
+    /* FR-1 背景图模糊。两根滑杆即使在开关关着的时候也照常写值和写 CSS 变量：
+       变量本身不产生任何效果（选择器上有 [data-claude-bg-image-blur="on"] 把着），
+       但这样用户可以先调好再打开，而不是开了之后对着默认值现调。 */
+    const bgImageBlurBox = panel.querySelector('#claude-web-bg-image-blur');
+    bgImageBlurBox.checked = read('bgImageBlur', ['on', 'off'], 'off') !== 'off';
+    document.documentElement.dataset.claudeBgImageBlur = bgImageBlurBox.checked ? 'on' : 'off';
+    bgImageBlurBox.addEventListener('change', () => {
+      if (!write('bgImageBlur', bgImageBlurBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeBgImageBlur = bgImageBlurBox.checked ? 'on' : 'off';
+    });
+
+    const bgImageRadius = panel.querySelector('#claude-web-bg-image-blur-radius');
+    const bgImageRadiusValue = panel.querySelector('#claude-web-bg-image-blur-radius-value');
+    const applyBgImageRadius = (n) => {
+      const clamped = Math.min(32, Math.max(0, Math.round(n)));
+      document.documentElement.style.setProperty('--claude-bg-image-blur', `${clamped}px`);
+      bgImageRadiusValue.textContent = `${clamped}px`;
+      return clamped;
+    };
+    bgImageRadius.value = String(readNumber('bgImageBlurRadius', 12, 0, 32));
+    applyBgImageRadius(Number(bgImageRadius.value));
+    bgImageRadius.addEventListener('input', () => {
+      write('bgImageBlurRadius', String(applyBgImageRadius(Number(bgImageRadius.value))));
+    });
+
+    const bgImageDim = panel.querySelector('#claude-web-bg-image-dim');
+    const bgImageDimValue = panel.querySelector('#claude-web-bg-image-dim-value');
+    const applyBgImageDim = (n) => {
+      const clamped = Math.min(70, Math.max(0, Math.round(n)));
+      document.documentElement.style.setProperty('--claude-bg-image-dim', String(clamped / 100));
+      bgImageDimValue.textContent = `${clamped}%`;
+      return clamped;
+    };
+    bgImageDim.value = String(readNumber('bgImageDim', 28, 0, 70));
+    applyBgImageDim(Number(bgImageDim.value));
+    bgImageDim.addEventListener('input', () => {
+      write('bgImageDim', String(applyBgImageDim(Number(bgImageDim.value))));
     });
 
     mountPresets(panel);

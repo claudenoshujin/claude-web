@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..600&family=Noto+Serif+SC:wght@300&display=swap");
 
 /* Claude / Clawd 1.1 — shared theme structure */
 :root {
@@ -78,15 +78,12 @@
   html body #rightSendForm > #quick-reply-rocket-button,
   html body.te-input-onlySend #send_form:has(#send_textarea:focus, #send_but:hover) #rightSendForm > #quick-reply-rocket-button {
     flex:0 0 34px !important;
-    display:inline-flex !important;
     align-items:center !important;
     justify-content:center !important;
     width:34px !important;
     min-width:34px !important;
     height:34px !important;
     margin:0 !important;
-    visibility:visible !important;
-    opacity:1 !important;
   }
   html body #rm_print_characters_block.group_overlay_mode_select {
     display:flex !important;
@@ -748,6 +745,52 @@ hr {
   --cl-cjk:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans CJK SC","Source Han Sans SC","Heiti SC",sans-serif;
   --cl-serif:"Newsreader",Georgia,"Times New Roman",Times,var(--cl-cjk);
   --cl-sans:"Hanken Grotesk",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,var(--cl-cjk);
+  /* 只给欢迎页大标题用。正文不换字体族，理由在交接文档第四节 A：
+     宋体的辨识特征全在笔画末端，17px 上先被渲染抹平，收益接近零；
+     而 31px 的 hero 上差别一眼可见。
+     成本也只有大字号才划得来 —— Google Fonts 的中文按 unicode-range
+     分包，hero 只有五六个字，浏览器只会下 1~2 片；正文要下几十片。
+     Newsreader 在前，所以拉丁仍走 Newsreader，只有汉字落到思源宋体。 */
+  --cl-serif-hero:"Newsreader",Georgia,"Noto Serif SC",var(--cl-cjk);
+  /* ---- 字体层级（FR-4 第一步）----
+     这一轮只建词汇表，不换字体族、不动任何一个尺寸。
+
+     下面三条是给现有两族起语义名字，指向完全没变：
+     阅读内容 = Newsreader，界面 = Hanken Grotesk。
+     现在只有两条，因为现在就是两族 —— 需求文档要的第三族
+     （Manrope 做标题）等真要引入时在这里加 --cl-font-title，
+     改这里就够，不用回头翻九十多处 font-size。 */
+  --cl-font-reading:var(--cl-serif);
+  --cl-font-ui:var(--cl-sans);
+
+  /* 六档界面字号。取值全部是从现有代码里已经在用的数归纳出来的，
+     不是从需求文档抄的区间，所以替换后渲染结果逐像素不变。
+
+     每一档都乘了 --fontScale。酒馆自带的「字体缩放」滑杆是用户唯一
+     能调字号的入口，界面文字不接上去，侧栏嫌小就只能改代码。
+
+     聊天正文仍然不在这套档位里：它归 --cl-pc-font-size /
+     --cl-mobile-font-size 管，那两条自己已经乘过 --fontScale。
+
+     --cl-fs-display 故意没乘：它是 clamp(26px, 3.1vw, 40px)，已经跟着
+     视口走，再乘一次会把上下限一起顶飞。
+
+     放大后侧栏标签会更早触发 ellipsis 截断，那是预期行为。
+     别为此给容器加宽度 —— 宽度是按图标网格定的。 */
+  --cl-fs-display:clamp(26px, 3.1vw, 40px);  /* 欢迎页大标题 */
+  --cl-fs-lg:calc(16px * var(--fontScale, 1));                           /* 问候 toast */
+  --cl-fs-md:calc(15px * var(--fontScale, 1));                           /* 侧栏抽屉标签 */
+  --cl-fs-sm:calc(14px * var(--fontScale, 1));                           /* 抽屉内容、菜单项 */
+  --cl-fs-xs:calc(13px * var(--fontScale, 1));                           /* 用户名、空态提示 */
+  --cl-fs-meta:calc(12px * var(--fontScale, 1));                         /* 时间、次级操作 */
+  --cl-fs-micro:calc(11px * var(--fontScale, 1));                        /* 最小标签、代码条 */
+
+  /* 注意：代码里还有一批 px 型 font-size 是 Font Awesome 字形尺寸，
+     不是文字 —— #send_but(14px)、.mes_button(12px)、badge(9px) 等。
+     它们归 --cl-icon-size 那条线管，别往上面的档位里塞。
+     另外 #send_textarea 手机端的 16px 是 iOS 防聚焦缩放的功能常量，
+     同样不是排版选择，不要令牌化。 */
+
   --cl-icon-size:16px;
   --cl-icon-hit:32px;
   --topbariconsize:18px;
@@ -797,7 +840,13 @@ hr {
 }
 .mes_text {
   line-height:1.76 !important;
-  text-wrap:pretty;
+  /* text-wrap:pretty 是为西文段落消除末行孤字设计的；中文每个字都能断行，
+     本来就没有孤字问题，收益接近零。代价是浏览器要对整段反复试算断行，
+     而各家实现差异很大——Chrome 只调整最后几行，Safari 更激进。
+     实测：同一段正文在安卓上排版整齐，在 iPhone Safari 上右侧空出一截。
+     对中文正文这是零收益、有风险，改回 auto。标题上的 balance 保留：
+     那是短文本、只影响两三行，而且视觉收益是真的。 */
+  text-wrap:auto;
   font-feature-settings:"kern" 1, "liga" 1;
 }
 .mes_text p {
@@ -862,7 +911,7 @@ hr {
   overflow:visible !important;
   max-width:68ch;
   line-height:1.56 !important;
-  text-wrap:pretty;
+  text-wrap:auto;
 }
 body:has(.typing_indicator:not(.displayNone):not([style*="display: none"]):not([style*="display:none"])) #chat > .mes.last_mes[is_user="false"] .mes_text::after {
   opacity:0;
@@ -1484,7 +1533,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   background:transparent !important;
   border:0 !important;
   border-radius:8px !important;
-  font-size:12px !important;
+  font-size:var(--cl-fs-meta) !important;
   opacity:.64;
 }
 .welcomePanel :is(.showRecentChats,.recentChatsSettings,.hideRecentChats):hover {
@@ -1624,8 +1673,13 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
 }
 #chat > .mes[type="assistant_message"] .mes_text {
   color:var(--cw-text-body) !important;
-  font-family:var(--cl-serif) !important;
-  font-size:.98em !important;
+  font-family:var(--cl-font-reading) !important;
+  /* 这条的权重是 (1,3,0)，压过下面接 --fontScale 的那条 (1,1,2)
+     —— id 数相同、类计数 3 > 1。所以它必须自己乘一次缩放系数，
+     否则酒馆的字体缩放滑杆对 assistant_message 类型的消息无效。
+     跟 4940 行踩过的是同一个坑：给 .mes_text 单独设字号、
+     权重又比 --fontScale 那条高。数值 .98em 不变。 */
+  font-size:calc(.98em * var(--fontScale, 1)) !important;
   line-height:1.65 !important;
 }
 #chat > .mes[type="assistant_message"] .mes_text :is(button,.menu_button) {
@@ -3046,6 +3100,9 @@ button.clawd-signoff-button.clawd-button-press {
   #chat > .typing_indicator { max-width:var(--cw-column); margin-left:auto !important; margin-right:auto !important; }
   #send_form { max-width:var(--cw-column); }
 }
+/* 这两条权重只有 (0,1,0)，在 #chat 里一定被上面的 --fontScale 规则压掉，
+   目前不生效。留着是因为 .mes_text 出现在 #chat 之外时（编辑预览等）
+   还靠它兜底。别往上加权重 —— 一加就会盖掉字体缩放。 */
 .mes_text { font-size:16px !important; }
 .mes_reasoning { font-size:13px !important; }
 /* motion accessibility: must stay last */
@@ -3095,6 +3152,89 @@ button.clawd-signoff-button.clawd-sleeping::after {
   pointer-events:none;
   animation:clawd-sleep-z 2.6s ease-in-out infinite;
 }
+
+/* ===== 2.0.40 状态符号 =====
+   为什么用符号而不是继续做表情：Clawd 是 16×16 点阵（3px 一格、48px 见方），
+   眼睛只占 4 个像素。现有 15 套精灵里 14 套都在改脸，睁眼和半闭眼的差别是
+   两个像素换颜色 —— 在侧栏边缘用余光看，分辨不出来是必然的，不是画得不够
+   用力。脸上的表达空间已经用尽了。
+
+   符号挂在 ::after 上，好处是：不受点阵分辨率限制；不用 JS 定位；class 一
+   移除就消失，不需要任何清理代码（睡觉那个 z 本来就是这么做的，这里只是把
+   同一套办法铺到其余状态）。
+
+   四个状态在代码里是互斥的（sleeping 压过一切，害羞优先于冷落），所以同一
+   时刻最多只有一个符号，不会堆在一起。
+
+   除睡觉外一律静态：常驻状态用常驻符号。持久的动画在余光里会变成噪音 ——
+   这个教训在 ccMaybeCheer 的注释里吃过一次，2.0.40 删掉踱步是第二次。
+   位置全部对齐睡觉那个 z（left:34px），四个符号共用同一个"槽"，读起来是
+   同一件事的不同取值，而不是四个各自为政的装饰。 */
+
+/* 快睡着了：比 z 弱一档，不飘。 */
+button.clawd-signoff-button.clawd-idle-drowsy:not(.clawd-sleeping)::after,
+button.clawd-mobile-clawd-button.clawd-idle-drowsy:not(.clawd-sleeping)::after {
+  content:'z';
+  position:absolute;
+  left:34px;
+  top:1px;
+  font-family:var(--cl-sans);
+  font-size:9px;
+  font-weight:500;
+  color:var(--cw-mark);
+  opacity:.4;
+  pointer-events:none;
+}
+
+/* 害羞：沿用点击彩蛋里已经在用的"心"这个语汇，不另造符号。 */
+button.clawd-signoff-button.clawd-shy-ambient:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after,
+button.clawd-mobile-clawd-button.clawd-shy-ambient:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after {
+  content:'\2665';
+  position:absolute;
+  left:34px;
+  top:-1px;
+  font-size:9px;
+  line-height:1;
+  color:var(--cw-mark);
+  opacity:.62;
+  pointer-events:none;
+}
+
+/* 被冷落：一直没人戳它。muted 色，比强调色更"没被看见"。 */
+button.clawd-signoff-button.clawd-neglected:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after,
+button.clawd-mobile-clawd-button.clawd-neglected:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after {
+  content:'?';
+  position:absolute;
+  left:34px;
+  top:-2px;
+  font-family:var(--cl-sans);
+  font-size:11px;
+  font-weight:500;
+  color:var(--cw-text-muted);
+  opacity:.55;
+  pointer-events:none;
+}
+
+/* 手机端睡觉也要有 z —— 之前只有 PC 那只有。 */
+button.clawd-mobile-clawd-button.clawd-sleeping::after {
+  content:'z';
+  position:absolute;
+  left:34px;
+  top:-2px;
+  font-family:var(--cl-sans);
+  font-size:11px;
+  font-weight:500;
+  color:var(--cw-mark);
+  opacity:0;
+  pointer-events:none;
+  animation:clawd-sleep-z 2.6s ease-in-out infinite;
+}
+
+/* 生成中整体让位：人这时候在看回复，别在侧栏边上放符号抢注意力。 */
+body.claude-generation-active button.clawd-signoff-button::after,
+body.claude-generation-active button.clawd-mobile-clawd-button::after {
+  content:none !important;
+}
 @keyframes clawd-sleep-breath {
   0%, 100% { transform:scale(.85,.828) translateY(1.5px); }
   50%      { transform:scale(.862,.812) translateY(2.4px); }
@@ -3129,7 +3269,8 @@ button.clawd-signoff-button.clawd-sleep-transition::before {
 }
 @media (prefers-reduced-motion:reduce) {
   button.clawd-signoff-button.clawd-sleeping::before { animation:none !important; }
-  button.clawd-signoff-button.clawd-sleeping::after { display:none !important; }
+  button.clawd-signoff-button.clawd-sleeping::after,
+  button.clawd-mobile-clawd-button.clawd-sleeping::after { animation:none !important; opacity:.55 !important; }
   button.clawd-signoff-button.clawd-idle-drowsy::before { animation:none !important; }
   button.clawd-signoff-button.clawd-sleep-transition::before { animation:none !important; }
 }
@@ -3149,7 +3290,7 @@ html body #chat > .mes .mes_text { overflow:visible !important; position:relativ
 .clawd-cc-toast {
   position:absolute; transform:translateY(-50%);
   white-space:nowrap; width:max-content; max-width:min(340px, 62%); padding:4px 10px;
-  font-family:var(--cl-sans); font-size:11px; letter-spacing:.02em;
+  font-family:var(--cl-font-ui); font-size:var(--cl-fs-micro); letter-spacing:.02em;
   color:var(--cw-text-body); background:var(--cw-surface-raised);
   border:1px solid var(--cw-rule-hairline); border-radius:8px;
   box-shadow:0 6px 18px rgba(0,0,0,.18);
@@ -3160,7 +3301,7 @@ html body #chat > .mes .mes_text { overflow:visible !important; position:relativ
 .clawd-hi-toast {
   position:absolute; transform:translateY(-50%);
   white-space:nowrap; width:max-content; max-width:min(44ch, 62%);
-  font-family:var(--cl-serif); font-size:16px; line-height:1.35;
+  font-family:var(--cl-font-reading); font-size:var(--cl-fs-lg); line-height:1.35;
   letter-spacing:.005em; color:var(--cw-text-body);
   background:transparent; border:0; padding:0;
   pointer-events:none; z-index:30; opacity:0;
@@ -3423,7 +3564,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
   gap:12px; margin:0 0 8px;
   padding:6px 10px;
   border-bottom:1px solid var(--cw-rule-hairline);
-  font-family:var(--cl-sans); font-size:11px; letter-spacing:.03em;
+  font-family:var(--cl-font-ui); font-size:var(--cl-fs-micro); letter-spacing:.03em;
   color:var(--cw-text-muted); text-transform:lowercase;
   user-select:none;
 }
@@ -3580,8 +3721,8 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
        cssstyle 解析不出来，整条声明被丢掉（回归工具量到 max-width:none）。
        同一份 CSS 里 min(var(--cw-composer),100%) 就正常，差别只有顺序。 */
     max-width:min(var(--cw-column), 100%);
-    font-family:var(--cl-serif);
-    font-size:clamp(26px, 3.1vw, 40px);
+    font-family:var(--cl-serif-hero);
+    font-size:var(--cl-fs-display);
     font-weight:300;
     line-height:1.5;
     letter-spacing:normal;
@@ -3730,7 +3871,6 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
 
   /* 快速角色卡切换：位置对应官网输入框右下的模型选择器。 */
   html body #send_form .clawd-character-switcher {
-    display:inline-flex !important;
     align-items:center !important;
     gap:5px !important;
     min-width:0 !important;
@@ -3743,7 +3883,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     background:transparent !important;
     color:var(--cw-text-body) !important;
     box-shadow:none !important;
-    font:600 14px/1 var(--cl-sans) !important;
+    font:600 var(--cl-fs-sm)/1 var(--cl-font-ui) !important;
     cursor:pointer !important;
   }
   html body.clawd-welcome #send_form .clawd-character-switcher {
@@ -3966,9 +4106,9 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   color:var(--cw-text-muted);
 }
 .clawd-character-avatar img { width:100%; height:100%; object-fit:cover; }
-.clawd-character-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 14px/1.2 var(--cl-sans); }
+.clawd-character-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 var(--cl-fs-sm)/1.2 var(--cl-font-ui); }
 .clawd-character-check { color:var(--cw-mark); font-weight:700; }
-.clawd-character-empty { padding:22px 10px; color:var(--cw-text-muted); text-align:center; font-size:13px; }
+.clawd-character-empty { padding:22px 10px; color:var(--cw-text-muted); text-align:center; font-size:var(--cl-fs-xs); }
 
 @keyframes clawd-hero-in {
   from { opacity:0; transform:translateY(8px); }
@@ -4194,7 +4334,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     border-radius:10px !important;
     background:transparent !important;
     color:var(--cw-text-body) !important;
-    font:500 15px/1 var(--cl-sans) !important;
+    font:500 var(--cl-fs-md)/1 var(--cl-font-ui) !important;
     box-shadow:none !important;
   }
   html body #top-settings-holder > .clawd-mobile-new-chat:hover { background:var(--cw-surface-input) !important; }
@@ -4324,7 +4464,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     margin:0 8px 0 42px !important;
     overflow:hidden !important;
     color:color-mix(in srgb, var(--cw-text-body) 84%, var(--cw-surface-page)) !important;
-    font:400 15px/1.2 var(--cl-sans) !important;
+    font:400 var(--cl-fs-md)/1.2 var(--cl-font-ui) !important;
     text-overflow:ellipsis !important;
     white-space:nowrap !important;
   }
@@ -4402,7 +4542,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     gap:8px !important;
     padding:0 10px 7px !important;
     color:var(--cw-text-muted) !important;
-    font:500 11px/1.2 var(--cl-sans) !important;
+    font:500 var(--cl-fs-micro)/1.2 var(--cl-font-ui) !important;
   }
   .clawd-rail-recents-label::after {
     content:'' !important;
@@ -4488,7 +4628,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     min-width:0 !important;
     overflow:hidden !important;
     color:color-mix(in srgb, var(--cw-text-body) 86%, var(--cw-surface-page)) !important;
-    font:400 13px/1.25 var(--cl-sans) !important;
+    font:400 var(--cl-fs-xs)/1.25 var(--cl-font-ui) !important;
     text-overflow:ellipsis !important;
     white-space:nowrap !important;
   }
@@ -4545,12 +4685,12 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   .clawd-user-name {
     overflow:hidden !important;
     color:var(--cw-text-body) !important;
-    font:500 13px/1.2 var(--cl-sans) !important;
+    font:500 var(--cl-fs-xs)/1.2 var(--cl-font-ui) !important;
     text-overflow:ellipsis !important;
     white-space:nowrap !important;
   }
-  .clawd-user-plan { color:var(--cw-text-muted) !important; font:400 11px/1.2 var(--cl-sans) !important; }
-  .clawd-user-more { flex:0 0 auto !important; color:var(--cw-text-muted) !important; font-size:13px !important; }
+  .clawd-user-plan { color:var(--cw-text-muted) !important; font:400 var(--cl-fs-micro)/1.2 var(--cl-font-ui) !important; }
+  .clawd-user-more { flex:0 0 auto !important; color:var(--cw-text-muted) !important; font-size:var(--cl-fs-xs) !important; }
 
   /* 欢迎页：官网手机端是 Claude 标志在上、问候语在下；输入框按手机宽度排两行。 */
   html body.clawd-welcome #sheld {
@@ -4579,7 +4719,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     margin:0 auto !important;
     padding:0 !important;
     color:var(--cw-hero) !important;
-    font:300 clamp(26px, 7.2vw, 31px)/1.2 var(--cl-serif) !important;
+    font:300 clamp(26px, 7.2vw, 31px)/1.2 var(--cl-serif-hero) !important;
     text-align:center !important;
     white-space:normal !important;
     transform:none !important;
@@ -4643,6 +4783,12 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     padding:5px 7px !important;
     color:var(--cw-text-body) !important;
     background:transparent !important;
+    /* 没令牌化，因为这条跟 iOS 防聚焦缩放的约定冲突，需要单独决定：
+       @media (max-width:700px) 里 `html body #send_textarea` 写了 16px，
+       注释说是"Keep 16px on iOS to prevent focus zoom"。
+       但本规则权重 (1,1,2) 高过它的 (1,0,2)，所以手机上实际生效的是 15px。
+       iOS Safari 在输入框字号小于 16px 时点击会整页放大 —— 那条保护现在是失效的。
+       改成 16px 会让输入区变高、挤压聊天区，属于可见改动，先不动。 */
     font:400 15px/1.35 var(--cl-sans) !important;
     resize:none !important;
   }
@@ -4698,7 +4844,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     border-radius:999px !important;
     background:var(--cw-surface-input) !important;
     color:var(--cw-text-body) !important;
-    font:600 13px/1 var(--cl-sans) !important;
+    font:600 var(--cl-fs-xs)/1 var(--cl-font-ui) !important;
   }
   html body.clawd-welcome #send_form .clawd-fake-mic { display:none !important; }
   html body.clawd-welcome #rightSendForm {
@@ -4796,6 +4942,12 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     max-height:120px !important;
     margin:0 !important;
     padding:5px 7px !important;
+    /* 没令牌化，因为这条跟 iOS 防聚焦缩放的约定冲突，需要单独决定：
+       @media (max-width:700px) 里 `html body #send_textarea` 写了 16px，
+       注释说是"Keep 16px on iOS to prevent focus zoom"。
+       但本规则权重 (1,1,2) 高过它的 (1,0,2)，所以手机上实际生效的是 15px。
+       iOS Safari 在输入框字号小于 16px 时点击会整页放大 —— 那条保护现在是失效的。
+       改成 16px 会让输入区变高、挤压聊天区，属于可见改动，先不动。 */
     font:400 15px/1.35 var(--cl-sans) !important;
     resize:none !important;
   }
@@ -4941,7 +5093,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
     padding-right:8px !important;
   }
   html body:not(.clawd-welcome) #chat > .mes :is(.mes_text,.mes_reasoning) {
-    font-size:var(--cl-mobile-font-size, .9rem) !important;
+    font-size:calc(var(--cl-mobile-font-size, .9rem) * var(--fontScale, 1)) !important;
     line-height:1.62 !important;
   }
 
@@ -5016,31 +5168,35 @@ html body.claude-generation-active #rightSendForm #send_but::after {
  */
 
 :root {
-  --cw-paper-0: #1f1f1e;
-  --cw-paper-1: #2c2c2a;
-  --cw-paper-2: #2c2c2a;
-  --cw-paper-3: #373734;
-  --cw-ink-0: #f8f8f6;
-  --cw-ink-1: #b8b6ae;
-  --cw-ink-2: #97958c;
-  --cw-ink-3: #44423d;
+  /* 调色板层 = 「官网」预设的解析结果，逐值对齐（2.0.43）。
+     色值来自 www.anthropic.com 的 brand token，推导值按 presets 的 derive()
+     同一套公式算出来，所以 JS 起来前后不会有一次配色跳变。
+     改这里没用 —— 预设是靠 inline style 覆盖的，要改配色去改预设。 */
+  --cw-paper-0: #141413;
+  --cw-paper-1: #1f1f1e;
+  --cw-paper-2: #262625;
+  --cw-paper-3: #333230;
+  --cw-ink-0: #faf9f5;
+  --cw-ink-1: #d1cfc5;
+  --cw-ink-2: #b0aea5;
+  --cw-ink-3: #3d3d3a;
   --cw-clay: #d97757;
-  --cw-line: rgba(226,225,218,.15);
-  --cw-line-strong: rgba(226,225,218,.25);
-  --cw-hero: #c3c2b7;
-  --cw-icon: #ffffff;
-  --cw-clay-soft: #3a2a22;
+  --cw-line: rgba(250,249,245,.10);
+  --cw-line-strong: rgba(250,249,245,.20);
+  --cw-hero: #d5d4d1;
+  --cw-icon: #faf9f5;
+  --cw-clay-soft: #3f2a22;
   --cw-clay-strong: #c6613f;
-  --cw-code-surface: #131211;
-  --cw-code-ink: #e6a58c;
-  --cw-em: #c3c2b7;
-  --cw-selection: #5a3a2c;
-  --cw-scrollbar: #44423d;
-  --cw-scrollbar-hover: #55534c;
+  --cw-code-surface: #262625;
+  --cw-code-ink: #e39e86;
+  --cw-em: #d1cfc5;
+  --cw-selection: #57362a;
+  --cw-scrollbar: #3d3d3a;
+  --cw-scrollbar-hover: #b0aea5;
   --cw-shadow-dialog: 0 12px 36px rgba(0,0,0,.55);
   --cw-shadow-composer: 0 12px 34px rgba(0,0,0,.38);
   --cw-shadow-floating: 0 16px 42px rgba(0,0,0,.44);
-  --cw-topbar-surface: rgba(31,31,30,.98);
+  --cw-topbar-surface: #141413;
   --cw-body-weight: 400;
   --cw-color-scheme: dark;
 }
@@ -5068,8 +5224,8 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   /* 字符网格用它配合 opacity，不要直接给它带透明度的值 ——
      深色预设下要单独调密度和不透明度，分开更好控。 */
   --cw-grid-char       : var(--cw-ink-0);
-  --cw-grid-opacity    : .075;
-  --cw-grid-step       : 34px;
+  --cw-grid-opacity    : .05;
+  --cw-grid-step       : 38px;
 
   /* ---------- 尺寸层 ----------
      原计划做「三档密度」，看完 C-2 断点普查（docs/断点普查.md）改成流体。
@@ -5511,8 +5667,6 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
 /* Claude Web 2.0.11 — keep the original mobile header stable while a drawer opens. */
 @media (max-width:700px) {
   html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer) #top-bar {
-    visibility:visible !important;
-    opacity:1 !important;
     pointer-events:auto !important;
     background:var(--cw-topbar-surface, var(--cw-surface-page)) !important;
     background-image:none !important;
@@ -5567,15 +5721,12 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
   html body #rightSendForm > #quick-reply-rocket-button,
   html body.te-input-onlySend #send_form:has(#send_textarea:focus, #send_but:hover) #rightSendForm > #quick-reply-rocket-button {
     flex:0 0 34px !important;
-    display:inline-flex !important;
     align-items:center !important;
     justify-content:center !important;
     width:34px !important;
     min-width:34px !important;
     height:34px !important;
     margin:0 !important;
-    visibility:visible !important;
-    opacity:1 !important;
   }
   html body #rm_print_characters_block.group_overlay_mode_select {
     display:flex !important;
@@ -5757,15 +5908,15 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
   }
 }
 /* 2.0.19: colored rail assets render directly; never treat their background plates as masks. */
-html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/01-presets-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/02-api-connections-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/03-format-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/04-world-book-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/05-preferences-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer:is(#logo_block,#backgrounds-button) > .drawer-toggle > .drawer-icon::before{background:url("../icons/06-background-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon:is(.fa-panorama,.fa-image,.fa-images)::before{width:22px!important;height:22px!important;background:url("../icons/06-background-night-mobile.png") center/22px 22px no-repeat!important;-webkit-mask:none!important;mask:none!important}
-html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon::before{background:url("../icons/07-extensions-night-mobile.png") center/22px 22px no-repeat!important}
-html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background:url("../icons/08-character-card-night-mobile.png") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/01-presets.svg") center/22px 22px no-repeat!important;mask:url("../icons/01-presets.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/02-api-connections.svg") center/22px 22px no-repeat!important;mask:url("../icons/02-api-connections.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/03-format.svg") center/22px 22px no-repeat!important;mask:url("../icons/03-format.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/04-world-book.svg") center/22px 22px no-repeat!important;mask:url("../icons/04-world-book.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/05-preferences.svg") center/22px 22px no-repeat!important;mask:url("../icons/05-preferences.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer:is(#logo_block,#backgrounds-button) > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/06-background.svg") center/22px 22px no-repeat!important;mask:url("../icons/06-background.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon:is(.fa-panorama,.fa-image,.fa-images)::before{width:22px!important;height:22px!important;background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/06-background.svg") center/22px 22px no-repeat!important;mask:url("../icons/06-background.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/07-extensions.svg") center/22px 22px no-repeat!important;mask:url("../icons/07-extensions.svg") center/22px 22px no-repeat!important}
+html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/08-character-card.svg") center/22px 22px no-repeat!important;mask:url("../icons/08-character-card.svg") center/22px 22px no-repeat!important}
 html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
 html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:22px!important;height:22px!important}
 
@@ -5793,18 +5944,24 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
    themes re-create Font Awesome's ::before glyph after this stylesheet loads,
    which covered our image and looked like broken strokes. */
 @media (max-width:700px) {
-  html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/01-presets-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/02-api-connections-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/03-format-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/04-world-book-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/05-preferences-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer:is(#logo_block,#backgrounds-button) > .drawer-toggle > .drawer-icon { background-image:url("../icons/06-background-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon { background-image:url("../icons/07-extensions-night-mobile.png") !important; }
-  html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon { background-image:url("../icons/08-character-card-night-mobile.png") !important; }
+  html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/01-presets.svg") !important;mask-image:url("../icons/01-presets.svg") !important; }
+  html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/02-api-connections.svg") !important;mask-image:url("../icons/02-api-connections.svg") !important; }
+  html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/03-format.svg") !important;mask-image:url("../icons/03-format.svg") !important; }
+  html body #top-settings-holder > .drawer#WI-SP-button > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/04-world-book.svg") !important;mask-image:url("../icons/04-world-book.svg") !important; }
+  html body #top-settings-holder > .drawer#user-settings-button > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/05-preferences.svg") !important;mask-image:url("../icons/05-preferences.svg") !important; }
+  html body #top-settings-holder > .drawer:is(#logo_block,#backgrounds-button) > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/06-background.svg") !important;mask-image:url("../icons/06-background.svg") !important; }
+  html body #top-settings-holder > .drawer#extensions-settings-button > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/07-extensions.svg") !important;mask-image:url("../icons/07-extensions.svg") !important; }
+  html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon { background-image:none !important;background-color:var(--cl-rail-icon,currentColor) !important;-webkit-mask-image:url("../icons/08-character-card.svg") !important;mask-image:url("../icons/08-character-card.svg") !important; }
   html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon {
     background-position:11px center !important;
     background-size:22px 22px !important;
     background-repeat:no-repeat !important;
+    -webkit-mask-position:11px center !important;
+    -webkit-mask-size:22px 22px !important;
+    -webkit-mask-repeat:no-repeat !important;
+    mask-position:11px center !important;
+    mask-size:22px 22px !important;
+    mask-repeat:no-repeat !important;
   }
   html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before,
   html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::after {
@@ -5814,4 +5971,107 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
     -webkit-mask:none !important;
     mask:none !important;
   }
+}
+
+/* mobile 这两份原本没有定义 --cl-rail-icon（只有 pc 份有），
+   图标改用 mask 着色后这个变量成了唯一颜色来源，这里补上，
+   取值跟 pc 份保持一致。 */
+:root { --cl-rail-icon:color-mix(in srgb, var(--cw-icon) 88%, var(--cw-surface-page)); }
+
+
+/* 图标选中态。
+   必须按布局分开写：PC 把图标画在 ::before 上，手机画在 .drawer-icon 本体上
+   （见上面 2.0.31 那段注释的原因）。第一版两个都设了 background-color，
+   结果在 PC 上给「没有 mask 的本体」刷了一层橙底，整块橙色方块盖住图标。
+   谁承载 mask，就只给谁上色。 */
+@media (min-width:701px) {
+  html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon.openIcon::before {
+    background-color:var(--cl-accent,#d97757) !important;
+  }
+}
+@media (max-width:700px) {
+  html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon.openIcon {
+    background-color:var(--cl-accent,#d97757) !important;
+  }
+}
+
+/* ===== 2.0.39：iOS 上设置面板标题的合成粗体 =====
+
+   现象：手机端酒馆的扩展面板、设置抽屉里，中文标题明显过粗、边缘发糊；
+   同一排里的拉丁文（TTS、Claude Web）却是正常粗细。
+   电脑上无论用 PC 布局还是手机布局都不复现 —— CSS 是同一份，差别在设备，
+   所以这是渲染层的问题，不是层叠问题。
+
+   推断的机制：这些标题是 font-weight:600，字体栈是
+   "Hanken Grotesk", -apple-system, "Segoe UI", …, "PingFang SC", …
+   拉丁命中 Hanken Grotesk，它有真的 600。
+   中文命中不了前面几个，而 iOS 上 -apple-system 会先用它自己的中文回落
+   接住这个字，轮不到后面显式写的 "PingFang SC"。那条回落没有 600 的字面，
+   Safari 就合成粗体 —— 把字形整体往外描一圈，于是又粗又糊。
+   Windows 上 -apple-system 根本不存在，直接落到显式的中文字体，有真 Semibold，
+   所以电脑上看不到。
+
+   两道保险，都不改视觉意图：
+   1. font-synthesis-weight:none —— 直接禁止合成，让浏览器退回最接近的真字面。
+      Safari 16.4 起支持；旧版忽略这一行，由第 2 条兜底。
+   2. 字重 600 → 500 —— PingFang Medium 是真实存在的字面，一定不会触发合成。
+      中文在 14px 上 500 和 600 的观感差别很小，拉丁那几个词会轻一点点。
+
+   如果换了之后中文还是过粗，说明推断错了，粗体不是从这条规则来的，
+   下一个怀疑对象是酒馆本体或另一个扩展，别继续在这里加权重。 */
+:is(.drawer-content,.inline-drawer-content,.popup,.popup-content)
+  :is(h1,h2,h3,h4,h5,.drawer-header,.inline-drawer-header,.popup-title,.standoutHeader) {
+  font-synthesis-weight:none !important;
+  font-synthesis:none !important;
+  font-weight:500 !important;
+}
+
+/* ===== 站在输入框上沿的生成状态 Clawd（2.0.46）=====
+   参考 Cowork 的做法：蟹站在输入框顶边上，右对齐，不压住任何控件。
+
+   **用的是另一只蟹，跟落款蟹形状不同**，这是有意的：
+   落款蟹可以点，这只不能。两只长一样的话，用户一定会去戳这只然后发现
+   没反应。靠形状区分比靠透明度或大小区分可靠得多 —— 后者在余光里读不出来。
+   这只是官方和 Cowork 在用的那个更扁的版本（icons/clawd.png）。
+
+   它是 #send_form 的伪元素，不是真元素 —— 天生不可点、不进 tab 序、
+   不需要任何创建和清理代码。连 hover 都没有，不读作控件。
+
+   图片已经裁掉四周留白（108×72，364 字节），图形正好填满画布。
+   所以 bottom:100% 就是「脚踩在输入框上沿」，不需要靠负 margin 去猜留白
+   有多厚 —— 原图 400×400 里图形只占中间一块，不裁的话这个数只能试出来。
+   -1px 是让脚陷进边框一像素，读作站着而不是浮着。 */
+html body #form_sheld :is(#send_form, form) {
+  position:relative !important;
+  overflow:visible !important;
+}
+html body #send_form::after {
+  content:'';
+  position:absolute;
+  bottom:100%;
+  right:18px;
+  z-index:2;
+  margin-bottom:-1px;
+  /* 图片是 108×72，3:2。改大小时两个数一起改，别只改一个。 */
+  width:36px;
+  height:24px;
+  background:url("../icons/clawd.png") center / contain no-repeat;
+  opacity:.85;
+  pointer-events:none;
+  transition:opacity 220ms ease;
+}
+body.claude-generation-active #send_form::after {
+  opacity:1;
+  animation:clawd-composer-bob 780ms ease-in-out infinite;
+}
+@keyframes clawd-composer-bob {
+  0%, 100% { translate:0 0; }
+  50%      { translate:0 -3px; }
+}
+html[data-claude-motion="off"] #send_form::after,
+html[data-claude-decorations="off"] #send_form::after {
+  content:none !important;
+}
+@media (prefers-reduced-motion:reduce) {
+  body.claude-generation-active #send_form::after { animation:none !important; }
 }
