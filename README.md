@@ -1,5 +1,10 @@
 # Claude Web 2.0
 
+## 2.0.64 调整
+
+- 修复 TauriTavern 中 COT/Prompt Manager 预设名称被推到行尾的问题。
+- 显式锁定名称、操作按钮和 token 的三列位置，与 SillyTavern 排版保持一致。
+
 ## 2.0.62 调整
 
 - 修复悬浮窗拖拽时的全页样式重算与扩展刷新争用。
