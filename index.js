@@ -191,6 +191,12 @@ document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE
 document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
 document.documentElement.style.setProperty('--claude-nav-tint-opacity', `${CLAUDE_NAV_TINT_OPACITY}%`);
+const CLAUDE_FONT = claudeReadSetting('font', ['follow','songti','heiti','system','device','custom','native'], 'follow');
+document.documentElement.dataset.claudeFont = CLAUDE_FONT;
+try {
+  const customFont = window.localStorage.getItem('claude-web:fontCustom');
+  if (customFont) document.documentElement.style.setProperty('--cw-font-custom', customFont);
+} catch { /* Storage may be unavailable in private or embedded contexts. */ }
 document.documentElement.dataset.claudeBgImageBlur = CLAUDE_BG_IMAGE_BLUR_ENABLED ? 'on' : 'off';
 document.documentElement.style.setProperty('--claude-bg-image-blur', `${CLAUDE_BG_IMAGE_BLUR}px`);
 document.documentElement.style.setProperty('--claude-bg-image-dim', String(CLAUDE_BG_IMAGE_DIM / 100));
@@ -280,7 +286,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.46-crab-on-top-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.62-v2-fixes-font-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -790,6 +796,7 @@ if (CLAUDE_ENABLED) {
   );
   const RESTORE_KEY = 'claude-integrated-theme-restore:v2';
   const WATCHDOG_KEY = '__claudeIntegratedThemeWatchdog';
+  const STYLE_ATTRIBUTE_SELECTOR_MARK = '[style';
   const INSTANCE_TOKEN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   let destroyed = false;
   let hostPageUnloading = false;
@@ -797,6 +804,7 @@ if (CLAUDE_ENABLED) {
   let disableCheckTimer = 0;
   let runnerRemovalTimer = 0;
   let runnerPresenceObserver = null;
+  let neutralizedHostRules = [];
   const runnerFrame = window.frameElement;
 
   hostWindow[INSTANCE_KEY]?.destroy?.({ restore: false });
@@ -855,6 +863,61 @@ if (CLAUDE_ENABLED) {
       node.textContent = LIVE_CSS;
     }
     hostDocument.documentElement.dataset.claudeIntegratedTheme = CLAUDE_THEME_VARIANT;
+  }
+
+  /* SillyTavern's delete-mode selector combines :has() with an inline-style
+     attribute test. That makes unrelated position writes invalidate a large
+     part of the document. Remove matching rules while this theme is active,
+     then restore them on teardown. */
+  function isStyleAttributeRule(rule) {
+    if (typeof rule?.selectorText === 'string'
+      && rule.selectorText.includes(STYLE_ATTRIBUTE_SELECTOR_MARK)) return true;
+    return (rule?.cssText || '').split('{')[0].includes(STYLE_ATTRIBUTE_SELECTOR_MARK);
+  }
+
+  function collectStyleAttributeRules(parent, source, removed) {
+    let rules;
+    try { rules = parent.cssRules; } catch { return; }
+    if (!rules) return;
+    for (let index = rules.length - 1; index >= 0; index -= 1) {
+      const rule = rules[index];
+      /* Chromium exposes an empty cssRules list on ordinary CSSStyleRule
+         objects. Test the selector before descending into nested groups. */
+      if (isStyleAttributeRule(rule)) {
+        const cssText = rule.cssText;
+        try {
+          parent.deleteRule(index);
+          removed.push({ parent, index, cssText, source });
+        } catch {
+          // A read-only sheet is harmless; leave it intact and continue.
+        }
+        continue;
+      }
+      let childRules = null;
+      try { childRules = rule.cssRules; } catch { childRules = null; }
+      if (childRules?.length) collectStyleAttributeRules(rule, source, removed);
+    }
+  }
+
+  function neutralizeStyleAttributeRules() {
+    const removed = [];
+    for (const sheet of hostDocument.styleSheets) {
+      collectStyleAttributeRules(sheet, sheet.href || '<style>', removed);
+    }
+    if (!removed.length) return 0;
+    neutralizedHostRules.push(...removed);
+    console.info(
+      '[Claude Web] Neutralized ' + removed.length + ' high-cost [style] selector(s):',
+      removed.map(entry => ({ source: entry.source, rule: entry.cssText })),
+    );
+    return removed.length;
+  }
+
+  function restoreStyleAttributeRules() {
+    for (const entry of [...neutralizedHostRules].reverse()) {
+      try { entry.parent.insertRule(entry.cssText, entry.index); } catch { /* detached/read-only sheet */ }
+    }
+    neutralizedHostRules = [];
   }
 
   function valuesMatch(left, right) {
@@ -988,6 +1051,17 @@ if (CLAUDE_ENABLED) {
     }
   }
 
+  function valuesWithPreservedQuote(settings, values) {
+    const next = { ...values };
+    const current = settings?.quote_text_color;
+    const defaults = typeof CLAUDE_THEMES !== 'undefined'
+      ? Object.values(CLAUDE_THEMES).map(theme => theme?.quote_text_color).filter(Boolean)
+      : [values.quote_text_color].filter(Boolean);
+    const isClaudeDefault = defaults.some(value => valuesMatch(current, value));
+    if (current != null && current !== '' && !isClaudeDefault) next.quote_text_color = current;
+    return next;
+  }
+
   function persistFullTheme() {
     const context = getContext();
     const settings = context?.powerUserSettings;
@@ -995,9 +1069,10 @@ if (CLAUDE_ENABLED) {
 
     const previousName = settings.theme;
     rememberRestorePoint(settings);
+    const values = valuesWithPreservedQuote(settings, THEME_VALUES);
     const changed = settings.theme !== THEME_NAME
-      || Object.entries(THEME_VALUES).some(([key, value]) => !valuesMatch(settings[key], value));
-    Object.assign(settings, THEME_VALUES);
+      || Object.entries(values).some(([key, value]) => !valuesMatch(settings[key], value));
+    Object.assign(settings, values);
     settings.theme = THEME_NAME;
     applyCssVariables(settings);
     applyUiState(settings);
@@ -1025,7 +1100,10 @@ if (CLAUDE_ENABLED) {
     if (!settings) return false;
     const previousName = settings.theme;
     rememberRestorePoint(settings);
-    const values = Object.fromEntries(Object.entries(theme).filter(([key]) => key !== 'name'));
+    const values = valuesWithPreservedQuote(
+      settings,
+      Object.fromEntries(Object.entries(theme).filter(([key]) => key !== 'name')),
+    );
     Object.assign(settings, values);
     settings.theme = theme.name;
     applyCssVariables(settings);
@@ -1227,13 +1305,17 @@ if (CLAUDE_ENABLED) {
   function start(attempt = 0) {
     if (destroyed) return;
     installLiveStyle();
+    neutralizeStyleAttributeRules();
     const changed = persistFullTheme();
     if (changed === null && attempt < 12) {
       retryTimer = hostWindow.setTimeout(() => start(attempt + 1), 250);
       return;
     }
     hostWindow.setTimeout(() => {
-      if (!destroyed) persistFullTheme();
+      if (!destroyed) {
+        neutralizeStyleAttributeRules();
+        persistFullTheme();
+      }
     }, 800);
   }
 
@@ -1252,6 +1334,7 @@ if (CLAUDE_ENABLED) {
     }
     hostWindow.removeEventListener('beforeunload', markHostPageUnloading, true);
     hostWindow.removeEventListener('pagehide', markHostPageUnloading, true);
+    restoreStyleAttributeRules();
     removeRuntimeArtifacts();
     if (hostWindow[INSTANCE_KEY] === api) delete hostWindow[INSTANCE_KEY];
     if (restore) restorePreviousTheme();
@@ -1383,6 +1466,8 @@ if (CLAUDE_ENABLED) {
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAABf0lEQVR4nO3cwUkDURRG4enHEtzEvfshHQgWcLcpJfbhIl3crZ1EAoIgeTEBzfzR78DZ5TF33plFmJA3TQAAAAAAAAAAAAAAAAAAAAAAAAAAALg9uuZV17zhfI6rawQ5XGjP+Rw3glSUgnSWgnSWgnSWgnSWgnSWgnSWgnSWgnSWgnSWgnSWmUGmaTrqy/ph6Q3bf/Uw02heQUoQQdaCRPkiyPIRWhBBfgxBZkFaEEEmQTIUJCBCCyLIokGe7++O+vr0uHiA/uJhptG8fybIP3YjSEUpSGcpSGcpSN96kI+/F1ziNuBG9zfi9tL9nQKGZn0qSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGXp5WKFvVz0+n3+Tf0e0lkK0lkK0lkK0v8wyOhEuVPfvkYnrr0NPr+7wmlvu8G1306sGd3fdrET5b4JdXTgE2t2Sz1ZPd7g3Yk1oyDLbfwIQcIQJAxBwhAkDEHCECQMQcIQJAxBwhAkDEGmH+EdPR0/XvA9afUAAAAASUVORK5CYII=';
 
   let observer = null;
+  let chatAttributeObserver = null;
+  let observedAttributeChat = null;
   let scrollHost = null;
   let lastManualScrollAt = 0;
   let frameId = 0;
@@ -5752,6 +5837,8 @@ if (CLAUDE_ENABLED) {
   }
   let lastMouseMoveAt = Date.now();
   function handleLook(event) {
+    /* Do not run eye tracking while another control or panel is being dragged. */
+    if (event.buttons) return;
     lookX = event.clientX;
     lookY = event.clientY;
     lastMouseMoveAt = Date.now();
@@ -6450,12 +6537,18 @@ if (CLAUDE_ENABLED) {
   /* 刷新自己会改 DOM，而观察器盯着整个 body 的 class / style。
      不掐断的话每次刷新都会把自己再排进下一轮，空闲时也在 20Hz 空转。
      刷新期间断开，结束前把这段时间攒下的记录丢掉再接回去。 */
-  const OBSERVER_INIT = {
+  const BODY_OBSERVER_INIT = {
     subtree: true,
     childList: true,
+  };
+  const ROOT_ATTRIBUTE_OBSERVER_INIT = {
     attributes: true,
     attributeOldValue: true,
     attributeFilter: ['class', 'style'],
+  };
+  const CHAT_ATTRIBUTE_OBSERVER_INIT = {
+    ...ROOT_ATTRIBUTE_OBSERVER_INIT,
+    subtree: true,
   };
 
   const OBSERVER_COSMETIC_CLASSES = new Set([
@@ -6580,6 +6673,12 @@ if (CLAUDE_ENABLED) {
     }
   }
 
+  function externalStyleMutationIsIrrelevant(record, target) {
+    return record.type === 'attributes'
+      && record.attributeName === 'style'
+      && !target.closest('#chat');
+  }
+
   function mutationNeedsFullRefresh(record) {
     const target = record.target instanceof hostWindow.Element ? record.target : record.target.parentElement;
     if (!(target instanceof hostWindow.Element)) return true;
@@ -6602,6 +6701,13 @@ if (CLAUDE_ENABLED) {
        整个 #completion_prompt_manager 子树直接不参与刷新判断。 */
     if (target.closest('#completion_prompt_manager')) return false;
 
+    /* Floating panels can write inline position styles on every pointer move.
+       Outside #chat these writes cannot affect message decoration. */
+    if (externalStyleMutationIsIrrelevant(record, target)) {
+      refreshStats.externalStyleRecordsIgnored += 1;
+      return false;
+    }
+
     if (target.matches(OWNED_MUTATION_SELECTOR) || target.closest(OWNED_MUTATION_SELECTOR)) return false;
     if (record.type === 'attributes' && classMutationIsCosmetic(record, target)) return false;
 
@@ -6616,6 +6722,28 @@ if (CLAUDE_ENABLED) {
       }
     }
     return true;
+  }
+
+  function ensureChatAttributeObserver() {
+    if (!chatAttributeObserver) return;
+    const chat = hostDocument.querySelector('#chat');
+    if (chat === observedAttributeChat) return;
+    chatAttributeObserver.disconnect();
+    observedAttributeChat = chat;
+    chatAttributeObserver.observe(hostDocument.documentElement, ROOT_ATTRIBUTE_OBSERVER_INIT);
+    chatAttributeObserver.observe(hostDocument.body, ROOT_ATTRIBUTE_OBSERVER_INIT);
+    if (chat) chatAttributeObserver.observe(chat, CHAT_ATTRIBUTE_OBSERVER_INIT);
+  }
+
+  function handleObservedMutations(records) {
+    refreshStats.recordsSeen += records.length;
+    trackDirtyMessages(records);
+    ensureChatAttributeObserver();
+    preserveStreamingReasoning(isTypingActive());
+    if (!records.some(mutationNeedsFullRefresh)) return;
+    refreshStats.recordsPassedFilter += records.length;
+    if (refreshing) { dirtyWhileRefreshing = true; return; }
+    scheduleRefresh();
   }
 
   let refreshing = false;
@@ -6643,6 +6771,7 @@ if (CLAUDE_ENABLED) {
     recordsSeen: 0,
     recordsPassedFilter: 0,
     selfRecordsDropped: 0,
+    externalStyleRecordsIgnored: 0,
     since: Date.now(),
   };
 
@@ -6662,7 +6791,10 @@ if (CLAUDE_ENABLED) {
          takeRecords 就是干这个用的：把队列里已经攒下的记录取走并清空。
          取出来的仍然过一遍过滤 —— 万一里面混着酒馆的真实改动，
          不能连那个也一起丢了。 */
-      const pending = observer?.takeRecords?.() ?? [];
+      const pending = [
+        ...(observer?.takeRecords?.() ?? []),
+        ...(chatAttributeObserver?.takeRecords?.() ?? []),
+      ];
       if (pending.length) {
         refreshStats.selfRecordsDropped += pending.length;
         if (pending.some(mutationNeedsFullRefresh)) dirtyWhileRefreshing = true;
@@ -6921,18 +7053,12 @@ if (CLAUDE_ENABLED) {
     hostDocument.body.classList.toggle(TAURITAVERN_HOST_CLASS, isTauriTavernHost());
     installVirtualKeyboardOverlay();
     watchGenerationEvents();
-    observer = new hostWindow.MutationObserver(records => {
-      refreshStats.recordsSeen += records.length;
-      trackDirtyMessages(records);
-      preserveStreamingReasoning(isTypingActive());
-      if (!records.some(mutationNeedsFullRefresh)) return;
-      refreshStats.recordsPassedFilter += records.length;
-      if (refreshing) { dirtyWhileRefreshing = true; return; }
-      scheduleRefresh();
-    });
+    observer = new hostWindow.MutationObserver(handleObservedMutations);
+    chatAttributeObserver = new hostWindow.MutationObserver(handleObservedMutations);
     // characterData 会让流式输出的每个 token 都触发一次全量刷新，去掉；
     // 结构变化用 childList + attributes 已经够。
-    observer.observe(hostDocument.body, OBSERVER_INIT);
+    observer.observe(hostDocument.body, BODY_OBSERVER_INIT);
+    ensureChatAttributeObserver();
     scrollHost = hostDocument.querySelector('#chat');
     if (hostWindow.IntersectionObserver && scrollHost) {
       swipeObserver = new hostWindow.IntersectionObserver(entries => {
@@ -6988,6 +7114,9 @@ if (CLAUDE_ENABLED) {
     if (destroyed) return;
     destroyed = true;
     observer?.disconnect();
+    chatAttributeObserver?.disconnect();
+    chatAttributeObserver = null;
+    observedAttributeChat = null;
     // 借来的列表还回去，再摘掉事件监听
     restoreRecents();
     for (const { source, type, handler } of chatDeletedSubscriptions) {
@@ -7157,6 +7286,7 @@ if (CLAUDE_ENABLED) {
         收到记录数: refreshStats.recordsSeen,
         通过过滤数: refreshStats.recordsPassedFilter,
         自身记录丢弃数: refreshStats.selfRecordsDropped,
+        外部样式记录忽略数: refreshStats.externalStyleRecordsIgnored,
         消息条数: hostDocument.querySelectorAll('#chat > .mes').length,
         消息总字数: [...hostDocument.querySelectorAll('#chat > .mes .mes_text')]
           .reduce((sum, node) => sum + node.textContent.length, 0),
@@ -7165,6 +7295,7 @@ if (CLAUDE_ENABLED) {
         Object.assign(refreshStats, {
           refreshes: 0, totalMs: 0, maxMs: 0, lastMs: 0,
           recordsSeen: 0, recordsPassedFilter: 0, selfRecordsDropped: 0,
+          externalStyleRecordsIgnored: 0,
           since: Date.now(),
         });
       }
@@ -7231,6 +7362,16 @@ if (CLAUDE_ENABLED) {
     { value: 'system', label: '跟随手机系统' },
     { value: 'time', label: '按时间自动切换' },
   ];
+  const FONTS = [
+    { value: 'follow', label: '跟随风格（默认）' },
+    { value: 'songti', label: '思源宋（正文衬线）' },
+    { value: 'heiti',  label: '思源黑（全站黑体）' },
+    { value: 'system', label: '系统无衬线（不加载网络字体）' },
+    { value: 'device', label: '跟随设备/系统' },
+    { value: 'custom', label: '自定义（下方填写）' },
+    { value: 'native', label: '关掉（用酒馆原生字体）' },
+  ];
+  const FONT_VALUES = FONTS.map(font => font.value);
   const LAYOUTS = [
     { value: 'auto', label: '自动（跨 700px 自动切换）' },
     { value: 'pc', label: '桌面' },
@@ -7488,6 +7629,11 @@ if (CLAUDE_ENABLED) {
 
           <label for="claude-web-layout" style="margin-top:8px">布局</label>
           <select id="claude-web-layout" class="text_pole"></select>
+
+          <label for="claude-web-font" style="margin-top:8px">字体</label>
+          <select id="claude-web-font" class="text_pole"></select>
+          <input id="claude-web-font-custom" class="text_pole" style="margin-top:6px;display:none"
+                 placeholder='自定义 font-family，例如："LXGW WenKai", serif'>
 
           <div id="claude-web-hint"
                style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
@@ -7942,6 +8088,8 @@ if (CLAUDE_ENABLED) {
 
     const variantSelect = panel.querySelector('#claude-web-variant');
     const layoutSelect = panel.querySelector('#claude-web-layout');
+    const fontSelect = panel.querySelector('#claude-web-font');
+    const fontCustom = panel.querySelector('#claude-web-font-custom');
     const hint = panel.querySelector('#claude-web-hint');
     const autoSelect = panel.querySelector('#claude-web-theme-auto');
     const autoTimes = panel.querySelector('#claude-web-auto-times');
@@ -7954,9 +8102,29 @@ if (CLAUDE_ENABLED) {
     const autoMode = read('theme-auto', ['manual', 'system', 'time'], 'manual');
     fillSelect(variantSelect, VARIANTS, variant);
     fillSelect(layoutSelect, LAYOUTS, layout);
+    fillSelect(fontSelect, FONTS, read('font', FONT_VALUES, 'follow'));
     fillSelect(autoSelect, AUTO_THEME_MODES, autoMode);
     dayStartInput.value = readClock('theme-day-start', '07:00');
     nightStartInput.value = readClock('theme-night-start', '19:00');
+
+    const syncCustomFontBox = () => {
+      fontCustom.style.display = fontSelect.value === 'custom' ? '' : 'none';
+    };
+    try { fontCustom.value = window.localStorage.getItem('claude-web:fontCustom') || ''; } catch { /* no-op */ }
+    syncCustomFontBox();
+    fontSelect.addEventListener('change', () => {
+      if (!write('font', fontSelect.value)) return;
+      document.documentElement.dataset.claudeFont = fontSelect.value;
+      syncCustomFontBox();
+      const selected = FONTS.find(font => font.value === fontSelect.value);
+      hint.textContent = '字体已切到「' + (selected ? selected.label : fontSelect.value) + '」。';
+    });
+    fontCustom.addEventListener('input', () => {
+      const value = fontCustom.value.trim();
+      try { window.localStorage.setItem('claude-web:fontCustom', value); } catch { /* no-op */ }
+      if (value) document.documentElement.style.setProperty('--cw-font-custom', value);
+      else document.documentElement.style.removeProperty('--cw-font-custom');
+    });
 
     const describe = () => {
       const effective = resolveLayout(layoutSelect.value);

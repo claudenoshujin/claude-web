@@ -913,7 +913,7 @@ hr {
   line-height:1.56 !important;
   text-wrap:auto;
 }
-body:has(.typing_indicator:not(.displayNone):not([style*="display: none"]):not([style*="display:none"])) #chat > .mes.last_mes[is_user="false"] .mes_text::after {
+body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::after {
   opacity:0;
   transform:translateY(9px) scale(.82);
   transition-delay:0ms;
@@ -1344,7 +1344,7 @@ body:has(.typing_indicator:not(.displayNone):not([style*="display: none"]):not([
   line-height:14px !important;
 }
 .mes_text q, .mes_reasoning q, .mes_text .quote, .mes_reasoning .quote {
-  color:inherit !important;
+  color:var(--SmartThemeQuoteColor, var(--cw-text-body)) !important;
   -webkit-text-fill-color:currentColor !important;
 }
 .mes_text q::before, .mes_text q::after, .mes_reasoning q::before, .mes_reasoning q::after {
@@ -6074,4 +6074,43 @@ html[data-claude-decorations="off"] #send_form::after {
 }
 @media (prefers-reduced-motion:reduce) {
   body.claude-generation-active #send_form::after { animation:none !important; }
+}
+
+/* Font switching is independent from theme and layout. */
+html[data-claude-font="follow"] {
+  --cl-serif: var(--cw-skin-serif, "Newsreader", Georgia, "Times New Roman", Times, var(--cl-cjk));
+  --cl-sans: var(--cw-skin-sans, "Hanken Grotesk", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk));
+  --cl-serif-hero: var(--cw-skin-serif, "Newsreader", Georgia, "Noto Serif SC", var(--cl-cjk));
+}
+html[data-claude-font="songti"] {
+  --cl-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  --cl-serif-hero: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+}
+html[data-claude-font="heiti"] {
+  --cl-serif: var(--cl-cjk);
+  --cl-sans: var(--cl-cjk);
+  --cl-serif-hero: var(--cl-cjk);
+}
+html[data-claude-font="system"] {
+  --cl-serif: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
+  --cl-sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
+  --cl-serif-hero: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
+}
+html[data-claude-font="native"] {
+  --cl-serif: var(--mainFontFamily, sans-serif);
+  --cl-sans: var(--mainFontFamily, sans-serif);
+  --cl-serif-hero: var(--mainFontFamily, sans-serif);
+  --cl-cjk: var(--mainFontFamily, sans-serif);
+}
+html[data-claude-font="device"] {
+  --cl-serif: system-ui, sans-serif;
+  --cl-sans: system-ui, sans-serif;
+  --cl-serif-hero: system-ui, sans-serif;
+  --cl-cjk: system-ui, sans-serif;
+}
+html[data-claude-font="custom"] {
+  --cl-serif: var(--cw-font-custom, system-ui, sans-serif);
+  --cl-sans: var(--cw-font-custom, system-ui, sans-serif);
+  --cl-serif-hero: var(--cw-font-custom, system-ui, sans-serif);
+  --cl-cjk: var(--cw-font-custom, system-ui, sans-serif);
 }
