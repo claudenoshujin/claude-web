@@ -2360,7 +2360,14 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
    提到主题自己的导航、输入框和浮动控件之上。编辑页打开期间隐藏聊天输入框，
    避免不同酒馆版本的祖先层叠上下文仍把 fixed composer 抬到编辑按钮上方。 */
 #completion_prompt_manager_popup.openDrawer {
+  position:absolute !important;
+  inset:0 !important;
   z-index:10050 !important;
+  box-sizing:border-box !important;
+  width:100% !important;
+  height:100% !important;
+  max-height:none !important;
+  overflow-y:auto !important;
   background:var(--cw-surface-page) !important;
   background-color:var(--cw-surface-page) !important;
   background-image:none !important;
@@ -2471,10 +2478,15 @@ html body:has(#completion_prompt_manager_popup.openDrawer) #form_sheld {
   box-sizing:border-box !important;
   display:grid !important;
   grid-template-columns:minmax(0,1fr) minmax(72px,max-content) minmax(3ch,auto) !important;
+  grid-auto-rows:minmax(min-content,auto) !important;
   align-items:center !important;
+  align-content:center !important;
   column-gap:8px !important;
   width:100% !important;
+  height:auto !important;
+  max-height:none !important;
   min-width:0 !important;
+  overflow:visible !important;
   opacity:1 !important;
 }
 
@@ -2509,6 +2521,7 @@ html body:has(#completion_prompt_manager_popup.openDrawer) #form_sheld {
   display:flex !important;
   grid-column:1 / 2 !important;
   align-items:center !important;
+  flex-wrap:nowrap !important;
   justify-content:flex-start !important;
   justify-self:stretch !important;
   gap:4px !important;
@@ -2519,6 +2532,19 @@ html body:has(#completion_prompt_manager_popup.openDrawer) #form_sheld {
   text-align:left !important;
   color:var(--cw-text-body) !important;
   opacity:1 !important;
+  white-space:nowrap !important;
+}
+
+/* TT 窄窗中 prompt 名称的实际文字节点不一定带 inspect-action 类。
+   无论它是链接还是普通 span，都必须在名称列里省略，不能把整行撑高后
+   与下一条 sortable 项目发生视觉重叠。 */
+#completion_prompt_manager #completion_prompt_manager_list
+  .completion_prompt_manager_prompt_name > :is(a,span):not(.fa-solid):not(.fa-regular) {
+  display:block !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
   white-space:nowrap !important;
 }
 
