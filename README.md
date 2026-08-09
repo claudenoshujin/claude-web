@@ -1,5 +1,10 @@
 # Claude Web 2.0
 
+## 2.0.66 修复
+
+- 修复 Android 14 + Via 中点击输入框后，输入框延迟上下移动的问题。
+- 跳过未激活 AutoComplete 实例的定位计算，避免键盘开合时大量无效布局任务阻塞页面。
+
 ## 2.0.64 调整
 
 - 修复 TauriTavern 中 COT/Prompt Manager 预设名称被推到行尾的问题。

@@ -286,7 +286,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.65-tt-prompt-overlay-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.66-via-autocomplete-resize-guard-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -1525,6 +1525,14 @@ if (CLAUDE_ENABLED) {
     Math.round(hostWindow.innerHeight || hostDocument.documentElement.clientHeight || 1),
   );
   let mobileKeyboardRecoveryActive = false;
+  const AUTOCOMPLETE_RESIZE_GUARD_KEY = '__claudeClawdAutoCompleteResizeGuard';
+  const AUTOCOMPLETE_GUARDED_METHODS = [
+    'updatePosition',
+    'updateFloatingPosition',
+    'updateDetailsPosition',
+  ];
+  let autoCompleteResizeGuard = null;
+  let autoCompleteResizeGuardToken = null;
 
   hostWindow[INSTANCE_KEY]?.destroy?.();
 
@@ -7044,8 +7052,108 @@ if (CLAUDE_ENABLED) {
     clearDrawerGuard();
   }
 
+  function restoreAutoCompleteResizeGuard() {
+    autoCompleteResizeGuardToken = null;
+    const guard = autoCompleteResizeGuard;
+    autoCompleteResizeGuard = null;
+    try {
+      guard?.restore?.();
+    } catch (error) {
+      hostWindow.console?.warn?.('[Claude-Clawd] AutoComplete resize guard restore failed.', error);
+    }
+    if (hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY] === guard) {
+      delete hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY];
+    }
+  }
+
+  async function installAutoCompleteResizeGuard() {
+    if (!isMobileLayout() || !/Android/i.test(hostWindow.navigator?.userAgent || '')) return;
+
+    const token = {};
+    autoCompleteResizeGuardToken = token;
+    const moduleUrl = resolveHostModule('scripts/autocomplete/AutoComplete.js');
+
+    try {
+      const previous = hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY];
+      previous?.restore?.();
+      if (hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY] === previous) {
+        delete hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY];
+      }
+
+      const module = await import(moduleUrl);
+      if (destroyed || autoCompleteResizeGuardToken !== token) return;
+
+      const AutoComplete = module?.AutoComplete;
+      const prototype = AutoComplete?.prototype;
+      if (!prototype || typeof prototype.getCursorPosition !== 'function') {
+        throw new Error('Unsupported AutoComplete module shape.');
+      }
+
+      const descriptors = AUTOCOMPLETE_GUARDED_METHODS.map(name => ({
+        name,
+        descriptor: Object.getOwnPropertyDescriptor(prototype, name),
+      }));
+      if (descriptors.some(({ descriptor }) => typeof descriptor?.value !== 'function')) {
+        throw new Error('Required AutoComplete positioning methods are unavailable.');
+      }
+
+      /* 新版 SillyTavern 如果已经在本体加了同等保护，不重复包一层。 */
+      const updatePositionSource = Function.prototype.toString.call(
+        descriptors.find(({ name }) => name === 'updatePosition').descriptor.value,
+      );
+      if (/if\s*\(\s*!this\.isActive\s*\)\s*return/.test(updatePositionSource)) {
+        const state = {
+          installed: false,
+          reason: 'upstream-guard',
+          moduleUrl,
+          restore() {},
+        };
+        autoCompleteResizeGuard = state;
+        hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY] = state;
+        return;
+      }
+
+      const records = [];
+      try {
+        for (const { name, descriptor } of descriptors) {
+          const original = descriptor.value;
+          const wrapped = function claudeClawdActiveAutoCompletePositionGuard(...args) {
+            if (!this?.isActive) return undefined;
+            return original.apply(this, args);
+          };
+          Object.defineProperty(prototype, name, { ...descriptor, value: wrapped });
+          records.push({ name, descriptor, wrapped });
+        }
+      } catch (error) {
+        for (const { name, descriptor, wrapped } of records.reverse()) {
+          if (prototype[name] === wrapped) Object.defineProperty(prototype, name, descriptor);
+        }
+        throw error;
+      }
+
+      const state = {
+        installed: true,
+        reason: 'android-mobile-compat',
+        moduleUrl,
+        restore() {
+          for (const { name, descriptor, wrapped } of records) {
+            if (prototype[name] === wrapped) Object.defineProperty(prototype, name, descriptor);
+          }
+        },
+      };
+      autoCompleteResizeGuard = state;
+      hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY] = state;
+      hostWindow.console?.info?.('[Claude-Clawd] AutoComplete resize guard installed.');
+    } catch (error) {
+      if (!destroyed && autoCompleteResizeGuardToken === token) {
+        hostWindow.console?.warn?.('[Claude-Clawd] AutoComplete resize guard skipped.', error);
+      }
+    }
+  }
+
   function start() {
     if (destroyed) return;
+    void installAutoCompleteResizeGuard();
     installStyle();
     hostWindow.console?.info?.('[Claude-Clawd] build:', KEYBOARD_BUILD.id);
     hostDocument.body.classList.add(READY_CLASS);
@@ -7113,6 +7221,7 @@ if (CLAUDE_ENABLED) {
     reconcileTimer = 0;
     if (destroyed) return;
     destroyed = true;
+    restoreAutoCompleteResizeGuard();
     observer?.disconnect();
     chatAttributeObserver?.disconnect();
     chatAttributeObserver = null;
@@ -7314,6 +7423,11 @@ if (CLAUDE_ENABLED) {
       visualTop: hostWindow.visualViewport?.offsetTop ?? null,
       translate: hostDocument.querySelector('#form_sheld')?.style
         .getPropertyValue(MOBILE_COMPOSER_TRANSLATE_PROPERTY) || '',
+    }),
+    autoCompleteGuardStats: () => ({
+      installed: Boolean(autoCompleteResizeGuard?.installed),
+      reason: autoCompleteResizeGuard?.reason || 'not-installed',
+      moduleUrl: autoCompleteResizeGuard?.moduleUrl || null,
     }),
     /* 键盘几何采样默认关闭，显式 start 后才开始（自动采样本身会强制同步
        布局、污染复测）。判读方法见 startKeyboardTrace 上方的注释。 */
