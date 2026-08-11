@@ -1,7 +1,10 @@
 /* Claude Web 2.0 —— SillyTavern 扩展形态入口。
  *
- * 这个文件由 tools/build-extension.js 生成，不要手改。
- * 真正的源码在仓库的 src/ 下，改完跑 node tools/build-extension.js 重出。
+ * 【2026-08-10 更正】这个文件现在就是源码，直接改它。
+ * 上面那句「由 tools/build-extension.js 生成、真正的源码在 src/」已经作废：
+ * src/clawd-interaction.js 停在 2026-08-08，整个兼容框架（frameworkCompatibilityMode、
+ * 区域制生成器、手机端接管）都只写在这里。跑一次 build-extension.js 会把它们全冲掉。
+ * 要么先把 src/ 补齐再恢复那套流程，要么把 tools/build-extension.js 删掉。
  *
  * 设置在酒馆的「扩展」面板里，标题 Claude Web。
  * 底层存的是 localStorage，因为这个文件在模块求值时就要读出 variant/layout
@@ -9,6 +12,8 @@
  *   localStorage['claude-web:variant'] = 'day' | 'night'            默认 day
  *   localStorage['claude-web:layout']  = 'auto' | 'pc' | 'mobile'   默认 auto
  */
+
+import { installKeyboardDiagnostics } from "./keyboard-diagnostics.js?v=2.0.85";
 
 const CLAUDE_EXTENSION_MODE = true;
 
@@ -112,10 +117,41 @@ function claudeReadSetting(key, allowed, fallback) {
   }
 }
 
+/* ---- 网址逃生口 ----
+ * 设置面板是长在扩展自己的界面里的。只要外壳出问题（手机兼容模式丢导航就是
+ * 现成的例子），用户就再也点不到那个面板，等于被锁在门外，只能去清 localStorage。
+ * 这几个查询参数在读设置之前先写进 localStorage，所以打开一次就永久生效：
+ *   ?claudemode=full     切回完整模式
+ *   ?claudemode=compat   切到框架兼容
+ *   ?claudelayout=pc|mobile|auto
+ *   ?claude=off          整个扩展关掉（?claude=on 开回来）
+ * 写完照常启动，不影响任何正常路径。 */
+try {
+  const escapeQuery = new URLSearchParams(location.search);
+  const wanted = [
+    ['claudemode', 'mode', ['full', 'compat']],
+    ['claudelayout', 'layout', ['auto', 'pc', 'mobile']],
+    ['claude', 'enabled', ['on', 'off']],
+    ['claudekbddiag', 'kbdDiag', ['on', 'off']],
+  ];
+  for (const [param, key, allowed] of wanted) {
+    const value = escapeQuery.get(param);
+    if (value && allowed.includes(value)) window.localStorage.setItem('claude-web:' + key, value);
+  }
+} catch { /* 无痕或被禁用：逃生口本来就只是个方便，不是必须 */ }
+
 /* 总开关。默认开；只有明确写过 'off' 才算关，
    读不到 localStorage（无痕、被云端宿主禁用）时不能把整个扩展关掉。 */
 const CLAUDE_ENABLED = claudeReadSetting('enabled', ['on', 'off'], 'on') !== 'off';
+/* 框架兼容模式保留 Claude Web 的桌面外壳：左侧栏、内容区让位和输入框。
+   外部主题继续负责配色、字体、背景、欢迎页和消息内容。 */
+const CLAUDE_COMPAT_REQUESTED = claudeReadSetting('mode', ['full', 'compat'], 'full') === 'compat';
 const CLAUDE_MOTION_ENABLED = claudeReadSetting('motion', ['on', 'off'], 'on') !== 'off';
+/* Via 输入框几何诊断器（右上角那个「诊断」胶囊）。默认关。
+   它自己的守卫是「只在手机布局出现」，而手机端兼容模式到 2.0.101 才第一次真正
+   跑起来，所以以前从没露过面，一开就变成常驻遮挡。需要时用 ?claudekbddiag=on
+   打开、?claudekbddiag=off 关掉（跟其他逃生口一样写 localStorage，永久生效）。 */
+const CLAUDE_KBD_DIAG_ENABLED = claudeReadSetting('kbdDiag', ['on', 'off'], 'off') === 'on';
 const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'], 'on') !== 'off';
 /* 生成计时器默认关（2.0.33 起改的，原来默认开）。
    原因是性能：这个徽标是 position:fixed + z-index:10015 + 18px 扩散阴影，
@@ -183,6 +219,7 @@ const CLAUDE_BG_IMAGE_BLUR = claudeReadNumberSetting('bgImageBlurRadius', 12, 0,
 const CLAUDE_BG_IMAGE_DIM = claudeReadNumberSetting('bgImageDim', 28, 0, 70);
 
 document.documentElement.dataset.claudeMotion = CLAUDE_MOTION_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeMode = CLAUDE_COMPAT_REQUESTED ? 'compat' : 'full';
 document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeGenTimer = CLAUDE_GEN_TIMER_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgTransparent = CLAUDE_BG_TRANSPARENT_ENABLED ? 'on' : 'off';
@@ -191,12 +228,20 @@ document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE
 document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
 document.documentElement.style.setProperty('--claude-nav-tint-opacity', `${CLAUDE_NAV_TINT_OPACITY}%`);
+/* 字体必须在这里就套上 —— 等设置面板挂载太晚，中间会闪一帧默认字。 */
 const CLAUDE_FONT = claudeReadSetting('font', ['follow','songti','heiti','system','device','custom','native'], 'follow');
 document.documentElement.dataset.claudeFont = CLAUDE_FONT;
+document.documentElement.dataset.claudeStructure = claudeReadSetting('structure', ['rail'], 'rail');
+document.documentElement.dataset.claudeClawd = claudeReadSetting('clawd', ['on','off'], 'on');
+document.documentElement.dataset.claudeAvatars = claudeReadSetting('avatars', ['on','off'], 'on');
+/* 皮肤属性在设置面板挂载前就得有，否则首帧是旧样式 */
+
+document.documentElement.dataset.claudeSkin = claudeReadSetting('skin', ['classic'], 'classic');
+
 try {
-  const customFont = window.localStorage.getItem('claude-web:fontCustom');
-  if (customFont) document.documentElement.style.setProperty('--cw-font-custom', customFont);
-} catch { /* Storage may be unavailable in private or embedded contexts. */ }
+  const cf = window.localStorage.getItem('claude-web:fontCustom');
+  if (cf) document.documentElement.style.setProperty('--cw-font-custom', cf);
+} catch { /* 无痕或被禁用 */ }
 document.documentElement.dataset.claudeBgImageBlur = CLAUDE_BG_IMAGE_BLUR_ENABLED ? 'on' : 'off';
 document.documentElement.style.setProperty('--claude-bg-image-blur', `${CLAUDE_BG_IMAGE_BLUR}px`);
 document.documentElement.style.setProperty('--claude-bg-image-dim', String(CLAUDE_BG_IMAGE_DIM / 100));
@@ -256,6 +301,20 @@ const CLAUDE_LAYOUT = (() => {
   }
 })();
 
+/* 2.0.98 之前这里写的是 `CLAUDE_COMPAT_REQUESTED && CLAUDE_LAYOUT === 'pc'`，
+   也就是窄屏一律回退到完整手机版 —— 兼容模式在手机上根本没生效过。
+   2.0.98 让手机也进兼容模式，但只接管输入区和欢迎页，结果是顶栏和抽屉两边都没人管。
+   2.0.99 起手机和桌面用同一套边界：外壳（侧栏 / 抽屉 / 输入区 / 欢迎页）的结构
+   全部归框架，美化只保留换皮通道和对话区。两个断点的差别只剩源文件不同
+   （day-pc.css vs day-mobile.css），由 _dev/build-compat-css.js 生成。 */
+const CLAUDE_COMPAT_MODE = CLAUDE_COMPAT_REQUESTED;
+document.documentElement.dataset.claudeMode = CLAUDE_COMPAT_MODE ? 'compat' : 'full';
+if (CLAUDE_COMPAT_MODE) {
+  
+  document.documentElement.dataset.claudeSkin = 'classic';
+  document.documentElement.dataset.claudeStructure = 'rail';
+}
+
 /* 自动布局不能只在启动时判断一次。跨过主断点时自动刷新，让 JS 功能分支和
    对应的 PC / 手机样式表一起切换；只改 CSS 会留下半桌面半手机的状态。 */
 if (CLAUDE_ENABLED && CLAUDE_LAYOUT_CHOICE === 'auto' && window.matchMedia) {
@@ -275,6 +334,13 @@ if (CLAUDE_ENABLED && CLAUDE_LAYOUT_CHOICE === 'auto' && window.matchMedia) {
   }
 }
 
+/* 2.0.99：手机端的接管范围跟桌面对齐。
+   2.0.98 里这两条是 `rail: !COMPAT || layout==='pc'` 和 `mobile: !COMPAT && layout==='mobile'`，
+   两条在「兼容 + 手机」这一格同时为 false —— 框架既不建 Claude 的手机外壳，
+   也不建侧栏，而顶栏和抽屉又已经交还给酒馆和美化。真机结果是酒馆原生顶栏被挤成
+   一条 8px 竖排小字，欢迎页连输入框都没有。
+   现在：外壳（侧栏 / 抽屉 / 输入区 / 欢迎页）的结构一律归框架，手机和桌面同一套边界；
+   放行给美化的只有换皮通道（图标图案、字体）和对话区内部。 */
 const CLAUDE_FEATURES = {
   rail: true,
   welcome: true,
@@ -286,7 +352,8 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.66-via-autocomplete-resize-guard-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
+  id: '2.0.114-public-compat-framework-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
+    + '-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
 
@@ -296,17 +363,111 @@ const CLAUDE_EXTENSION_REPO = 'https://github.com/claudenoshujin/claude-web';
 
 const CLAUDE_THEME = CLAUDE_THEMES[CLAUDE_THEME_VARIANT];
 
+/* 兼容模式从 2.0.86 起也分明暗：外壳整块用 Claude 自己的皮肤，
+   那就必须跟着明暗开关走，否则深色美化配一条亮白侧栏。 */
 const CLAUDE_STYLE_URL = new URL(
-  'styles/' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '.css',
+  CLAUDE_COMPAT_MODE
+    ? 'styles/compat-' + (CLAUDE_LAYOUT === 'mobile' ? 'mobile-' : '') + CLAUDE_THEME_VARIANT + '.css'
+    : 'styles/' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '.css',
   CLAUDE_EXTENSION_BASE,
 );
 CLAUDE_STYLE_URL.searchParams.set('v', CLAUDE_KEYBOARD_BUILD.id);
 const CLAUDE_STYLE_HREF = CLAUDE_STYLE_URL.href;
 
 console.info(
-  '[Claude Web] 扩展形态启动：' + CLAUDE_THEME_VARIANT + ' / ' + CLAUDE_LAYOUT
+  '[Claude Web] 扩展形态启动：' + (CLAUDE_COMPAT_MODE ? '兼容框架' : CLAUDE_THEME_VARIANT)
+  + ' / ' + CLAUDE_LAYOUT
   + '（在酒馆「扩展」面板的 Claude Web 里可切换）',
 );
+
+/* ---- 外壳自检：`?shellcheck=1` ----
+ * 手机端（尤其 Via / WebView）没有控制台，截图又只能看见「有没有」，
+ * 看不见「为什么没有」。带上这个查询参数会在页面顶上盖一层纯文本，
+ * 把外壳关键节点的存在性和实测几何直接打出来，可以直接截图读。
+ * 它不改任何样式，也不参与正常渲染路径；不带参数时一行都不跑。 */
+if (new URLSearchParams(location.search).has('shellcheck')) {
+  const dumpShell = () => {
+    const rows = [];
+    const root = document.documentElement;
+    rows.push('mode=' + (root.dataset.claudeMode || '-')
+      + ' layout=' + (typeof CLAUDE_LAYOUT === 'string' ? CLAUDE_LAYOUT : '-')
+      + ' skin=' + (root.dataset.claudeSkin || '-')
+      + ' build=' + CLAUDE_KEYBOARD_BUILD.id);
+    rows.push('features rail=' + CLAUDE_FEATURES.rail + ' mobile=' + CLAUDE_FEATURES.mobile
+      + ' welcome=' + CLAUDE_FEATURES.welcome);
+    rows.push('vw=' + window.innerWidth + 'x' + window.innerHeight
+      + ' mm700=' + window.matchMedia('(max-width:700px)').matches);
+    rows.push('body.class=' + (document.body?.className || '(空)'));
+    rows.push('--- 节点 ---');
+    for (const sel of [
+      '.clawd-mobile-chrome', '.clawd-mobile-menu-button', '.clawd-mobile-clawd-button',
+      '.clawd-mobile-new-chat', '#top-settings-holder', '#top-settings-holder>.clawd-rail-brand',
+      '#sheld', '#chat', '#form_sheld', '#send_form', '#send_textarea',
+    ]) {
+      const el = document.querySelector(sel);
+      if (!el) { rows.push(sel + '  ✗ 不在 DOM 里'); continue; }
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      const round = n => Math.round(n);
+      rows.push(sel + '  ' + cs.display + '/' + cs.visibility + '/op' + cs.opacity
+        + ' ' + cs.position + ' z' + cs.zIndex
+        + ' [' + round(r.left) + ',' + round(r.top) + ' ' + round(r.width) + 'x' + round(r.height) + ']'
+        + (cs.transform !== 'none' ? ' tf=' + cs.transform : '')
+        + (cs.overflow !== 'visible' ? ' ov=' + cs.overflow : ''));
+      /* 隐形时把链路上第一个「把它藏起来」的祖先找出来。 */
+      if (r.width === 0 || r.height === 0 || cs.display === 'none' || cs.visibility === 'hidden') {
+        for (let p = el.parentElement; p && p !== root; p = p.parentElement) {
+          const ps = getComputedStyle(p);
+          if (ps.display === 'none' || ps.visibility === 'hidden' || ps.opacity === '0') {
+            rows.push('    ↑ 被祖先藏了: ' + (p.id ? '#' + p.id : p.tagName.toLowerCase()
+              + '.' + String(p.className).trim().split(/\s+/).join('.'))
+              + ' ' + ps.display + '/' + ps.visibility + '/op' + ps.opacity);
+            break;
+          }
+        }
+      }
+    }
+    /* #sheld 被藏的时候，光知道「第一个藏它的祖先」不够 —— 那个祖先是谁、
+       谁把它插进来的才是关键。把整条链打出来。 */
+    const describe = el => {
+      const cs = getComputedStyle(el);
+      const cls = String(el.className || '').trim().split(/\s+/).filter(Boolean).slice(0, 4).join('.');
+      return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (cls ? '.' + cls : '')
+        + ' ' + cs.display + '/' + cs.visibility + '/op' + cs.opacity + '/' + cs.position;
+    };
+    for (const sel of ['#sheld', '#form_sheld']) {
+      const el = document.querySelector(sel);
+      if (!el) continue;
+      rows.push('--- ' + sel + ' 的祖先链 ---');
+      let depth = 0;
+      for (let p = el.parentElement; p && depth < 8; p = p.parentElement, depth += 1) {
+        rows.push('  ' + '  '.repeat(depth) + describe(p));
+      }
+    }
+
+    const pre = document.createElement('pre');
+    pre.id = 'claude-shellcheck';
+    pre.style.cssText = 'position:fixed;inset:0 0 auto 0;z-index:2147483647;margin:0;'
+      + 'max-height:86vh;overflow:auto;padding:8px;background:#000;color:#0f0;'
+      + 'font:11px/1.45 monospace;white-space:pre-wrap;word-break:break-all';
+    pre.textContent = rows.join('\n');
+    pre.addEventListener('click', () => pre.remove());
+    document.getElementById('claude-shellcheck')?.remove();
+    document.body.appendChild(pre);
+  };
+  /* 不能用 window.addEventListener('load')：酒馆的扩展是 load 之后才 import 进来的，
+     那个事件早就过去了，监听器永远不会触发 —— 第一版就是这么空跑的。
+     这里直接排定时器，并且量两次：2.5 秒看首屏，7 秒看外壳建完之后。 */
+  const schedule = () => {
+    setTimeout(dumpShell, 2500);
+    setTimeout(dumpShell, 7000);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', schedule, { once: true });
+  } else {
+    schedule();
+  }
+}
 
 /* 总开关。关掉之后除了设置面板什么都不跑 ——
    面板必须留着，不然没有地方把它开回来。 */
@@ -358,6 +519,12 @@ if (CLAUDE_ENABLED) {
     '--cw-shadow-dialog', '--cw-shadow-composer', '--cw-shadow-floating',
     '--cw-topbar-surface', '--cw-body-weight', '--cw-color-scheme',
     '--cw-grid-opacity', '--cw-grid-step',
+    /* 形状（2.0.47）。只开倍率和圆形两个键，不开 --cw-radius-8 那一串档位 ——
+       放开档位等于让配色预设去改设计比例，那是版式层的事，不是配色的事。 */
+    '--cw-radius-scale', '--cw-radius-circle',
+    /* 皮肤字体（2.0.47）。只在「字体 = 跟风格」时生效，
+       见 styles 里 html[data-claude-font="follow"] 那段。 */
+    '--cw-skin-serif', '--cw-skin-sans', '--cw-font-custom',
   ];
 
   const ALLOWED = new Set([...CORE_KEYS, ...EXTRA_KEYS]);
@@ -755,7 +922,7 @@ if (CLAUDE_ENABLED) {
 
   /* 启动时立刻套一次。放在这里而不是等 DOM ready ——
      晚一帧就会看见默认色闪一下。 */
-  activateFamily(currentFamilyId(), { persist: false });
+  if (!CLAUDE_COMPAT_MODE) activateFamily(currentFamilyId(), { persist: false });
 
   window.__claudeWebPresets = {
     families: allFamilies,
@@ -784,10 +951,12 @@ if (CLAUDE_ENABLED) {
      构建器给扩展包注入 CLAUDE_EXTENSION_MODE=true，脚本包不注入。
      typeof 判断对未声明的标识符是安全的，脚本形态下不会抛。 */
   const extensionMode = typeof CLAUDE_EXTENSION_MODE !== 'undefined' && CLAUDE_EXTENSION_MODE;
+  const compatibilityMode = typeof CLAUDE_COMPAT_MODE !== 'undefined' && CLAUDE_COMPAT_MODE;
   const hostWindow = extensionMode ? window : window.parent;
   const hostDocument = hostWindow.document;
   const INSTANCE_KEY = '__claudeIntegratedTheme';
   const STYLE_ID = 'claude-integrated-theme-live-style';
+  const LAYER_ORDER_ID = 'claude-layer-order';
   const OPTION_CLASS = 'claude-integrated-theme-option';
   const THEME_NAME = CLAUDE_THEME.name;
   const LIVE_CSS = typeof CLAUDE_LIVE_CSS !== 'undefined' ? CLAUDE_LIVE_CSS : CLAUDE_THEME.custom_css;
@@ -804,6 +973,10 @@ if (CLAUDE_ENABLED) {
   let disableCheckTimer = 0;
   let runnerRemovalTimer = 0;
   let runnerPresenceObserver = null;
+  let compatibilityStyleOrderObserver = null;
+  let compatibilityCustomStyleObserver = null;
+  let observedCompatibilityCustomStyle = null;
+  const compatibilityWrappedStyles = new Set();
   let neutralizedHostRules = [];
   const runnerFrame = window.frameElement;
 
@@ -865,10 +1038,125 @@ if (CLAUDE_ENABLED) {
     hostDocument.documentElement.dataset.claudeIntegratedTheme = CLAUDE_THEME_VARIANT;
   }
 
-  /* SillyTavern's delete-mode selector combines :has() with an inline-style
-     attribute test. That makes unrelated position writes invalidate a large
-     part of the document. Remove matching rules while this theme is active,
-     then restore them on teardown. */
+  function wrapImportsForThemeLayer(css) {
+    const imports = [];
+    const body = String(css || '').replace(
+      /@import\s+(url\(\s*(?:"[^"]*"|'[^']*'|[^)]*)\s*\)|"[^"]*"|'[^']*')\s*([^;]*);/gi,
+      (_statement, source, qualifiers = '') => {
+        const tail = String(qualifiers).replace(/\blayer(?:\([^)]*\))?/gi, '').trim();
+        imports.push(`@import ${source} layer(st-theme)${tail ? ` ${tail}` : ''};`);
+        return '';
+      },
+    );
+    return `${imports.length ? `${imports.join('\n')}\n` : ''}@layer st-theme {\n${body}\n}`;
+  }
+
+  function wrapCompatibilityCustomStyle(customStyle) {
+    if (!compatibilityMode || destroyed || !customStyle) return;
+    const current = customStyle.textContent || '';
+    if (current === customStyle.__claudeCompatWrappedCss) return;
+    const raw = current;
+    const wrapped = wrapImportsForThemeLayer(raw);
+    customStyle.__claudeCompatRawCss = raw;
+    customStyle.__claudeCompatWrappedCss = wrapped;
+    compatibilityWrappedStyles.add(customStyle);
+    if (current !== wrapped) customStyle.textContent = wrapped;
+  }
+
+  function observeCompatibilityCustomStyle(customStyle) {
+    if (observedCompatibilityCustomStyle === customStyle) return;
+    compatibilityCustomStyleObserver?.disconnect();
+    compatibilityCustomStyleObserver = null;
+    observedCompatibilityCustomStyle = customStyle || null;
+    if (!customStyle) return;
+    compatibilityCustomStyleObserver = new hostWindow.MutationObserver(() => {
+      hostWindow.queueMicrotask(() => wrapCompatibilityCustomStyle(customStyle));
+    });
+    compatibilityCustomStyleObserver.observe(customStyle, { childList: true, characterData: true, subtree: true });
+  }
+
+  function ensureCompatibilityLayers() {
+    if (!compatibilityMode || destroyed || !hostDocument.head) return;
+    let layerOrder = hostDocument.getElementById(LAYER_ORDER_ID);
+    if (!layerOrder) {
+      layerOrder = hostDocument.createElement('style');
+      layerOrder.id = LAYER_ORDER_ID;
+    }
+    /* 2.0.92：不再把外部美化包进 st-theme 层。
+       层叠里有一条反直觉的规则：**未分层的作者样式在普通声明上胜过任何命名层**。
+       酒馆自己的 style.css 就是未分层的，而美化 JSON 的 custom_css 本来也是未分层、
+       且排在 style.css 之后，所以它能正常盖过酒馆默认值。一旦我们把它包进 st-theme，
+       它就掉到 style.css 下面 —— 主题里所有没写 !important 的规则集体失效。
+       雨中曲的 `.mes{padding-top:300px}` 和 `.mes::before{顶部装饰图}` 就是这么没的：
+       实测 .mes 的 padding 是酒馆默认的 14px 12px，::before 的 content 是 normal。
+
+       框架自己留在 cw-frame 层就够用：对 !important 声明，层的优先级是倒过来的，
+       命名层的 !important 胜过未分层的 !important，所以框架照样压得住主题，
+       而主题和酒馆之间的关系回到它本来的样子。 */
+    if (layerOrder.textContent !== '@layer cw-frame;') {
+      layerOrder.textContent = '@layer cw-frame;';
+    }
+    if (hostDocument.head.firstChild !== layerOrder) hostDocument.head.prepend(layerOrder);
+    /* 把旧版本（≤2.0.91）包过的 #custom-style 还原回去。 */
+    unwrapCompatibilityCustomStyle(hostDocument.getElementById('custom-style'));
+  }
+
+  /* 只做还原，不再包装。留着是为了从 2.0.91 及更早版本升上来时，
+     页面里那份已经被包进 st-theme 的 custom_css 能立刻恢复。 */
+  function unwrapCompatibilityCustomStyle(customStyle) {
+    if (!customStyle) return;
+    const text = customStyle.textContent || '';
+    if (!/@layer\s+st-theme\s*\{/.test(text)) return;
+    const raw = typeof customStyle.__claudeCompatRawCss === 'string'
+      ? customStyle.__claudeCompatRawCss
+      : text
+        .replace(/@import\s+([^;]*?)\s+layer\(st-theme\)([^;]*);/gi, (_m, source, tail) => `@import ${source}${tail};`)
+        .replace(/@layer\s+st-theme\s*\{([\s\S]*)\}\s*$/i, '$1');
+    delete customStyle.__claudeCompatRawCss;
+    delete customStyle.__claudeCompatWrappedCss;
+    compatibilityWrappedStyles.delete(customStyle);
+    if (raw !== text) customStyle.textContent = raw;
+  }
+
+  function restoreCompatibilityLayers() {
+    compatibilityCustomStyleObserver?.disconnect();
+    compatibilityCustomStyleObserver = null;
+    observedCompatibilityCustomStyle = null;
+    for (const customStyle of compatibilityWrappedStyles) {
+      if (customStyle?.isConnected && typeof customStyle.__claudeCompatRawCss === 'string'
+        && customStyle.textContent === customStyle.__claudeCompatWrappedCss) {
+        customStyle.textContent = customStyle.__claudeCompatRawCss;
+      }
+      if (customStyle) {
+        delete customStyle.__claudeCompatRawCss;
+        delete customStyle.__claudeCompatWrappedCss;
+      }
+    }
+    compatibilityWrappedStyles.clear();
+    hostDocument.getElementById(LAYER_ORDER_ID)?.remove();
+  }
+
+  function watchCompatibilityLayers() {
+    if (!compatibilityMode || compatibilityStyleOrderObserver) return;
+    ensureCompatibilityLayers();
+    compatibilityStyleOrderObserver = new hostWindow.MutationObserver(() => {
+      hostWindow.queueMicrotask(ensureCompatibilityLayers);
+    });
+    compatibilityStyleOrderObserver.observe(hostDocument.head, { childList: true });
+  }
+
+  /* SillyTavern's delete-mode stylesheet contains a selector shaped like:
+       .last_mes:has(> .del_checkbox[style*="display: block"]) .mes_text
+
+     The checkbox's inline display state makes every unrelated inline-style
+     write enter expensive :has() invalidation. A reversible same-page A/B on
+     a long chat measured roughly 70ms before removal and 2ms after it.
+
+     A same-page scan found three candidate rules and only this host rule
+     contains "[style". Match that CSSOM marker directly: selectorText
+     serialization differs between Chromium/SillyTavern builds, so a regex
+     for the attribute value produced false negatives in 2.0.59. Keep a
+     cssText fallback for rule implementations without selectorText. */
   function isStyleAttributeRule(rule) {
     if (typeof rule?.selectorText === 'string'
       && rule.selectorText.includes(STYLE_ATTRIBUTE_SELECTOR_MARK)) return true;
@@ -881,8 +1169,11 @@ if (CLAUDE_ENABLED) {
     if (!rules) return;
     for (let index = rules.length - 1; index >= 0; index -= 1) {
       const rule = rules[index];
-      /* Chromium exposes an empty cssRules list on ordinary CSSStyleRule
-         objects. Test the selector before descending into nested groups. */
+      /* Chromium now exposes an empty cssRules list on ordinary CSSStyleRule
+         objects as part of CSS nesting support. Checking only for the
+         property's existence therefore misclassified every normal selector
+         as a grouping rule and skipped it in 2.0.59/2.0.60. Test the selector
+         before descending, and recurse only when child rules actually exist. */
       if (isStyleAttributeRule(rule)) {
         const cssText = rule.cssText;
         try {
@@ -895,7 +1186,9 @@ if (CLAUDE_ENABLED) {
       }
       let childRules = null;
       try { childRules = rule.cssRules; } catch { childRules = null; }
-      if (childRules?.length) collectStyleAttributeRules(rule, source, removed);
+      if (childRules?.length) {
+        collectStyleAttributeRules(rule, source, removed);
+      }
     }
   }
 
@@ -907,7 +1200,7 @@ if (CLAUDE_ENABLED) {
     if (!removed.length) return 0;
     neutralizedHostRules.push(...removed);
     console.info(
-      '[Claude Web] Neutralized ' + removed.length + ' high-cost [style] selector(s):',
+      '[Claude Web] 已中和 ' + removed.length + ' 条匹配 style 属性的高开销选择器：',
       removed.map(entry => ({ source: entry.source, rule: entry.cssText })),
     );
     return removed.length;
@@ -1176,10 +1469,36 @@ if (CLAUDE_ENABLED) {
     });
   }
 
+  /* 从完整模式切到兼容模式时，只在当前确实还是 Claude 主题且存在启用前快照时
+     恢复一次。不能复用 restorePreviousTheme() 的无快照兜底：那个兜底会清空
+     custom_css，而兼容模式恰恰要保住用户刚导入的外部美化。 */
+  function releaseClaudeThemeForCompatibility() {
+    const context = getContext();
+    const settings = context?.powerUserSettings;
+    const snapshot = readRestorePoint();
+    if (!settings || !snapshot || !isClaudeThemeName(settings.theme)) return false;
+    const previousName = settings.theme;
+    Object.assign(settings, snapshot);
+    applyCssVariables(settings);
+    applyUiState(settings);
+    syncControls(settings, previousName, false);
+    const themeSelect = findThemeSelect(previousName);
+    const target = String(snapshot.theme ?? '');
+    if (themeSelect instanceof hostWindow.HTMLSelectElement
+      && [...themeSelect.options].some(option => option.value === target)) {
+      themeSelect.value = target;
+      themeSelect.dispatchEvent(new hostWindow.Event('change', { bubbles: true }));
+    }
+    try { hostWindow.localStorage.removeItem(RESTORE_KEY); } catch { /* no-op */ }
+    context.saveSettingsDebounced?.();
+    return true;
+  }
+
   function removeRuntimeArtifacts() {
     try { hostWindow.__claudeClawdInteraction?.destroy?.(); } catch { /* iframe may already be detaching */ }
     hostDocument.getElementById('form_sheld')?.style.removeProperty('--cl-mobile-composer-translate-y');
     hostDocument.getElementById(STYLE_ID)?.remove();
+    hostDocument.getElementById(LAYER_ORDER_ID)?.remove();
     hostDocument.getElementById('claude-clawd-interaction-style')?.remove();
     hostDocument.querySelectorAll(`option.${OPTION_CLASS}`).forEach(option => option.remove());
     hostDocument.querySelectorAll([
@@ -1250,8 +1569,13 @@ if (CLAUDE_ENABLED) {
             try { window.__claudeClawdInteraction && window.__claudeClawdInteraction.destroy && window.__claudeClawdInteraction.destroy(); } catch (_) {}
             var composer = doc.getElementById('form_sheld');
             if (composer) composer.style.removeProperty('--cl-mobile-composer-translate-y');
-            var ids = [styleId, 'claude-clawd-interaction-style'];
+            var ids = [styleId, 'claude-layer-order', 'claude-clawd-interaction-style'];
             ids.forEach(function (id) { var node = doc.getElementById(id); if (node) node.remove(); });
+            var customStyle = doc.getElementById('custom-style');
+            if (customStyle && typeof customStyle.__claudeCompatRawCss === 'string') {
+              customStyle.textContent = customStyle.__claudeCompatRawCss;
+              try { delete customStyle.__claudeCompatRawCss; delete customStyle.__claudeCompatWrappedCss; } catch (_) {}
+            }
             doc.querySelectorAll('option.' + optionClass).forEach(function (node) { node.remove(); });
             doc.querySelectorAll('.clawd-mobile-chrome,.clawd-mobile-scrim,.clawd-mobile-new-chat,.clawd-character-menu,.clawd-character-switcher,.clawd-rail-brand,.clawd-rail-grip,.claude-user-message-actions,.claude-swipe-left-proxy,.claude-swipe-right-proxy,.claude-reroll-button,.clawd-signoff-button').forEach(function (node) { node.remove(); });
             if (body) body.classList.remove('clawd-interactive-ready','claude-generation-active','clawd-mobile-layout','clawd-mobile-menu-open','clawd-tauritavern-host','clawd-welcome','clawd-has-recents');
@@ -1304,8 +1628,14 @@ if (CLAUDE_ENABLED) {
      剩下依赖页面初始化的部分交给用户自己手动刷新一次。 */
   function start(attempt = 0) {
     if (destroyed) return;
+    if (compatibilityMode) ensureCompatibilityLayers();
     installLiveStyle();
     neutralizeStyleAttributeRules();
+    if (compatibilityMode) {
+      releaseClaudeThemeForCompatibility();
+      watchCompatibilityLayers();
+      return;
+    }
     const changed = persistFullTheme();
     if (changed === null && attempt < 12) {
       retryTimer = hostWindow.setTimeout(() => start(attempt + 1), 250);
@@ -1321,6 +1651,9 @@ if (CLAUDE_ENABLED) {
 
   function destroy({ restore = false } = {}) {
     if (destroyed) return;
+    compatibilityStyleOrderObserver?.disconnect();
+    compatibilityStyleOrderObserver = null;
+    restoreCompatibilityLayers();
     destroyed = true;
     if (retryTimer) hostWindow.clearTimeout(retryTimer);
     if (disableCheckTimer) hostWindow.clearTimeout(disableCheckTimer);
@@ -1337,7 +1670,7 @@ if (CLAUDE_ENABLED) {
     restoreStyleAttributeRules();
     removeRuntimeArtifacts();
     if (hostWindow[INSTANCE_KEY] === api) delete hostWindow[INSTANCE_KEY];
-    if (restore) restorePreviousTheme();
+    if (restore && !compatibilityMode) restorePreviousTheme();
   }
 
   function markHostPageUnloading() {
@@ -1369,7 +1702,12 @@ if (CLAUDE_ENABLED) {
     runnerPresenceObserver.observe(hostDocument.body, { childList: true, subtree: true });
   }
 
-  const api = { token: INSTANCE_TOKEN, destroy, apply: persistFullTheme, applyVariant: applyThemeValuesFor };
+  const api = {
+    token: INSTANCE_TOKEN,
+    destroy,
+    apply: compatibilityMode ? () => false : persistFullTheme,
+    applyVariant: compatibilityMode ? () => false : applyThemeValuesFor,
+  };
   hostWindow[INSTANCE_KEY] = api;
   hostWindow.addEventListener('beforeunload', markHostPageUnloading, true);
   hostWindow.addEventListener('pagehide', markHostPageUnloading, true);
@@ -1403,6 +1741,7 @@ if (CLAUDE_ENABLED) {
     : { id: 'dev', mode: 'full' };
   const keyboardBaselineMode = KEYBOARD_BUILD.mode === 'baseline';
   const READY_CLASS = 'clawd-interactive-ready';
+  const frameworkCompatibilityMode = typeof CLAUDE_COMPAT_MODE !== 'undefined' && CLAUDE_COMPAT_MODE;
   const EMPTY_CLASS = 'claude-empty-assistant';
   const GENERATING_CLASS = 'claude-generation-active';
   const BUTTON_CLASS = 'clawd-signoff-button';
@@ -1418,6 +1757,12 @@ if (CLAUDE_ENABLED) {
   const PRESET_REASONING_CLASS = 'claude-has-preset-reasoning';
   const SWIPE_VIEW_CLASS = 'claude-swipe-in-viewport';
   const USER_ACTIONS_CLASS = 'claude-user-message-actions';
+  /* R3「表面自持」在 2.0.86 拆掉了。它存在的理由是属性过滤器把外壳的背景色筛掉了，
+     于是要靠注入一个背板子元素把面板重新填成不透明。生成器改成区域制之后，
+     真正的 background 直接从 day-pc.css 搬过来，背板没有用了。
+     这两个类名保留是为了 destroy() 能清掉旧版本残留在页面上的节点。 */
+  const SURFACE_BACKING_CLASS = 'clawd-surface-backing';
+  const SURFACE_HOST_CLASS = 'clawd-surface-host';
   const USER_EDIT_CLASS = 'claude-user-message-edit';
   const USER_DELETE_CLASS = 'claude-user-message-delete';
   const WELCOME_ASSISTANT_CLASS = 'claude-welcome-clawd-assistant';
@@ -1525,6 +1870,12 @@ if (CLAUDE_ENABLED) {
     Math.round(hostWindow.innerHeight || hostDocument.documentElement.clientHeight || 1),
   );
   let mobileKeyboardRecoveryActive = false;
+  let mobileKeyboardPollTimer = 0;
+  let mobileKeyboardPollSignature = '';
+  let keyboardDiagnostics = null;
+  let diagnosticRefreshPaused = false;
+  let diagnosticIsolationMode = 'standard';
+  const DIAGNOSTIC_COMPOSITOR_STYLE_ID = 'clawd-via-compositor-isolation';
   const AUTOCOMPLETE_RESIZE_GUARD_KEY = '__claudeClawdAutoCompleteResizeGuard';
   const AUTOCOMPLETE_GUARDED_METHODS = [
     'updatePosition',
@@ -1536,11 +1887,41 @@ if (CLAUDE_ENABLED) {
 
   hostWindow[INSTANCE_KEY]?.destroy?.();
 
+  /* 运行时注入的这份交互样式表是兼容模式的第三条越界通道。
+     它不走 _dev/build-compat-css.js，所以生成期那套区域过滤和断言完全管不到它，
+     里面有四十来条 #chat > .mes ... 规则。它们的前提是「完整模式会把酒馆自己的
+     消息控件换成 Claude 的」，可兼容模式按边界不注入任何 Claude 消息控件，
+     于是这些规则只剩下破坏力：2.0.92 的用户消息编辑键消失就是其中一条。
+
+     这里不逐条加守卫，而是在注入前统一改写：凡是选择器能选到消息的，
+     一律加上 html:not([data-claude-mode="compat"])。以后往这份样式表里加规则
+     不需要记得这件事，新规则会自动被挡在兼容模式之外。 */
+  const MESSAGE_SCOPED_SELECTOR = /#chat\s*>|\.mes(?:_|\b)|\.last_mes\b/;
+  const COMPAT_GUARD = 'html:not([data-claude-mode="compat"])';
+
+  function guardMessageRulesForCompatibility(css) {
+    if (!frameworkCompatibilityMode) return String(css);
+    return String(css).replace(/([^{}]+)\{/g, (match, prelude) => {
+      const text = prelude.trim();
+      if (!text || text.startsWith('@')) return match;
+      if (!MESSAGE_SCOPED_SELECTOR.test(text)) return match;
+      const leading = prelude.slice(0, prelude.length - prelude.trimStart().length);
+      const guarded = text.split(',')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(part => (MESSAGE_SCOPED_SELECTOR.test(part) && !part.startsWith(COMPAT_GUARD)
+          ? `${COMPAT_GUARD} ${part}`
+          : part))
+        .join(',\n');
+      return `${leading}${guarded}{`;
+    });
+  }
+
   function installStyle() {
     hostDocument.getElementById(STYLE_ID)?.remove();
     const style = hostDocument.createElement('style');
     style.id = STYLE_ID;
-    style.textContent = `
+    style.textContent = guardMessageRulesForCompatibility(`
       body.${READY_CLASS} #chat > .mes.last_mes[is_user="false"] .mes_text::before,
       body.${READY_CLASS} #chat > .mes[is_user="false"]:last-child .mes_text::before,
       body.${READY_CLASS} #chat > .mes.last_mes[is_user="false"] .mes_text::after,
@@ -1984,10 +2365,15 @@ if (CLAUDE_ENABLED) {
          color-mix。毛玻璃单独开、透传没开的组合不会走到这条规则——它依赖
          透传先开这条既有约束在设置面板里已经保证（见 bgBlur 的 change
          处理器，勾选毛玻璃会连带勾上透传）。 */
-      html {
+      /* 2.0.90：兼容模式必须排除在外。--SmartThemeBlurTintColor 是酒馆自己的
+         变量，外部美化拿它当页面底色用。在 :root 上把它改成 Claude 的
+         --cw-surface-page，等于把整页底色换成 Claude 纸色 —— 雨中曲的正文
+         于是变成「黄色卡片浮在白底上」，中间一条条白带。兼容模式下这个变量
+         归主题。 */
+      html:not([data-claude-mode="compat"]) {
         --SmartThemeBlurTintColor: var(--cw-surface-page) !important;
       }
-      html[data-claude-bg-transparent="on"] {
+      html[data-claude-bg-transparent="on"]:not([data-claude-mode="compat"]) {
         --SmartThemeBlurTintColor: color-mix(in srgb, var(--claude-glass-base, #96968f) var(--claude-drawer-tint-opacity, 18%), transparent) !important;
       }
 
@@ -2060,7 +2446,12 @@ if (CLAUDE_ENABLED) {
         position: relative !important;
       }
 
-      body.${READY_CLASS} #chat > .mes[is_user="true"] .mes_buttons {
+      /* 这条藏的是酒馆自带的用户消息按钮（编辑/删除），前提是完整模式会用
+         .claude-user-message-actions 顶上去。兼容模式按边界不往消息里注入任何
+         Claude 操作按钮，所以这里一藏就等于用户消息没有编辑键了 ——
+         2.0.92 在 MUJI / 天使爱 / 狸猫 / 苹果啵啵 上都是这个症状。
+         兼容模式下必须让酒馆自己的按钮留着。 */
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes[is_user="true"] .mes_buttons {
         display: none !important;
       }
 
@@ -2451,7 +2842,7 @@ if (CLAUDE_ENABLED) {
           translate: 0 0;
         }
       }
-    `;
+    `);
     hostDocument.head.append(style);
     hostDocument.documentElement.style.setProperty('--clawd-signoff-image', `url("${CLAWD_IMAGE}")`);
   }
@@ -3633,6 +4024,23 @@ if (CLAUDE_ENABLED) {
     virtualKeyboardOverlayCaptured = false;
   }
 
+  /* 这个元素获得焦点时，安卓/iOS 会弹软键盘吗？
+     `<input>` 里只有文本类会弹；button / checkbox / radio / range / color / file
+     / submit / reset / image 都不弹。type 缺省视作 text（HTML 规范如此）。 */
+  const NON_TYPING_INPUT_TYPES = new Set([
+    'button', 'submit', 'reset', 'checkbox', 'radio', 'range',
+    'color', 'file', 'image', 'hidden',
+  ]);
+
+  function isSoftKeyboardTarget(element) {
+    if (!element || element.nodeType !== 1) return false;
+    if (element.isContentEditable) return true;
+    const tag = element.tagName;
+    if (tag === 'TEXTAREA') return true;
+    if (tag !== 'INPUT') return false;
+    return !NON_TYPING_INPUT_TYPES.has(String(element.type || 'text').toLowerCase());
+  }
+
   function applyMobileViewportMetrics() {
     const root = hostDocument.documentElement;
     if (!isMobileLayout()) {
@@ -3644,7 +4052,19 @@ if (CLAUDE_ENABLED) {
     if (keyboardBaselineMode) return;
     // 键盘开合时根节点指标保持在键盘出现前的稳定值；输入框另走 transform。
     // 否则一次普通 DOM refresh 也会把整棵重卡拖进根变量的样式失效范围。
-    if (hostDocument.activeElement?.id === 'send_textarea') return;
+    //
+    // 2.0.107：这条守卫原来只认 `#send_textarea`，也就是只把「聊天输入框」当成
+    // 会唤起软键盘的东西。但酒馆自己的面板里到处是输入框 —— 用户点开预设条目的
+    // 编辑弹窗、光标落进里面的 textarea，activeElement 不是 #send_textarea，
+    // 守卫不触发，于是 --cl-mobile-viewport-height 被写成「键盘占掉一半之后」的
+    // 可视视口高度。而这条变量喂给了 .drawer-content.openDrawer 的 height，
+    // 弹窗就当场被压成一小块，后面的预设列表从下面露出来（社区报的那个 bug）。
+    // 酒馆原版不受影响，因为它根本不用这个变量，键盘一起来页面正常滚动。
+    //
+    // 判据换成「当前焦点是不是一个会唤起软键盘的可输入元素」。不含 button /
+    // checkbox / range 这类：它们不弹键盘，焦点落上去时冻结指标反而会让
+    // 真实的旋转、分屏之类的视口变化更新不及时。
+    if (isSoftKeyboardTarget(hostDocument.activeElement)) return;
     /* 收键盘的收尾窗口内同样一个字也不写。根节点自定义属性继承到整篇 DOM，
        写一次就是一次全文档 style 失效重算；兜底定时器（300/900/2000/5000ms）
        若在键盘动画中途写入中间值，重卡上每次全文档 recalc 都是数百毫秒起，
@@ -3787,6 +4207,42 @@ if (CLAUDE_ENABLED) {
       Math.round(viewport?.height || 0),
       Math.round(viewport?.offsetTop || 0),
     ].join('|');
+  }
+
+  /* Via 按系统返回键收起软键盘时，textarea 仍然保持 focus，而且部分版本会漏掉
+     visualViewport 的最后一次 resize/scroll 事件。事件漏掉后，输入框就会永久
+     保留上一次的负 translate，正是“键盘关了但输入框悬在页面中段”的现场。
+
+     只在手机输入框保持焦点时低频读取四个纯数值；几何没变化时不排 rAF、不写
+     DOM。这样即使 Via 漏事件，也能在视口数值恢复后撤销旧位移。不能在检测到
+     键盘关闭后停掉：Android 返回键不会 blur，用户再次点同一个已聚焦输入框时
+     也可能没有新的 focusin。 */
+  function stopMobileKeyboardPoll() {
+    if (mobileKeyboardPollTimer) hostWindow.clearInterval(mobileKeyboardPollTimer);
+    mobileKeyboardPollTimer = 0;
+    mobileKeyboardPollSignature = '';
+  }
+
+  function pollMobileKeyboardGeometry() {
+    if (destroyed || !isMobileLayout()
+      || hostDocument.activeElement?.id !== 'send_textarea') {
+      stopMobileKeyboardPoll();
+      return;
+    }
+    const signature = mobileViewportSignature();
+    if (signature === mobileKeyboardPollSignature) return;
+    mobileKeyboardPollSignature = signature;
+    scheduleMobileComposerTranslate();
+  }
+
+  function startMobileKeyboardPoll() {
+    if (keyboardBaselineMode || virtualKeyboardOverlayActive || !isMobileLayout()
+      || hostDocument.activeElement?.id !== 'send_textarea') return;
+    mobileKeyboardPollSignature = mobileViewportSignature();
+    if (!mobileKeyboardPollTimer) {
+      mobileKeyboardPollTimer = hostWindow.setInterval(pollMobileKeyboardGeometry, 300);
+    }
+    scheduleMobileComposerTranslate();
   }
 
   function endMobileKeyboardSettling() {
@@ -4263,6 +4719,15 @@ if (CLAUDE_ENABLED) {
           ? context.getThumbnailUrl('avatar', character.avatar)
           : '',
         dateText: String(record?.last_mes ?? ''),
+        /* 正文预览。服务端的 recent-chats 记录里本来就带最后一条消息，
+           酒馆自己的欢迎页也是拿它显示的 —— 之前这一行没被渲染出来，
+           不是数据没有。去掉标签、把空白压成一个空格，截断交给 CSS。 */
+        preview: String(record?.mes ?? record?.preview_message ?? '')
+          .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160),
+        /* 句数。服务端 recent-chats 记录里字段名在不同版本叫过 chat_items /
+           message_count，都取不到就留空 —— 列表行里那一段直接不显示，
+           不编一个数出来。 */
+        count: Number(record?.chat_items ?? record?.message_count ?? NaN),
         pinned: Object.prototype.hasOwnProperty.call(pinned, pinnedKeyFor(record)),
       });
     }
@@ -4281,6 +4746,13 @@ if (CLAUDE_ENABLED) {
       const parsed = Date.parse(text);
       return Number.isFinite(parsed) ? parsed : 0;
     };
+    /* 幕号：**一个存档就是一幕**，最旧的那个是 Act I，往后依次递增。
+       必须在 pinned 排序之前按时间单独算一遍 —— 幕号是这个存档的固有编号，
+       置顶只改它在列表里的位置，不能把它的幕号一起改掉。
+       右栏幕次表用的是同一套编号（见 fillAsideChats）。 */
+    const byAge = entries.slice().sort((a, b) => timeOf(a.dateText) - timeOf(b.dateText));
+    byAge.forEach((entry, i) => { entry.actNo = i + 1; });
+
     entries.sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       const diff = timeOf(b.dateText) - timeOf(a.dateText);
@@ -4307,6 +4779,18 @@ if (CLAUDE_ENABLED) {
     if (pinnedDrawer) holder.insertBefore(slot, pinnedDrawer);
     else holder.append(slot);
     return slot;
+  }
+
+  function recentActRoman(value) {
+    let number = Math.max(1, Math.floor(Number(value) || 1));
+    let result = '';
+    for (const [unit, roman] of [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]) {
+      while (number >= unit) {
+        result += roman;
+        number -= unit;
+      }
+    }
+    return result || 'I';
   }
 
   function buildRecentRow(entry) {
@@ -4358,6 +4842,24 @@ if (CLAUDE_ENABLED) {
     date.className = 'chatDate';
     date.textContent = entry.dateText;
 
+    /* 预览行。没有内容就不建节点 —— 建一个空的会在行里占出一条空白，
+       列表看起来忽高忽低。 */
+    let preview = null;
+    if (entry.preview) {
+      preview = hostDocument.createElement('div');
+      preview.className = 'chatPreview';
+      preview.textContent = entry.preview;
+    }
+
+    
+    const meta = hostDocument.createElement('div');
+    meta.className = 'chatMeta';
+    meta.textContent = [
+      entry.name,
+      Number.isFinite(entry.actNo) ? '第 ' + recentActRoman(entry.actNo) + ' 幕' : '',
+      Number.isFinite(entry.count) && entry.count > 0 ? entry.count + ' 句' : '',
+    ].filter(Boolean).join(' · ');
+
     const actions = hostDocument.createElement('div');
     actions.className = 'chatActions';
     const del = hostDocument.createElement('button');
@@ -4367,7 +4869,8 @@ if (CLAUDE_ENABLED) {
     del.innerHTML = '<i class="fa-solid fa-trash fa-fw"></i>';
     actions.append(del);
 
-    nameContainer.append(nameLine, date, actions);
+    nameContainer.append(nameLine, date, actions, meta);
+    if (preview) nameContainer.append(preview);
     info.append(nameContainer);
     row.append(avatar, info);
     return row;
@@ -5765,6 +6268,17 @@ if (CLAUDE_ENABLED) {
     if (!holder) return;
     holder.querySelectorAll(':scope > .drawer > .drawer-toggle').forEach(toggle => {
       const icon = toggle.querySelector('.drawer-icon') ?? toggle;
+      if (frameworkCompatibilityMode && icon instanceof hostWindow.HTMLElement) {
+        const style = hostWindow.getComputedStyle(icon);
+        const before = hostWindow.getComputedStyle(icon, '::before');
+        const imageValues = [style, before].flatMap(layer => [
+          layer.backgroundImage,
+          layer.maskImage,
+          layer.getPropertyValue('-webkit-mask-image'),
+        ]);
+        const hasExternalPaint = imageValues.some(value => value && value !== 'none');
+        icon.classList.toggle('clawd-external-icon', hasExternalPaint);
+      }
       if (toggle.querySelector(':scope > .clawd-rail-label')) return;
       const raw = (icon.getAttribute('title') || toggle.getAttribute('title') || '').trim();
       if (!raw) return;
@@ -5845,7 +6359,9 @@ if (CLAUDE_ENABLED) {
   }
   let lastMouseMoveAt = Date.now();
   function handleLook(event) {
-    /* Do not run eye tracking while another control or panel is being dragged. */
+    /* A pressed mouse button means the pointer is dragging or resizing. Eye
+       tracking used to read every Clawd button's layout on every drag frame,
+       competing directly with third-party movable panels. */
     if (event.buttons) return;
     lookX = event.clientX;
     lookY = event.clientY;
@@ -5950,6 +6466,7 @@ if (CLAUDE_ENABLED) {
       mobileKeyboardRecoveryActive = false;
     }
     scheduleMobileViewportSettle();
+    startMobileKeyboardPoll();
     syncCcComposerState(true);
     /* 手机上聚焦输入框时不要触碰历史消息里的 Clawd 按钮。旧逻辑会给每一层
        按钮改 class，并逐个读取 offsetWidth 强制同步排版；重角色卡/长聊天因此
@@ -5977,6 +6494,7 @@ if (CLAUDE_ENABLED) {
       /* schedule 先打开恢复窗口，reset 再同步计算正向高度补偿；顺序不能反。
          用户停留在输入框超过 840ms 时，反过来会把矮视口误记成新的稳定高度。 */
       mobileKeyboardRecoveryActive = !virtualKeyboardOverlayActive && !keyboardBaselineMode;
+      stopMobileKeyboardPoll();
       resetMobileComposerTranslate();
       return;
     }
@@ -6542,9 +7060,10 @@ if (CLAUDE_ENABLED) {
     }
   }
 
-  /* 刷新自己会改 DOM，而观察器盯着整个 body 的 class / style。
-     不掐断的话每次刷新都会把自己再排进下一轮，空闲时也在 20Hz 空转。
-     刷新期间断开，结束前把这段时间攒下的记录丢掉再接回去。 */
+  /* Structural changes can occur anywhere, but high-frequency class/style
+     changes outside #chat must never enter the attribute observer. Filtering
+     after delivery is too late for panels that write position styles more than
+     one thousand times per second. */
   const BODY_OBSERVER_INIT = {
     subtree: true,
     childList: true,
@@ -6606,11 +7125,13 @@ if (CLAUDE_ENABLED) {
     '.clawd-mobile-new-chat',
     '.clawd-character-menu',
     '.clawd-character-switcher',
+    '.clawd-keyboard-diagnostics',
     '.clawd-rail-brand',
     '.clawd-rail-label',
     '.clawd-rail-grip',
     '.clawd-welcome-hero',
     '.clawd-welcome-shortcuts',
+    `.${SURFACE_BACKING_CLASS}`,
     /* 生成计时器是扩展自己创建、自己每 100ms 改一次文本的元素，
        但它一直漏在这份"我的元素"名单外面。后果：每跳一秒，它自己写出来的
        childList 记录都被当成"酒馆那边的外部改动"，换来一整轮全量刷新。
@@ -6709,8 +7230,9 @@ if (CLAUDE_ENABLED) {
        整个 #completion_prompt_manager 子树直接不参与刷新判断。 */
     if (target.closest('#completion_prompt_manager')) return false;
 
-    /* Floating panels can write inline position styles on every pointer move.
-       Outside #chat these writes cannot affect message decoration. */
+    /* Third-party floating panels update inline position styles on every pointer
+       move. Outside #chat those writes cannot affect message decoration, so do
+       not trade a compositor-only drag for another whole-chat refresh. */
     if (externalStyleMutationIsIrrelevant(record, target)) {
       refreshStats.externalStyleRecordsIgnored += 1;
       return false;
@@ -6756,6 +7278,19 @@ if (CLAUDE_ENABLED) {
 
   let refreshing = false;
   let dirtyWhileRefreshing = false;
+
+  /* 只负责清扫：把 2.0.85 及更早版本留在页面上的背板节点摘掉。
+     不再注入任何新的背板 —— 外壳的不透明由 compat-*.css 里真实的 background 负责。
+     3.2「抽屉面板底部透明」就是背板 position:absolute 装在滚动容器里的产物，
+     背板拆掉之后那条自然消失。 */
+  function refreshCompatibilitySurfaceBackings() {
+    const staleHosts = hostDocument.querySelectorAll(`.${SURFACE_HOST_CLASS}`);
+    if (!staleHosts.length) return;
+    staleHosts.forEach(host => {
+      host.classList.remove(SURFACE_HOST_CLASS);
+      host.querySelector(`:scope > .${SURFACE_BACKING_CLASS}`)?.remove();
+    });
+  }
 
   /* 5.11 第一版在这里 disconnect / observe，那是错的：
      disconnect 会清空记录队列，断开期间酒馆自己的改动一条都收不到。
@@ -6832,17 +7367,49 @@ if (CLAUDE_ENABLED) {
     }
     previousTypingActive = typingActive;
     hostDocument.body.classList.toggle(GENERATING_CLASS, typingActive);
+    refreshCompatibilitySurfaceBackings();
     refreshTypingInteractions(typingActive, generationJustEnded);
     applyMobileViewportMetrics();
     refreshMobileComposerInset();
-    preserveStreamingReasoning(typingActive);
+    if (!frameworkCompatibilityMode) preserveStreamingReasoning(typingActive);
     if (continuingGeneration) {
       refreshComposerPhrase(true);
       return;
     }
+    refreshComposerPhrase(typingActive);
+    /* 框架兼容模式不能装饰消息 DOM。外部美化常用 .mes/.mes_block/.mes_text
+       的定位和伪元素拼整张卡片；插入落款、操作键或 reasoning class 会把
+       坐标系拆开。欢迎态本身仍归 Claude Web，所以只读取现有消息来判断
+       welcome/chat，不调用会给消息加 class 的 refreshMessageStates()。 */
+    if (frameworkCompatibilityMode) {
+      const welcomeMessages = [...hostDocument.querySelectorAll('#chat > .mes[is_user="false"]')];
+      refreshWelcomeMode(welcomeMessages);
+      refreshCompatibilitySurfaceBackings();
+      if (generationJustEnded) {
+        recentSignature = null;
+        refreshRailRecents({ force: true });
+      }
+      refreshRailBrand();
+      refreshPcTopActions();
+      refreshRailLabels();
+      watchChatDeleted();
+      refreshRailRecents();
+      refreshWelcomeShortcuts();
+      refreshCharacterSwitcher();
+      /* 2.0.101：这两行以前只写在下面的完整模式路径里，被上面那个 return 挡住。
+         2.0.98 之前兼容模式只在桌面成立（CLAUDE_COMPAT_MODE 里带着 layout==='pc'），
+         这条分支不用管手机；2.0.99 让手机进了兼容模式，却只改了 CLAUDE_FEATURES，
+         没回头补这里。结果是兼容样式表照着「手机外壳归框架」把顶栏清空、抽屉滑出
+         屏幕，而开抽屉的汉堡从来没被建出来 —— 整个界面没有任何导航入口。
+         两个函数自带 mobileEnabled / narrow 守卫，桌面兼容模式下会自己返回。 */
+      refreshMobileChrome();
+      refreshMobileNewChat();
+      refreshRailUser();
+      refreshRailGrip();
+      return;
+    }
     refreshEmbeddedSurfaces();
     refreshWelcomeAssistants();
-    refreshComposerPhrase(typingActive);
     refreshCodeBars();
     collapseReasoning();
     expandReasoningWhileEditing();
@@ -6915,7 +7482,7 @@ if (CLAUDE_ENABLED) {
   const MOBILE_GENERATION_REFRESH_MIN_GAP = 140;
 
   function scheduleRefresh() {
-    if (destroyed || frameId || throttleTimer) return;
+    if (destroyed || diagnosticRefreshPaused || frameId || throttleTimer) return;
     const minGap = isMobileLayout() && previousTypingActive
       ? MOBILE_GENERATION_REFRESH_MIN_GAP
       : REFRESH_MIN_GAP;
@@ -6927,7 +7494,21 @@ if (CLAUDE_ENABLED) {
       }, wait);
       return;
     }
+    if (hostDocument.hidden) {
+      throttleTimer = hostWindow.setTimeout(() => {
+        throttleTimer = 0;
+        refreshClawd();
+      }, minGap);
+      return;
+    }
     frameId = hostWindow.requestAnimationFrame(refreshClawd);
+  }
+
+  function recoverStalledFrame() {
+    if (destroyed || hostDocument.hidden || !frameId) return;
+    hostWindow.cancelAnimationFrame(frameId);
+    frameId = 0;
+    scheduleRefresh();
   }
 
   /* ===== 抽屉状态守卫 =====
@@ -7201,10 +7782,94 @@ if (CLAUDE_ENABLED) {
     hostDocument.addEventListener('keydown', noteActivity, { passive: true });
     hostDocument.addEventListener('input', handleComposerInput, true);
     hostDocument.addEventListener('visibilitychange', noteCcVisibility, { passive: true });
+    hostDocument.addEventListener('visibilitychange', recoverStalledFrame, { passive: true });
     hostDocument.addEventListener('focusin', handleFocusIn, true);
     hostDocument.addEventListener('focusout', handleFocusOut, true);
     hostWindow.visualViewport?.addEventListener('resize', handleViewportChange, { passive: true });
     hostWindow.visualViewport?.addEventListener('scroll', handleViewportChange, { passive: true });
+    keyboardDiagnostics = !CLAUDE_KBD_DIAG_ENABLED ? null : installKeyboardDiagnostics({
+      window: hostWindow,
+      document: hostDocument,
+      buildId: KEYBOARD_BUILD.id,
+      isMobileLayout,
+      getRuntimeState: () => ({
+        virtualKeyboardOverlayActive,
+        mobileKeyboardRecoveryActive,
+        mobileKeyboardSettlingUntil,
+        mobileKeyboardSettling: Date.now() < mobileKeyboardSettlingUntil,
+        mobileKeyboardPollRunning: Boolean(mobileKeyboardPollTimer),
+        keyboardBaselineMode,
+        diagnosticRefreshPaused,
+        diagnosticIsolationMode,
+        diagnosticCompositorIsolationActive: Boolean(
+          hostDocument.getElementById(DIAGNOSTIC_COMPOSITOR_STYLE_ID),
+        ),
+        autoCompleteGuard: {
+          installed: Boolean(autoCompleteResizeGuard?.installed),
+          reason: autoCompleteResizeGuard?.reason || 'not-installed',
+        },
+        refreshStats: {
+          refreshes: refreshStats.refreshes,
+          totalMs: +refreshStats.totalMs.toFixed(3),
+          maxMs: +refreshStats.maxMs.toFixed(3),
+          lastMs: +refreshStats.lastMs.toFixed(3),
+          recordsSeen: refreshStats.recordsSeen,
+          recordsPassedFilter: refreshStats.recordsPassedFilter,
+          selfRecordsDropped: refreshStats.selfRecordsDropped,
+          externalStyleRecordsIgnored: refreshStats.externalStyleRecordsIgnored,
+        },
+      }),
+      setIsolationMode: mode => {
+        diagnosticIsolationMode = ['refresh', 'root', 'composer', 'compositor'].includes(mode)
+          ? mode
+          : 'standard';
+        diagnosticRefreshPaused = diagnosticIsolationMode === 'refresh';
+        hostDocument.getElementById(DIAGNOSTIC_COMPOSITOR_STYLE_ID)?.remove();
+        if (['root', 'composer', 'compositor'].includes(diagnosticIsolationMode)) {
+          const isolationStyle = hostDocument.createElement('style');
+          isolationStyle.id = DIAGNOSTIC_COMPOSITOR_STYLE_ID;
+          isolationStyle.textContent = diagnosticIsolationMode === 'root'
+            ? `
+            html {
+              transform: none !important;
+              perspective: none !important;
+            }
+          `
+            : diagnosticIsolationMode === 'composer'
+              ? `
+            html body #form_sheld {
+              will-change: auto !important;
+            }
+          `
+              : `
+            html,
+            html body {
+              transform: none !important;
+              perspective: none !important;
+              filter: none !important;
+              -webkit-filter: none !important;
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+              contain: none !important;
+              will-change: auto !important;
+            }
+            html body #form_sheld {
+              will-change: auto !important;
+            }
+          `;
+          hostDocument.head.append(isolationStyle);
+        }
+        if (diagnosticRefreshPaused) {
+          if (frameId) hostWindow.cancelAnimationFrame(frameId);
+          frameId = 0;
+          if (throttleTimer) hostWindow.clearTimeout(throttleTimer);
+          throttleTimer = 0;
+        } else {
+          scheduleRefresh();
+        }
+      },
+    });
+    startMobileKeyboardPoll();
     scheduleRefresh();
   }
 
@@ -7221,6 +7886,8 @@ if (CLAUDE_ENABLED) {
     reconcileTimer = 0;
     if (destroyed) return;
     destroyed = true;
+    hostDocument.querySelectorAll(`.${SURFACE_HOST_CLASS}`).forEach(host => host.classList.remove(SURFACE_HOST_CLASS));
+    hostDocument.querySelectorAll(`.${SURFACE_BACKING_CLASS}`).forEach(backing => backing.remove());
     restoreAutoCompleteResizeGuard();
     observer?.disconnect();
     chatAttributeObserver?.disconnect();
@@ -7281,7 +7948,13 @@ if (CLAUDE_ENABLED) {
     clearMobileViewportSettleTimers();
     mobileKeyboardSettlingUntil = 0;
     mobileKeyboardRecoveryActive = false;
+    stopMobileKeyboardPoll();
     stopKeyboardTrace();
+    keyboardDiagnostics?.destroy?.();
+    keyboardDiagnostics = null;
+    diagnosticRefreshPaused = false;
+    diagnosticIsolationMode = 'standard';
+    hostDocument.getElementById(DIAGNOSTIC_COMPOSITOR_STYLE_ID)?.remove();
     restoreVirtualKeyboardOverlay();
     hostDocument.querySelectorAll('.' + RAIL_BRAND_CLASS).forEach(brand => brand.remove());
     hostDocument.querySelectorAll('.' + PC_TOP_ACTIONS_CLASS).forEach(actions => actions.remove());
@@ -7293,9 +7966,13 @@ if (CLAUDE_ENABLED) {
     hostDocument.removeEventListener('keydown', noteActivity);
     hostDocument.removeEventListener('input', handleComposerInput, true);
     hostDocument.removeEventListener('visibilitychange', noteCcVisibility);
+    hostDocument.removeEventListener('visibilitychange', recoverStalledFrame);
     hostDocument.removeEventListener('focusin', handleFocusIn, true);
     hostDocument.removeEventListener('focusout', handleFocusOut, true);
-    if (throttleTimer) hostWindow.clearTimeout(throttleTimer);
+    if (throttleTimer) {
+      hostWindow.clearTimeout(throttleTimer);
+      throttleTimer = 0;
+    }
     if (ccComboTimer) hostWindow.clearTimeout(ccComboTimer);
     /* ccPoseTimers 是按钮各自持有的 WeakMap，按钮节点被上面的清理/卸载
        带走后计时器引用也跟着失效，不需要（也没法）在这里统一遍历清除。 */
@@ -7317,7 +7994,10 @@ if (CLAUDE_ENABLED) {
     if (viewportSettleTimer) hostWindow.clearTimeout(viewportSettleTimer);
     viewportSettleTimer = 0;
     scrollHost = null;
-    if (frameId) hostWindow.cancelAnimationFrame(frameId);
+    if (frameId) {
+      hostWindow.cancelAnimationFrame(frameId);
+      frameId = 0;
+    }
     emptyTimers.forEach(timer => hostWindow.clearTimeout(timer));
     emptyTimers.clear();
     dirtyMessages.clear();
@@ -7423,6 +8103,7 @@ if (CLAUDE_ENABLED) {
       visualTop: hostWindow.visualViewport?.offsetTop ?? null,
       translate: hostDocument.querySelector('#form_sheld')?.style
         .getPropertyValue(MOBILE_COMPOSER_TRANSLATE_PROPERTY) || '',
+      polling: Boolean(mobileKeyboardPollTimer),
     }),
     autoCompleteGuardStats: () => ({
       installed: Boolean(autoCompleteResizeGuard?.installed),
@@ -7476,8 +8157,9 @@ if (CLAUDE_ENABLED) {
     { value: 'system', label: '跟随手机系统' },
     { value: 'time', label: '按时间自动切换' },
   ];
+  
   const FONTS = [
-    { value: 'follow', label: '跟随风格（默认）' },
+    { value: 'follow', label: '跟风格（默认）' },
     { value: 'songti', label: '思源宋（正文衬线）' },
     { value: 'heiti',  label: '思源黑（全站黑体）' },
     { value: 'system', label: '系统无衬线（不加载网络字体）' },
@@ -7485,7 +8167,8 @@ if (CLAUDE_ENABLED) {
     { value: 'custom', label: '自定义（下方填写）' },
     { value: 'native', label: '关掉（用酒馆原生字体）' },
   ];
-  const FONT_VALUES = FONTS.map(font => font.value);
+  const FONT_VALUES = FONTS.map(f => f.value);
+
   const LAYOUTS = [
     { value: 'auto', label: '自动（跨 700px 自动切换）' },
     { value: 'pc', label: '桌面' },
@@ -7596,7 +8279,16 @@ if (CLAUDE_ENABLED) {
     const base = typeof CLAUDE_EXTENSION_BASE !== 'undefined'
       ? CLAUDE_EXTENSION_BASE
       : new URL('.', import.meta.url).href;
-    const styleUrl = new URL(`styles/${variant}-${layout}.css`, base);
+    /* 兼容模式的样式表是 compat-<明暗>.css，不分 pc/mobile。
+       2.0.87 漏了这条：面板里切明暗会去请求 styles/night-pc.css，
+       等于把完整模式的样式表塞进兼容模式，所以看起来"切了没反应"。 */
+    const compatNow = read('mode', ['full', 'compat'], 'full') === 'compat';
+    const styleUrl = new URL(
+      compatNow
+        ? `styles/compat-${layout === 'mobile' ? 'mobile-' : ''}${variant}.css`
+        : `styles/${variant}-${layout}.css`,
+      base,
+    );
     styleUrl.searchParams.set(
       'v',
       typeof CLAUDE_KEYBOARD_BUILD !== 'undefined' ? CLAUDE_KEYBOARD_BUILD.id : 'live',
@@ -7647,6 +8339,7 @@ if (CLAUDE_ENABLED) {
       <style>
         /* 主题自己那 2400 多处 !important 会把按钮压成窄条，文字于是竖着排。
            这里用 id 提高特异性把它抢回来。 */
+        #${PANEL_ID}, #${PANEL_ID} * { box-sizing:border-box; }
         #${PANEL_ID} .menu_button {
           display:inline-flex !important;
           align-items:center !important;
@@ -7692,6 +8385,69 @@ if (CLAUDE_ENABLED) {
         #${PANEL_ID} .claude-web-swatch span {
           overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
         }
+        #${PANEL_ID} .claude-web-master {
+          display:flex !important; align-items:center; gap:7px;
+          margin:0 !important; padding:10px 11px;
+          border:1px solid color-mix(in srgb,currentColor 16%,transparent);
+          border-radius:10px;
+        }
+        #${PANEL_ID} .claude-web-master input { flex:0 0 auto; }
+        #${PANEL_ID} .claude-web-sections {
+          display:grid; gap:7px; margin-top:10px;
+        }
+        #${PANEL_ID} .claude-web-section {
+          margin:0; border:1px solid color-mix(in srgb,currentColor 14%,transparent);
+          border-radius:10px; overflow:hidden;
+          background:color-mix(in srgb,currentColor 2.5%,transparent);
+        }
+        #${PANEL_ID} .claude-web-section > summary {
+          display:flex; align-items:center; gap:8px;
+          min-height:38px; padding:8px 10px; cursor:pointer; user-select:none;
+          list-style:none; font-weight:600;
+        }
+        #${PANEL_ID} .claude-web-section > summary::-webkit-details-marker { display:none; }
+        #${PANEL_ID} .claude-web-section > summary::after {
+          content:"\\f078"; flex:0 0 auto; margin-left:2px;
+          font-family:"Font Awesome 6 Free","Font Awesome 5 Free" !important;
+          font-weight:900; font-size:.72em; opacity:.55;
+          transition:transform .16s ease;
+        }
+        #${PANEL_ID} .claude-web-section[open] > summary::after { transform:rotate(180deg); }
+        #${PANEL_ID} .claude-web-section-summary {
+          flex:1 1 auto; min-width:0; overflow:hidden;
+          color:inherit; font-size:.84em; font-weight:400; opacity:.62;
+          text-align:right; text-overflow:ellipsis; white-space:nowrap;
+        }
+        #${PANEL_ID} .claude-web-section-body {
+          padding:10px; border-top:1px solid color-mix(in srgb,currentColor 11%,transparent);
+        }
+        #${PANEL_ID} .claude-web-field + .claude-web-field { margin-top:9px; }
+        #${PANEL_ID} .claude-web-check {
+          display:flex !important; align-items:center; gap:7px; margin:0 !important;
+          min-height:28px;
+        }
+        #${PANEL_ID} .claude-web-check + .claude-web-check { margin-top:3px !important; }
+        #${PANEL_ID} .claude-web-suboptions {
+          margin:6px 0 0 22px; padding-left:9px;
+          border-left:2px solid color-mix(in srgb,currentColor 13%,transparent);
+        }
+        #${PANEL_ID} .claude-web-range {
+          display:grid; grid-template-columns:auto minmax(70px,1fr) 3em;
+          align-items:center; gap:8px; margin-top:7px;
+        }
+        #${PANEL_ID} .claude-web-range > span:first-child {
+          font-size:.9em; opacity:.75; white-space:nowrap;
+        }
+        #${PANEL_ID} .claude-web-range > span:last-child {
+          width:3em; font-size:.9em; opacity:.75; text-align:right;
+        }
+        #${PANEL_ID} .claude-web-help {
+          margin-top:5px; font-size:.85em; opacity:.62; line-height:1.5;
+        }
+        #${PANEL_ID} .claude-web-actions {
+          display:flex; gap:6px; flex-wrap:wrap; margin-top:7px;
+        }
+        #${PANEL_ID} [hidden] { display:none !important; }
       </style>
       <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
@@ -7699,123 +8455,177 @@ if (CLAUDE_ENABLED) {
           <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <label class="checkbox_label claude-web-master">
             <input id="claude-web-enabled" type="checkbox">
             <span><b>启用 Claude Web</b></span>
           </label>
           <div id="claude-web-enabled-hint"
-               style="margin:-6px 0 10px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
+               style="margin:6px 2px 0;font-size:0.9em;opacity:.75;line-height:1.5"></div>
 
-          <label for="claude-web-preset">风格</label>
-          <select id="claude-web-preset" class="text_pole"></select>
+          <div class="claude-web-sections">
+            <details class="claude-web-section" id="claude-web-section-appearance" open>
+              <summary>
+                <span>外观</span>
+                <span class="claude-web-section-summary" id="claude-web-summary-appearance"></span>
+              </summary>
+              <div class="claude-web-section-body">
+                <div class="claude-web-field">
+                  <label for="claude-web-mode"><b>运行模式</b></label>
+                  <select id="claude-web-mode" class="text_pole">
+                    <option value="full">完整美化（Claude Web 接管界面）</option>
+                    <option value="compat">框架兼容（Claude 外壳 + 当前美化内容）</option>
+                  </select>
+                  <div id="claude-web-mode-hint" class="claude-web-help"></div>
+                </div>
 
-          <details id="claude-web-colors" style="margin-top:8px">
-            <summary style="cursor:pointer;user-select:none;opacity:.85">自定义配色</summary>
-            <div id="claude-web-swatches" class="claude-web-swatches"></div>
-            <div style="margin-top:6px;font-size:0.85em;opacity:.6;line-height:1.5">
-              改动存进「我的配色」，日间和夜间各存一套。其余颜色（线条、阴影、代码块等）自动推导。
-            </div>
-          </details>
+                <div id="claude-web-full-appearance" class="claude-web-field">
+                <div class="claude-web-field">
+                  <label for="claude-web-preset">Claude 风格预设</label>
+                  <select id="claude-web-preset" class="text_pole"></select>
+                </div>
 
-          <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-            <button id="claude-web-export" class="menu_button">导出</button>
-            <button id="claude-web-import" class="menu_button">导入</button>
-            <button id="claude-web-reset" class="menu_button">清除自定义</button>
+                <div class="claude-web-field claude-web-auto-theme">
+                  <label for="claude-web-theme-auto"><b>主题切换</b></label>
+                  <select id="claude-web-theme-auto" class="text_pole"></select>
+                  <div id="claude-web-auto-times" class="claude-web-auto-times" hidden>
+                    <label>日间开始<input id="claude-web-day-start" type="time" class="text_pole" value="07:00"></label>
+                    <label>夜间开始<input id="claude-web-night-start" type="time" class="text_pole" value="19:00"></label>
+                  </div>
+                  <div id="claude-web-auto-hint" class="claude-web-help"></div>
+                </div>
+
+                <div class="claude-web-field">
+                  <label for="claude-web-variant">当前明暗</label>
+                  <select id="claude-web-variant" class="text_pole"></select>
+                </div>
+
+                <div class="claude-web-field">
+                  <label for="claude-web-font">字体</label>
+                  <select id="claude-web-font" class="text_pole"></select>
+                  <input id="claude-web-font-custom" class="text_pole" style="margin-top:6px;display:none"
+                         placeholder='自定义 font-family，例如："LXGW WenKai", serif'>
+                </div>
+
+                <details id="claude-web-colors" class="claude-web-field">
+                  <summary style="cursor:pointer;user-select:none;opacity:.85">自定义配色</summary>
+                  <div id="claude-web-swatches" class="claude-web-swatches"></div>
+                  <div class="claude-web-help">改动存进「我的配色」，日间和夜间各存一套，其余颜色自动推导。</div>
+                </details>
+
+                <div class="claude-web-actions">
+                  <button id="claude-web-export" class="menu_button">导出</button>
+                  <button id="claude-web-import" class="menu_button">导入</button>
+                  <button id="claude-web-reset" class="menu_button">清除自定义</button>
+                </div>
+                <input id="claude-web-import-file" type="file" accept="application/json,.json" style="display:none">
+                <div id="claude-web-preset-hint" class="claude-web-help"></div>
+                </div>
+              </div>
+            </details>
+
+            <details class="claude-web-section" id="claude-web-section-layout">
+              <summary>
+                <span>布局</span>
+                <span class="claude-web-section-summary" id="claude-web-summary-layout"></span>
+              </summary>
+              <div class="claude-web-section-body">
+                <div class="claude-web-field">
+                  <label for="claude-web-layout">设备布局</label>
+                  <select id="claude-web-layout" class="text_pole"></select>
+                </div>
+                <label class="checkbox_label claude-web-check claude-web-field">
+                  <input type="checkbox" id="claude-web-avatars">
+                  <span>显示头像</span>
+                </label>
+                <div id="claude-web-hint" class="claude-web-help"></div>
+              </div>
+            </details>
+
+            <details class="claude-web-section" id="claude-web-section-clawd">
+              <summary>
+                <span>Clawd</span>
+                <span class="claude-web-section-summary" id="claude-web-summary-clawd"></span>
+              </summary>
+              <div class="claude-web-section-body">
+                <label class="checkbox_label claude-web-check">
+                  <input type="checkbox" id="claude-web-clawd">
+                  <span>显示 Clawd</span>
+                </label>
+                <div id="claude-web-clawd-options" class="claude-web-suboptions">
+                  <label class="checkbox_label claude-web-check">
+                    <input id="claude-web-motion" type="checkbox">
+                    <span>启用状态动画</span>
+                  </label>
+                  <label class="checkbox_label claude-web-check">
+                    <input id="claude-web-decorations" type="checkbox">
+                    <span>启用粒子与提示气泡</span>
+                  </label>
+                  <label class="checkbox_label claude-web-check">
+                    <input id="claude-web-gen-timer" type="checkbox">
+                    <span>显示生成计时器</span>
+                  </label>
+                </div>
+              </div>
+            </details>
+
+            <details class="claude-web-section" id="claude-web-section-background">
+              <summary>
+                <span>背景</span>
+                <span class="claude-web-section-summary" id="claude-web-summary-background"></span>
+              </summary>
+              <div class="claude-web-section-body">
+                <label class="checkbox_label claude-web-check">
+                  <input id="claude-web-bg-transparent" type="checkbox">
+                  <span>背景透传</span>
+                </label>
+                <div class="claude-web-help">显示酒馆背景，而不是 Claude 的白底或黑底。</div>
+
+                <label class="checkbox_label claude-web-check" style="margin-top:8px !important">
+                  <input id="claude-web-bg-blur" type="checkbox">
+                  <span>背景毛玻璃</span>
+                </label>
+                <div id="claude-web-bg-blur-options" class="claude-web-suboptions">
+                  <div class="claude-web-range">
+                    <span>浓度</span>
+                    <input id="claude-web-bg-blur-opacity" type="range" min="8" max="60" step="1">
+                    <span id="claude-web-bg-blur-opacity-value"></span>
+                  </div>
+                </div>
+
+                <label class="checkbox_label claude-web-check" style="margin-top:10px !important">
+                  <input id="claude-web-bg-image-blur" type="checkbox">
+                  <span>背景图模糊</span>
+                </label>
+                <div id="claude-web-bg-image-options" class="claude-web-suboptions">
+                  <div class="claude-web-range">
+                    <span>模糊半径</span>
+                    <input id="claude-web-bg-image-blur-radius" type="range" min="0" max="32" step="1">
+                    <span id="claude-web-bg-image-blur-radius-value"></span>
+                  </div>
+                  <div class="claude-web-range">
+                    <span>背景压暗</span>
+                    <input id="claude-web-bg-image-dim" type="range" min="0" max="70" step="1">
+                    <span id="claude-web-bg-image-dim-value"></span>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="claude-web-section" id="claude-web-section-about">
+              <summary>
+                <span>关于与更新</span>
+                <span class="claude-web-section-summary">版本与维护</span>
+              </summary>
+              <div class="claude-web-section-body">
+                <div class="claude-web-actions" style="margin-top:0">
+                  <button id="claude-web-update" class="menu_button">检查更新</button>
+                  <button id="claude-web-reinstall" class="menu_button">重新安装</button>
+                </div>
+                <div id="claude-web-update-hint" class="claude-web-help"></div>
+                <div id="claude-web-build" class="claude-web-help" style="opacity:.55;word-break:break-all"></div>
+              </div>
+            </details>
           </div>
-          <input id="claude-web-import-file" type="file" accept="application/json,.json" style="display:none">
-          <div id="claude-web-preset-hint"
-               style="margin-top:6px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
-
-          <hr style="margin:10px 0;opacity:.25">
-
-          <div class="claude-web-auto-theme">
-            <label for="claude-web-theme-auto"><b>自动主题</b></label>
-            <select id="claude-web-theme-auto" class="text_pole"></select>
-            <div id="claude-web-auto-times" class="claude-web-auto-times" hidden>
-              <label>日间开始<input id="claude-web-day-start" type="time" class="text_pole" value="07:00"></label>
-              <label>夜间开始<input id="claude-web-night-start" type="time" class="text_pole" value="19:00"></label>
-            </div>
-            <div id="claude-web-auto-hint" style="margin-top:6px;font-size:.85em;opacity:.7"></div>
-          </div>
-
-          <label for="claude-web-variant">手动明暗</label>
-          <select id="claude-web-variant" class="text_pole"></select>
-
-          <label for="claude-web-layout" style="margin-top:8px">布局</label>
-          <select id="claude-web-layout" class="text_pole"></select>
-
-          <label for="claude-web-font" style="margin-top:8px">字体</label>
-          <select id="claude-web-font" class="text_pole"></select>
-          <input id="claude-web-font-custom" class="text_pole" style="margin-top:6px;display:none"
-                 placeholder='自定义 font-family，例如："LXGW WenKai", serif'>
-
-          <div id="claude-web-hint"
-               style="margin-top:8px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
-
-          <hr style="margin:10px 0;opacity:.25">
-          <div style="font-weight:600;margin-bottom:6px">Clawd</div>
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
-            <input id="claude-web-motion" type="checkbox">
-            <span>启用状态动画</span>
-          </label>
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
-            <input id="claude-web-decorations" type="checkbox">
-            <span>启用粒子与提示气泡</span>
-          </label>
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
-            <input id="claude-web-gen-timer" type="checkbox">
-            <span>显示生成计时器</span>
-          </label>
-
-          <hr style="margin:10px 0;opacity:.25">
-          <div style="font-weight:600;margin-bottom:6px">界面</div>
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
-            <input id="claude-web-bg-transparent" type="checkbox">
-            <span>背景透传（显示酒馆背景，而不是白底/黑底）</span>
-          </label>
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px">
-            <input id="claude-web-bg-blur" type="checkbox">
-            <span>背景毛玻璃（需先开启背景透传）</span>
-          </label>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-            <span style="font-size:0.9em;opacity:.75;white-space:nowrap">毛玻璃浓度</span>
-            <input id="claude-web-bg-blur-opacity" type="range" min="8" max="60" step="1" style="flex:1">
-            <span id="claude-web-bg-blur-opacity-value" style="font-size:0.9em;opacity:.75;width:2.4em;text-align:right"></span>
-          </div>
-          <div style="font-size:0.85em;opacity:.6;line-height:1.5;margin-top:2px">
-            数字越大越糊、底色越浓；越小越透。世界书/角色管理这些抽屉面板
-            不跟着上面两个开关走，固定带浅浅的磨砂色调，浓度也吃这根滑条，
-            但有个可读性下限，不会被拖到看不清字。
-          </div>
-
-          <label class="checkbox_label" style="display:flex;align-items:center;gap:6px;margin-top:10px">
-            <input id="claude-web-bg-image-blur" type="checkbox">
-            <span>背景图模糊</span>
-          </label>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-            <span style="font-size:0.9em;opacity:.75;white-space:nowrap">模糊半径</span>
-            <input id="claude-web-bg-image-blur-radius" type="range" min="0" max="32" step="1" style="flex:1">
-            <span id="claude-web-bg-image-blur-radius-value" style="font-size:0.9em;opacity:.75;width:2.8em;text-align:right"></span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-            <span style="font-size:0.9em;opacity:.75;white-space:nowrap">背景压暗</span>
-            <input id="claude-web-bg-image-dim" type="range" min="0" max="70" step="1" style="flex:1">
-            <span id="claude-web-bg-image-dim-value" style="font-size:0.9em;opacity:.75;width:2.8em;text-align:right"></span>
-          </div>
-          <div style="font-size:0.85em;opacity:.6;line-height:1.5;margin-top:2px">
-            只糊背景图，文字、角色列表、弹窗都保持清晰 —— 跟上面的毛玻璃是
-            两回事，可以单独开。要看得见背景图，得先开「背景透传」。
-          </div>
-
-          <hr style="margin:10px 0;opacity:.25">
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button id="claude-web-update" class="menu_button">检查更新</button>
-            <button id="claude-web-reinstall" class="menu_button">重新安装</button>
-          </div>
-          <div id="claude-web-update-hint"
-               style="margin-top:6px;font-size:0.9em;opacity:.75;line-height:1.5"></div>
-          <div id="claude-web-build"
-               style="margin-top:8px;font-size:0.85em;opacity:.55;line-height:1.5;word-break:break-all"></div>
         </div>
       </div>
     `;
@@ -7993,6 +8803,9 @@ if (CLAUDE_ENABLED) {
 
   /* 明暗那个下拉的 handler 和取色器不在同一个函数里，用这个引用搭桥。 */
   let syncSwatchesRef = () => {};
+  /* 面板分区标题和条件显示由 mount() 统一维护。预设切换在 mountPresets()
+     里，所以同样用一个延迟绑定的引用搭桥，避免两边各写一份状态判断。 */
+  let syncPanelPresentationRef = () => {};
 
   /* 九个核心色的人话名字。用户看到的是「正文」不是 --cw-ink-0。 */
   const SWATCH_LABELS = {
@@ -8072,6 +8885,9 @@ if (CLAUDE_ENABLED) {
 
     select.addEventListener('change', () => {
       const preset = api.activateFamily(select.value);
+      const skin = 'classic';
+      document.documentElement.dataset.claudeSkin = skin;
+      write('skin', skin);
       /* 换风格会换掉自定义的取值起点，取色器要跟着显示新起点的颜色。 */
       syncSwatches();
       hint.textContent = preset ? `已切到「${preset.name}」。` : '切换失败。';
@@ -8200,10 +9016,25 @@ if (CLAUDE_ENABLED) {
 
     mountEnabled(panel);
 
+    const modeSelect = panel.querySelector('#claude-web-mode');
+    const modeHint = panel.querySelector('#claude-web-mode-hint');
+    const compatibilityMode = read('mode', ['full', 'compat'], 'full') === 'compat';
+    modeSelect.value = compatibilityMode ? 'compat' : 'full';
+    modeHint.textContent = compatibilityMode
+      ? 'Claude Web 保留左侧栏、内容区框架和输入框；当前酒馆美化负责欢迎页、消息、图标、配色与背景。'
+      : '使用 Claude Web 的完整界面、结构和配色。';
+    modeSelect.addEventListener('change', () => {
+      if (!write('mode', modeSelect.value)) {
+        modeHint.textContent = '写入失败，运行模式没有改变。';
+        modeSelect.value = compatibilityMode ? 'compat' : 'full';
+        return;
+      }
+      modeHint.textContent = '正在切换运行模式…';
+      window.setTimeout(() => window.location.reload(), 180);
+    });
+
     const variantSelect = panel.querySelector('#claude-web-variant');
     const layoutSelect = panel.querySelector('#claude-web-layout');
-    const fontSelect = panel.querySelector('#claude-web-font');
-    const fontCustom = panel.querySelector('#claude-web-font-custom');
     const hint = panel.querySelector('#claude-web-hint');
     const autoSelect = panel.querySelector('#claude-web-theme-auto');
     const autoTimes = panel.querySelector('#claude-web-auto-times');
@@ -8216,29 +9047,9 @@ if (CLAUDE_ENABLED) {
     const autoMode = read('theme-auto', ['manual', 'system', 'time'], 'manual');
     fillSelect(variantSelect, VARIANTS, variant);
     fillSelect(layoutSelect, LAYOUTS, layout);
-    fillSelect(fontSelect, FONTS, read('font', FONT_VALUES, 'follow'));
     fillSelect(autoSelect, AUTO_THEME_MODES, autoMode);
     dayStartInput.value = readClock('theme-day-start', '07:00');
     nightStartInput.value = readClock('theme-night-start', '19:00');
-
-    const syncCustomFontBox = () => {
-      fontCustom.style.display = fontSelect.value === 'custom' ? '' : 'none';
-    };
-    try { fontCustom.value = window.localStorage.getItem('claude-web:fontCustom') || ''; } catch { /* no-op */ }
-    syncCustomFontBox();
-    fontSelect.addEventListener('change', () => {
-      if (!write('font', fontSelect.value)) return;
-      document.documentElement.dataset.claudeFont = fontSelect.value;
-      syncCustomFontBox();
-      const selected = FONTS.find(font => font.value === fontSelect.value);
-      hint.textContent = '字体已切到「' + (selected ? selected.label : fontSelect.value) + '」。';
-    });
-    fontCustom.addEventListener('input', () => {
-      const value = fontCustom.value.trim();
-      try { window.localStorage.setItem('claude-web:fontCustom', value); } catch { /* no-op */ }
-      if (value) document.documentElement.style.setProperty('--cw-font-custom', value);
-      else document.documentElement.style.removeProperty('--cw-font-custom');
-    });
 
     const describe = () => {
       const effective = resolveLayout(layoutSelect.value);
@@ -8263,12 +9074,23 @@ if (CLAUDE_ENABLED) {
       syncSwatchesRef();
       hint.textContent = ok ? '' : '主题已保存，刷新后生效。';
       if (ok) describe();
+      syncPanelPresentationRef();
     };
 
     variantSelect.addEventListener('change', () => applyVariant(variantSelect.value));
 
     const systemTheme = window.matchMedia?.('(prefers-color-scheme: dark)');
     const syncAutomaticTheme = () => {
+      if (compatibilityMode) {
+        /* 明暗在兼容模式下是有意义的：外壳整块是 Claude 的皮肤，
+           深色美化配一条亮白侧栏很难看。它只换 compat-<明暗>.css，
+           不碰外部美化自己的明暗。按时间自动切仍然关着（那条要动酒馆的主题记录）。 */
+        variantSelect.disabled = false;
+        autoSelect.disabled = true;
+        autoTimes.hidden = true;
+        autoHint.textContent = '明暗只切换 Claude 外壳，外部美化的配色不受影响。';
+        return;
+      }
       const mode = autoSelect.value;
       const automatic = mode !== 'manual';
       variantSelect.disabled = automatic;
@@ -8287,6 +9109,7 @@ if (CLAUDE_ENABLED) {
       autoHint.textContent = mode === 'system'
         ? `跟随系统 · 当前${next === 'night' ? '夜间' : '日间'}`
         : `${dayStartInput.value} 日间 / ${nightStartInput.value} 夜间 · 当前${next === 'night' ? '夜间' : '日间'}`;
+      syncPanelPresentationRef();
     };
 
     autoSelect.addEventListener('change', () => {
@@ -8312,9 +9135,47 @@ if (CLAUDE_ENABLED) {
     }, 30000);
     syncAutomaticTheme();
 
+    const clawdBox = panel.querySelector('#claude-web-clawd');
+    clawdBox.checked = read('clawd', ['on', 'off'], 'on') !== 'off';
+    clawdBox.addEventListener('change', () => {
+      if (!write('clawd', clawdBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeClawd = clawdBox.checked ? 'on' : 'off';
+      syncPanelPresentationRef();
+    });
+
+    const avatarsBox = panel.querySelector('#claude-web-avatars');
+    avatarsBox.checked = read('avatars', ['on', 'off'], 'on') !== 'off';
+    avatarsBox.addEventListener('change', () => {
+      if (!write('avatars', avatarsBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeAvatars = avatarsBox.checked ? 'on' : 'off';
+      syncPanelPresentationRef();
+    });
+
+    const fontSelect = panel.querySelector('#claude-web-font');
+    const fontCustom = panel.querySelector('#claude-web-font-custom');
+    const syncCustomBox = () => { fontCustom.style.display = fontSelect.value === 'custom' ? '' : 'none'; };
+    fillSelect(fontSelect, FONTS, read('font', FONT_VALUES, 'follow'));
+    try { fontCustom.value = window.localStorage.getItem('claude-web:fontCustom') || ''; } catch { /* 无痕 */ }
+    syncCustomBox();
+    fontSelect.addEventListener('change', () => {
+      if (!write('font', fontSelect.value)) return;
+      /* 只改一个属性，五个字体变量跟着重算 —— 不用重载页面。 */
+      document.documentElement.dataset.claudeFont = fontSelect.value;
+      syncCustomBox();
+      const hit = FONTS.find(f => f.value === fontSelect.value);
+      hint.textContent = '字体已切到「' + (hit ? hit.label : fontSelect.value) + '」。';
+    });
+    fontCustom.addEventListener('input', () => {
+      const v = fontCustom.value.trim();
+      try { window.localStorage.setItem('claude-web:fontCustom', v); } catch { /* 无痕 */ }
+      if (v) document.documentElement.style.setProperty('--cw-font-custom', v);
+      else document.documentElement.style.removeProperty('--cw-font-custom');
+    });
+
     layoutSelect.addEventListener('change', () => {
       if (!write('layout', layoutSelect.value)) return;
       hint.textContent = '正在切换布局…';
+      syncPanelPresentationRef();
       window.setTimeout(() => window.location.reload(), 120);
     });
 
@@ -8325,10 +9186,12 @@ if (CLAUDE_ENABLED) {
     motionBox.addEventListener('change', () => {
       if (!write('motion', motionBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeMotion = motionBox.checked ? 'on' : 'off';
+      syncPanelPresentationRef();
     });
     decorationsBox.addEventListener('change', () => {
       if (!write('decorations', decorationsBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeDecorations = decorationsBox.checked ? 'on' : 'off';
+      syncPanelPresentationRef();
     });
 
     const genTimerBox = panel.querySelector('#claude-web-gen-timer');
@@ -8336,6 +9199,7 @@ if (CLAUDE_ENABLED) {
     genTimerBox.addEventListener('change', () => {
       if (!write('genTimer', genTimerBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeGenTimer = genTimerBox.checked ? 'on' : 'off';
+      syncPanelPresentationRef();
     });
 
     const bgTransparentBox = panel.querySelector('#claude-web-bg-transparent');
@@ -8352,6 +9216,7 @@ if (CLAUDE_ENABLED) {
         write('bgBlur', 'off');
         document.documentElement.dataset.claudeBgBlur = 'off';
       }
+      syncPanelPresentationRef();
     });
     bgBlurBox.addEventListener('change', () => {
       if (!write('bgBlur', bgBlurBox.checked ? 'on' : 'off')) return;
@@ -8363,6 +9228,7 @@ if (CLAUDE_ENABLED) {
         write('bgTransparent', 'on');
         document.documentElement.dataset.claudeBgTransparent = 'on';
       }
+      syncPanelPresentationRef();
     });
 
     const bgBlurOpacitySlider = panel.querySelector('#claude-web-bg-blur-opacity');
@@ -8393,6 +9259,7 @@ if (CLAUDE_ENABLED) {
     bgImageBlurBox.addEventListener('change', () => {
       if (!write('bgImageBlur', bgImageBlurBox.checked ? 'on' : 'off')) return;
       document.documentElement.dataset.claudeBgImageBlur = bgImageBlurBox.checked ? 'on' : 'off';
+      syncPanelPresentationRef();
     });
 
     const bgImageRadius = panel.querySelector('#claude-web-bg-image-blur-radius');
@@ -8423,7 +9290,57 @@ if (CLAUDE_ENABLED) {
       write('bgImageDim', String(applyBgImageDim(Number(bgImageDim.value))));
     });
 
+    
+    const selectedLabel = select => select?.selectedOptions?.[0]?.textContent?.trim() || '';
+    const appearanceSummary = panel.querySelector('#claude-web-summary-appearance');
+    const layoutSummary = panel.querySelector('#claude-web-summary-layout');
+    const clawdSummary = panel.querySelector('#claude-web-summary-clawd');
+    const backgroundSummary = panel.querySelector('#claude-web-summary-background');
+    const fullAppearance = panel.querySelector('#claude-web-full-appearance');
+    const layoutSection = panel.querySelector('#claude-web-section-layout');
+    const backgroundSection = panel.querySelector('#claude-web-section-background');
+    const clawdOptions = panel.querySelector('#claude-web-clawd-options');
+    const bgBlurOptions = panel.querySelector('#claude-web-bg-blur-options');
+    const bgImageOptions = panel.querySelector('#claude-web-bg-image-options');
+
+    function syncPanelPresentation() {
+      const presetName = selectedLabel(panel.querySelector('#claude-web-preset')) || 'Claude';
+      const variantName = selectedLabel(variantSelect) || (variantSelect.value === 'night' ? '夜间' : '日间');
+      appearanceSummary.textContent = compatibilityMode
+        ? 'Claude 框架 / 外部内容'
+        : `${presetName} / ${variantName}`;
+
+      const layoutName = selectedLabel(layoutSelect) || layoutSelect.value;
+      layoutSummary.textContent = `${layoutName}${avatarsBox.checked ? '' : ' / 头像关'}`;
+
+      clawdSummary.textContent = clawdBox.checked
+        ? `显示${motionBox.checked ? ' / 动画开' : ' / 动画关'}`
+        : '隐藏';
+
+      const backgroundStates = [];
+      if (bgTransparentBox.checked) backgroundStates.push('透传');
+      if (bgBlurBox.checked) backgroundStates.push('毛玻璃');
+      if (bgImageBlurBox.checked) backgroundStates.push('背景图模糊');
+      backgroundSummary.textContent = backgroundStates.length ? backgroundStates.join(' + ') : '关闭';
+
+      clawdOptions.hidden = !clawdBox.checked;
+      bgBlurOptions.hidden = !bgBlurBox.checked;
+      bgImageOptions.hidden = !bgImageBlurBox.checked;
+      /* 兼容模式下配色预设和字体都不生效，但「当前明暗」要留着 ——
+         它决定加载 compat-day 还是 compat-night。所以不整块隐藏 fullAppearance，
+         只隐藏它除明暗以外的子项。 */
+      const variantField = variantSelect.closest('.claude-web-field');
+      fullAppearance.hidden = false;
+      for (const child of fullAppearance.children) {
+        child.hidden = compatibilityMode && child !== variantField;
+      }
+      layoutSection.hidden = compatibilityMode;
+      backgroundSection.hidden = compatibilityMode;
+    }
+
+    syncPanelPresentationRef = syncPanelPresentation;
     mountPresets(panel);
+    syncPanelPresentation();
 
     /* 构建号写在面板上。ST 加载 index.js 的 <script> 标签不带版本参数，
        浏览器可能给出缓存的旧模块 —— 出现过「推了新版但面板还是旧的」，
@@ -8467,4 +9384,3 @@ if (CLAUDE_ENABLED) {
     }
   }, 500);
 })();
-

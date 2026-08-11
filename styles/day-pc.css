@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..600&family=Noto+Serif+SC:wght@300&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Arimo:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@300&display=swap");
 
 /* Claude / Clawd 1.1 — shared theme structure */
 :root {
@@ -67,7 +67,7 @@ body {
 }
 #chat .mes.selected {
   background:var(--cw-mark-field) !important;
-  border-radius:14px !important;
+  border-radius:var(--cw-radius-14) !important;
 }
 .mes .avatar img {
   border:1px solid var(--cw-rule-hairline) !important;
@@ -111,19 +111,19 @@ a, .mes_text a, .mes_reasoning a {
   color:var(--cw-text-muted) !important;
   background:var(--cw-surface-input) !important;
   border-left:3px solid var(--cw-mark) !important;
-  border-radius:0 10px 10px 0 !important;
+  border-radius:0 var(--cw-radius-10) var(--cw-radius-10) 0 !important;
   padding:10px 14px !important;
 }
 code {
   color:var(--cw-code-ink) !important;
   background:var(--cw-code-surface) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:6px !important;
+  border-radius:var(--cw-radius-6) !important;
 }
 pre code {
   display:block;
   padding:14px !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
 }
 .typing_indicator {
   position:sticky;
@@ -196,7 +196,7 @@ pre code {
   align-items:center;
   justify-content:center;
   border:0 !important;
-  border-radius:9px !important;
+  border-radius:var(--cw-radius-9) !important;
   margin:auto 1px !important;
   transition:background 120ms ease, color 120ms ease, opacity 120ms ease;
 }
@@ -216,7 +216,7 @@ pre code {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  border-radius:50% !important;
+  border-radius:var(--cw-radius-circle) !important;
   margin:auto 3px auto 1px !important;
   box-shadow:none !important;
   transition:transform 120ms ease, background 120ms ease;
@@ -240,7 +240,7 @@ pre code {
 #options a, .options-content a, #extensionsMenu .list-group-item {
   font-family:var(--cl-sans) !important;
   color:var(--cw-text-body) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   transition:background 100ms ease;
 }
 #options a:hover, .options-content a:hover, #extensionsMenu .list-group-item:hover {
@@ -253,14 +253,14 @@ select, textarea:not(#send_textarea), input[type="text"], input[type="number"], 
   color:var(--cw-text-body) !important;
   background-color:var(--cw-surface-raised) !important;
   border-color:var(--cw-rule-hairline) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   box-shadow:none !important;
 }
 input[type="checkbox"], input[type="radio"] {
   accent-color:var(--cw-mark);
 }
 button, .menu_button, .inline-drawer-toggle {
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
 }
 .menu_button, .inline-drawer-toggle, .paginationjs-pages li {
   color:var(--cw-text-body) !important;
@@ -283,12 +283,12 @@ button, .menu_button, .inline-drawer-toggle {
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-raised) !important;
   border-color:var(--cw-rule-hairline) !important;
-  border-radius:16px !important;
+  border-radius:var(--cw-radius-16) !important;
   box-shadow:var(--cw-shadow-dialog) !important;
   backdrop-filter:none !important;
 }
 .toast {
-  border-radius:14px !important;
+  border-radius:var(--cw-radius-14) !important;
   box-shadow:var(--cw-shadow-dialog) !important;
 }
 hr {
@@ -309,7 +309,7 @@ hr {
   background:var(--cw-scrollbar) !important;
   border:3px solid transparent !important;
   background-clip:content-box !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   box-shadow:none !important;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -346,7 +346,7 @@ hr {
   height:22px !important;
   font-size:11px !important;
   background:transparent !important;
-  border-radius:7px !important;
+  border-radius:var(--cw-radius-7) !important;
 }
 .mes_reasoning::before {
   content:"";
@@ -411,7 +411,7 @@ hr {
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   filter:none !important;
   font-size:12px !important;
   opacity:.58;
@@ -559,7 +559,7 @@ hr {
   justify-content:center;
   color:var(--cw-text-muted) !important;
   background:transparent !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   font-size:12px !important;
   opacity:.58 !important;
   pointer-events:auto !important;
@@ -592,7 +592,7 @@ hr {
   color:transparent !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   filter:none !important;
   box-shadow:none !important;
   font-size:0 !important;
@@ -867,7 +867,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   transition:border-color 160ms ease;
   width:calc(100% - 18px) !important;
   margin:0 auto !important;
-  border-radius:22px !important;
+  border-radius:var(--cw-radius-22) !important;
   box-shadow:var(--cw-shadow-composer) !important;
 }
 #top-bar :is(.notification, .badge, .drawer-icon-badge) {
@@ -913,7 +913,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
 }
 .inline-drawer {
   border:0 !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
   background:transparent !important;
   box-shadow:none !important;
 }
@@ -921,7 +921,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   min-height:36px;
   padding:7px 10px !important;
   border:0 !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   background:transparent !important;
   transition:background 140ms ease,color 140ms ease;
 }
@@ -939,14 +939,14 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   backdrop-filter:none !important;
 }
 :is(.popup,.popup-content,.options-content,#options,#extensionsMenu,.list-group) {
-  border-radius:16px !important;
+  border-radius:var(--cw-radius-16) !important;
 }
 :is( .drawer-content, .inline-drawer-content, .popup, .popup-content ) :is( select, input[type="text"], input[type="number"], input[type="search"], input[type="password"], textarea ), .select2-container .select2-selection {
   min-height:34px !important;
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-raised) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   box-shadow:none !important;
   font-family:var(--cl-sans) !important;
   font-size:.9em !important;
@@ -968,7 +968,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-raised) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
   box-shadow:var(--cw-shadow-floating) !important;
   overflow:hidden;
 }
@@ -990,7 +990,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
 :is( .drawer-content, .inline-drawer-content, .popup, .popup-content, .options-content, #options, #extensionsMenu ) :is(button,.menu_button,.inline-drawer-toggle,.icon-button) {
   min-height:32px;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:9px !important;
+  border-radius:var(--cw-radius-9) !important;
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-input) !important;
   box-shadow:none !important;
@@ -1018,7 +1018,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   min-height:36px;
   padding:8px 10px !important;
   border:0 !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   color:var(--cw-text-body) !important;
   background:transparent !important;
   font-family:var(--cl-sans) !important;
@@ -1043,7 +1043,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
 }
 :is( .character_select, .group_select, .select_chat_block, .world_entry, .persona_card, .preset_select ) {
   border:1px solid transparent !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
   background:transparent !important;
   box-shadow:none !important;
   font-family:var(--cl-sans) !important;
@@ -1070,7 +1070,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:9px !important;
+  border-radius:var(--cw-radius-9) !important;
   font-family:var(--cl-sans) !important;
   font-size:.86em !important;
   font-weight:500;
@@ -1083,7 +1083,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   min-width:30px;
   min-height:30px;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   font-family:var(--cl-sans) !important;
@@ -1135,7 +1135,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   padding:16px 18px 11px !important;
 }
 .mes[is_user="true"] .mes_block {
-  border-radius:18px !important;
+  border-radius:var(--cw-radius-18) !important;
   width:fit-content;
   margin-left:auto !important;
   background:color-mix(in srgb,var(--cw-surface-input) 74%,var(--cw-surface-page)) !important;
@@ -1168,7 +1168,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  border-radius:9px;
+  border-radius:var(--cw-radius-9);
   opacity:.52 !important;
   border:1px solid transparent !important;
   transition:background 130ms ease,
@@ -1187,7 +1187,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   color:var(--cw-mark) !important;
   background:color-mix(in srgb,var(--cw-mark) 14%,var(--cw-surface-raised)) !important;
   border:1px solid color-mix(in srgb,var(--cw-mark) 30%,var(--cw-rule-hairline)) !important;
-  border-radius:999px !important;
+  border-radius:var(--cw-radius-pill) !important;
   box-shadow:none !important;
   filter:none !important;
   font-family:var(--cl-sans) !important;
@@ -1230,7 +1230,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   color:var(--cw-text-body) !important;
   background:var(--cw-code-surface) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
   font-family:var(--monoFontFamily),monospace !important;
   font-size:.9em !important;
   font-weight:400 !important;
@@ -1262,7 +1262,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   color:#fff !important;
   background:#a94442 !important;
   border:1px solid color-mix(in srgb,#fff 16%,#a94442) !important;
-  border-radius:999px !important;
+  border-radius:var(--cw-radius-pill) !important;
   box-shadow:0 0 0 2px var(--cw-surface-page) !important;
   filter:none !important;
   text-shadow:none !important;
@@ -1306,7 +1306,7 @@ html body #chat .mes .mes_reasoning pre {
   color:var(--cw-text-body) !important;
   background:var(--cw-code-surface) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
   overflow:auto !important;
 }
 html body #chat .mes .mes_reasoning pre, html body #chat .mes .mes_reasoning pre * {
@@ -1396,7 +1396,7 @@ body.claude-generation-active #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   box-shadow:none !important;
   font-size:12px !important;
   opacity:.62 !important;
@@ -1430,7 +1430,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-body) !important;
   background:color-mix(in srgb,var(--cw-surface-raised) 62%,transparent) !important;
   border:1px solid color-mix(in srgb,var(--cw-rule-hairline) 78%,transparent) !important;
-  border-radius:20px !important;
+  border-radius:var(--cw-radius-20) !important;
   box-shadow:0 10px 34px rgba(0,0,0,.055) !important;
 }
 .welcomePanel .welcomeHeaderTitle {
@@ -1441,7 +1441,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
 .welcomePanel .welcomeHeaderLogo {
   width:28px !important;
   height:28px !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   filter:saturate(.78) contrast(.94);
   opacity:.86;
 }
@@ -1462,7 +1462,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   font-size:var(--cl-fs-meta) !important;
   opacity:.64;
 }
@@ -1494,7 +1494,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:1px solid transparent !important;
-  border-radius:9px !important;
+  border-radius:var(--cw-radius-9) !important;
   box-shadow:none !important;
   font-family:var(--cl-sans) !important;
   font-size:.78em !important;
@@ -1515,7 +1515,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-body) !important;
   background:transparent !important;
   border:1px solid color-mix(in srgb,var(--cw-rule-hairline) 82%,transparent) !important;
-  border-radius:14px !important;
+  border-radius:var(--cw-radius-14) !important;
   box-shadow:none !important;
   transition:background 140ms ease,border-color 140ms ease,transform 140ms ease !important;
 }
@@ -1527,7 +1527,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
 .welcomeRecent .recentChatList .recentChat .avatar, .welcomeRecent .recentChatList .recentChat .avatar img {
   width:48px !important;
   height:48px !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
 }
 .welcomeRecent .recentChatList .recentChat .avatar img {
   border:1px solid var(--cw-rule-hairline) !important;
@@ -1561,7 +1561,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   box-shadow:none !important;
   opacity:.62;
 }
@@ -1580,7 +1580,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-muted) !important;
   background:var(--cw-surface-input) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:999px !important;
+  border-radius:var(--cw-radius-pill) !important;
   box-shadow:none !important;
 }
 #chat > .mes[type="assistant_message"] {
@@ -1595,7 +1595,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-body) !important;
   background:color-mix(in srgb,var(--cw-surface-raised) 68%,transparent) !important;
   border:1px solid color-mix(in srgb,var(--cw-rule-hairline) 78%,transparent) !important;
-  border-radius:17px !important;
+  border-radius:var(--cw-radius-17) !important;
   box-shadow:none !important;
 }
 #chat > .mes[type="assistant_message"] .ch_name {
@@ -1619,7 +1619,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-input) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   box-shadow:none !important;
   font-family:var(--cl-sans) !important;
   font-size:.78em !important;
@@ -1773,7 +1773,7 @@ html body #top-settings-holder :is(.fab, .fa-brands) {
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   box-shadow:none !important;
   font-family:"Font Awesome 6 Free" !important;
   font-size:12px !important;
@@ -1815,7 +1815,7 @@ html:not([data-claude-archive="on"]) #chat .mes_edit_buttons {
   padding:4px !important;
   background:var(--cw-surface-raised) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:11px !important;
+  border-radius:var(--cw-radius-11) !important;
   box-shadow:0 8px 24px rgba(0,0,0,.10) !important;
   display:flex !important;
   opacity:1 !important;
@@ -1829,7 +1829,7 @@ html:not([data-claude-archive="on"]) #chat .mes_edit_buttons > .menu_button {
   margin:0 !important;
   padding:0 !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   box-shadow:none !important;
@@ -1843,7 +1843,7 @@ html:not([data-claude-archive="on"]) #chat .mes_edit_buttons > .menu_button {
   background:var(--cw-surface-raised) !important;
   color:var(--cw-text-body) !important;
   border:1px solid var(--cw-rule-strong) !important;
-  border-radius:12px !important;
+  border-radius:var(--cw-radius-12) !important;
   min-height:72px;
 }
 #qr--bar, .qr--buttons {
@@ -1860,7 +1860,7 @@ html:not([data-claude-archive="on"]) #chat .mes_edit_buttons > .menu_button {
   color:var(--cw-text-muted) !important;
   background:var(--cw-surface-input) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   box-shadow:none !important;
 }
 #qr--bar .qr--button:hover {
@@ -1917,7 +1917,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   color:var(--cw-text-muted) !important;
   background:transparent !important;
   border:0 !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
   box-shadow:none !important;
   font-size:12px !important;
   opacity:.68 !important;
@@ -2033,7 +2033,7 @@ html body .typing_indicator.clawd-typing-enter::before {
 #chat > .welcomePanel {
   margin:4px auto 12px !important;
   padding:14px 10px 12px !important;
-  border-radius:16px !important;
+  border-radius:var(--cw-radius-16) !important;
 }
 .welcomePanel .welcomeHeader {
   align-items:flex-start !important;
@@ -2098,7 +2098,7 @@ html body #send_form {
   margin:0 !important;
   padding:4px 6px !important;
   gap:2px !important;
-  border-radius:18px !important;
+  border-radius:var(--cw-radius-18) !important;
   box-sizing:border-box !important;
 }
 html body #nonQRFormItems {
@@ -2501,7 +2501,7 @@ html body:has(#completion_prompt_manager_popup.openDrawer) #form_sheld {
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-raised) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:8px !important;
+  border-radius:var(--cw-radius-8) !important;
 }
 
 #completion_prompt_manager #completion_prompt_manager_list
@@ -3261,7 +3261,7 @@ html body #chat > .mes .mes_text { overflow:visible !important; position:relativ
   white-space:nowrap; width:max-content; max-width:min(340px, 62%); padding:4px 10px;
   font-family:var(--cl-font-ui); font-size:var(--cl-fs-micro); letter-spacing:.02em;
   color:var(--cw-text-body); background:var(--cw-surface-raised);
-  border:1px solid var(--cw-rule-hairline); border-radius:8px;
+  border:1px solid var(--cw-rule-hairline); border-radius:var(--cw-radius-8);
   box-shadow:0 6px 18px rgba(0,0,0,.18);
   pointer-events:none; z-index:30; opacity:0;
   animation:clawd-toast 2.4s ease forwards;
@@ -3712,7 +3712,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     padding:0 !important;
     cursor:pointer !important;
     margin:0 !important;
-    border-radius:7px !important;
+    border-radius:var(--cw-radius-7) !important;
     opacity:1 !important;
     background-color:transparent;
     transition:background-color 130ms ease, color 130ms ease,
@@ -3997,7 +3997,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     background:transparent !important;
     border:0 solid transparent !important;
     border-right:2px solid var(--cw-scrollbar) !important;
-    border-radius:999px !important;
+    border-radius:var(--cw-radius-pill) !important;
   }
   html body #top-settings-holder::-webkit-scrollbar-thumb:hover,
   .clawd-rail-recents::-webkit-scrollbar-thumb:hover {
@@ -4028,7 +4028,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     margin:0 0 1px !important;
     padding:7px 9px !important;
     border:0 !important;
-    border-radius:8px !important;
+    border-radius:var(--cw-radius-8) !important;
     background:transparent !important;
     cursor:pointer;
     transition:background-color 130ms ease, transform 130ms cubic-bezier(.34,1.2,.64,1) !important;
@@ -4047,7 +4047,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     margin:0 !important;
     padding:0 !important;
     border:0 !important;
-    border-radius:7px !important;
+    border-radius:var(--cw-radius-7) !important;
     object-fit:cover !important;
     align-self:start !important;
   }
@@ -4096,7 +4096,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     align-items:center !important;
     justify-content:center !important;
     font-size:11px !important;
-    border-radius:5px !important;
+    border-radius:var(--cw-radius-5) !important;
     opacity:0;
     transition:opacity 120ms ease, color 120ms ease;
   }
@@ -4139,7 +4139,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
   .clawd-user-face {
     flex:0 0 auto;
     width:30px; height:30px;
-    border-radius:50%;
+    border-radius:var(--cw-radius-circle);
     overflow:hidden;
     display:grid;
     place-items:center;
@@ -4409,7 +4409,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     max-width:min(var(--cw-composer), 100%) !important;
     margin:0 auto !important;
     padding:12px 14px 10px !important;
-    border-radius:20px !important;
+    border-radius:var(--cw-radius-20) !important;
     background:var(--cl-composer-welcome) !important;
     border:1px solid transparent !important;
     box-shadow:0 4px 20px rgba(0,0,0,.035), 0 0 0 .5px var(--cw-rule-hairline) !important;
@@ -4453,7 +4453,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     height:36px !important;
   }
   html body:not(.clawd-welcome) #form_sheld :is(#send_form, form) {
-    border-radius:14px !important;
+    border-radius:var(--cw-radius-14) !important;
     background:var(--cl-composer-chat) !important;
   }
 
@@ -4502,7 +4502,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     margin:0 !important;
     padding:0 7px 0 10px !important;
     border:0 !important;
-    border-radius:9px !important;
+    border-radius:var(--cw-radius-9) !important;
     background:transparent !important;
     color:var(--cw-text-body) !important;
     box-shadow:none !important;
@@ -4550,7 +4550,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     margin:0 !important;
     padding:0 !important;
     border:0 !important;
-    border-radius:9px !important;
+    border-radius:var(--cw-radius-9) !important;
     background:transparent !important;
     color:var(--cw-text-body) !important;
     box-shadow:none !important;
@@ -4603,7 +4603,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
 
 /* 发送键使用正圆橙底 + 向上箭头。 */
 html body:not(.claude-generation-active) #send_but {
-  border-radius:50% !important;
+  border-radius:var(--cw-radius-circle) !important;
   background:#c96442 !important;
   color:transparent !important;
   font-size:0 !important;
@@ -4635,7 +4635,7 @@ html body.claude-generation-active #rightSendForm #send_but {
   min-height:32px !important;
   padding:0 !important;
   border:0 !important;
-  border-radius:50% !important;
+  border-radius:var(--cw-radius-circle) !important;
   background:#c96442 !important;
   color:transparent !important;
   font-size:0 !important;
@@ -4651,7 +4651,7 @@ html body.claude-generation-active #rightSendForm #send_but::before {
   width:11px !important;
   height:11px !important;
   border:0 !important;
-  border-radius:2px !important;
+  border-radius:var(--cw-radius-2) !important;
   background:#fff !important;
   color:transparent !important;
   box-shadow:none !important;
@@ -4682,7 +4682,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   padding:8px;
   overflow:hidden;
   border:1px solid var(--cw-rule-hairline);
-  border-radius:16px;
+  border-radius:var(--cw-radius-16);
   background:var(--cw-surface-raised);
   color:var(--cw-text-body);
   box-shadow:var(--cw-shadow-floating);
@@ -4694,7 +4694,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   margin:0 0 6px !important;
   padding:0 11px !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   background:var(--cw-surface-input) !important;
   color:var(--cw-text-body) !important;
   box-shadow:none !important;
@@ -4710,7 +4710,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   min-height:46px !important;
   padding:5px 8px !important;
   border:0 !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   background:transparent !important;
   color:var(--cw-text-body) !important;
   text-align:left !important;
@@ -4724,7 +4724,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   width:32px;
   height:32px;
   overflow:hidden;
-  border-radius:9px;
+  border-radius:var(--cw-radius-9);
   background:var(--cw-surface-input);
   color:var(--cw-text-muted);
 }
@@ -4873,6 +4873,29 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   --cw-msg-gap     : 24px;
   --cw-plate-title : 27px;
   --cw-folio-size  : 26px;
+
+  
+  --cw-radius-scale  : 1;
+  --cw-radius-1      : calc(1px   * var(--cw-radius-scale));
+  --cw-radius-2      : calc(2px   * var(--cw-radius-scale));
+  --cw-radius-4      : calc(4px   * var(--cw-radius-scale));
+  --cw-radius-5      : calc(5px   * var(--cw-radius-scale));
+  --cw-radius-6      : calc(6px   * var(--cw-radius-scale));
+  --cw-radius-7      : calc(7px   * var(--cw-radius-scale));
+  --cw-radius-8      : calc(8px   * var(--cw-radius-scale));
+  --cw-radius-9      : calc(9px   * var(--cw-radius-scale));
+  --cw-radius-10     : calc(10px  * var(--cw-radius-scale));
+  --cw-radius-11     : calc(11px  * var(--cw-radius-scale));
+  --cw-radius-12     : calc(12px  * var(--cw-radius-scale));
+  --cw-radius-13     : calc(13px  * var(--cw-radius-scale));
+  --cw-radius-14     : calc(14px  * var(--cw-radius-scale));
+  --cw-radius-16     : calc(16px  * var(--cw-radius-scale));
+  --cw-radius-17     : calc(17px  * var(--cw-radius-scale));
+  --cw-radius-18     : calc(18px  * var(--cw-radius-scale));
+  --cw-radius-20     : calc(20px  * var(--cw-radius-scale));
+  --cw-radius-22     : calc(22px  * var(--cw-radius-scale));
+  --cw-radius-pill   : calc(999px * var(--cw-radius-scale));
+  --cw-radius-circle : 50%;
 
   /* ---------- 字体层：预设不给改 ----------
      衬线正文 + 无衬线界面 + 等宽编号，这三条是这套设计的骨头。 */
@@ -5051,7 +5074,7 @@ html body #user-settings-block-content h4 {
   color:var(--cw-text-body) !important;
   background:var(--cw-surface-raised) !important;
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:10px !important;
+  border-radius:var(--cw-radius-10) !important;
   box-shadow:none !important;
   filter:none !important;
   text-shadow:none !important;
@@ -5079,7 +5102,7 @@ html body #user-settings-block-content input[type="range"]::-webkit-slider-thumb
   width:15px !important;
   height:15px !important;
   border:2px solid var(--cw-surface-page) !important;
-  border-radius:50% !important;
+  border-radius:var(--cw-radius-circle) !important;
   background:var(--cw-mark) !important;
   box-shadow:0 0 0 1px var(--cw-rule-strong) !important;
 }
@@ -5087,7 +5110,7 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
   width:13px !important;
   height:13px !important;
   border:2px solid var(--cw-surface-page) !important;
-  border-radius:50% !important;
+  border-radius:var(--cw-radius-circle) !important;
   background:var(--cw-mark) !important;
   box-shadow:0 0 0 1px var(--cw-rule-strong) !important;
 }
@@ -5103,7 +5126,7 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
 }
 :is(#options,#extensionsMenu) {
   border:1px solid var(--cw-rule-hairline) !important;
-  border-radius:16px !important;
+  border-radius:var(--cw-radius-16) !important;
   box-shadow:var(--cw-shadow-floating) !important;
 }
 #options > .options-content,
@@ -5365,45 +5388,1195 @@ html[data-claude-decorations="off"] #send_form::after {
   body.claude-generation-active #send_form::after { animation:none !important; }
 }
 
-/* Font switching is independent from theme and layout. */
+
+
+
+
 html[data-claude-font="follow"] {
-  --cl-serif: var(--cw-skin-serif, "Newsreader", Georgia, "Times New Roman", Times, var(--cl-cjk));
-  --cl-sans: var(--cw-skin-sans, "Hanken Grotesk", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk));
-  --cl-serif-hero: var(--cw-skin-serif, "Newsreader", Georgia, "Noto Serif SC", var(--cl-cjk));
+  --cl-serif      : var(--cw-skin-serif, "Newsreader", Georgia, "Times New Roman", Times, var(--cl-cjk));
+  --cl-sans       : var(--cw-skin-sans,  "Hanken Grotesk", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk));
+  --cl-serif-hero : var(--cw-skin-serif, "Newsreader", Georgia, "Noto Serif SC", var(--cl-cjk));
 }
+
+/* 思源宋：正文衬线，界面仍用无衬线 —— 界面也上宋体会糊。 */
 html[data-claude-font="songti"] {
-  --cl-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
-  --cl-serif-hero: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  --cl-serif      : "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  --cl-serif-hero : "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
 }
+
+/* 思源黑：全站黑体，正文也不用衬线。 */
 html[data-claude-font="heiti"] {
-  --cl-serif: var(--cl-cjk);
-  --cl-sans: var(--cl-cjk);
-  --cl-serif-hero: var(--cl-cjk);
+  --cl-serif      : var(--cl-cjk);
+  --cl-sans       : var(--cl-cjk);
+  --cl-serif-hero : var(--cl-cjk);
 }
+
+/* 系统无衬线：不加载任何网络字体，最快，也最不挑设备。 */
 html[data-claude-font="system"] {
-  --cl-serif: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
-  --cl-sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
-  --cl-serif-hero: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
+  --cl-serif      : -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
+  --cl-sans       : -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
+  --cl-serif-hero : -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
 }
+
+/* 关掉：把五个变量全交还给酒馆自己的 --mainFontFamily。
+   ST 1.18 在 :root 上定义它；取不到时退回 sans-serif，不退回 inherit ——
+   html 上 inherit 没有父级可继承，会掉到浏览器默认的 Times。 */
 html[data-claude-font="native"] {
-  --cl-serif: var(--mainFontFamily, sans-serif);
-  --cl-sans: var(--mainFontFamily, sans-serif);
-  --cl-serif-hero: var(--mainFontFamily, sans-serif);
-  --cl-cjk: var(--mainFontFamily, sans-serif);
+  --cl-serif      : var(--mainFontFamily, sans-serif);
+  --cl-sans       : var(--mainFontFamily, sans-serif);
+  --cl-serif-hero : var(--mainFontFamily, sans-serif);
+  --cl-cjk        : var(--mainFontFamily, sans-serif);
 }
+
+
+/* 跟随设备/系统字体（2.0.49）：用 CSS 通用族，由操作系统决定具体字体。
+   跟「关掉」的区别 —— 关掉是交还给酒馆的 --mainFontFamily（用户在酒馆里设的），
+   这个是绕过酒馆直接问系统要。两者在用户没配过酒馆字体时才碰巧一样。 */
 html[data-claude-font="device"] {
-  --cl-serif: system-ui, sans-serif;
-  --cl-sans: system-ui, sans-serif;
-  --cl-serif-hero: system-ui, sans-serif;
-  --cl-cjk: system-ui, sans-serif;
+  --cl-serif      : system-ui, sans-serif;
+  --cl-sans       : system-ui, sans-serif;
+  --cl-serif-hero : system-ui, sans-serif;
+  --cl-cjk        : system-ui, sans-serif;
 }
+/* 自定义：把 --cw-font-custom 填成任意 font-family 值即可（设置面板里的输入框）。
+   没填时回退到 system-ui，不会塌成 Times。 */
 html[data-claude-font="custom"] {
-  --cl-serif: var(--cw-font-custom, system-ui, sans-serif);
-  --cl-sans: var(--cw-font-custom, system-ui, sans-serif);
-  --cl-serif-hero: var(--cw-font-custom, system-ui, sans-serif);
-  --cl-cjk: var(--cw-font-custom, system-ui, sans-serif);
+  --cl-serif      : var(--cw-font-custom, system-ui, sans-serif);
+  --cl-sans       : var(--cw-font-custom, system-ui, sans-serif);
+  --cl-serif-hero : var(--cw-font-custom, system-ui, sans-serif);
+  --cl-cjk        : var(--cw-font-custom, system-ui, sans-serif);
 }
-/* Closed desktop drawers must leave layout entirely. */
+
+
+
+@media (min-width:1100px){
+  
+  
+  /* 品牌行是按 280px rail 排的，收窄后会顶出去，裁掉而不是让它压住别的 */
+  
+
+  /* ---- 第二列：会话列表。position:fixed 而不是 absolute ——
+         rail 自己有 overflow:auto，absolute 会跟着滚。 ---- */
+  
+  
+  
+
+  /* ---- 对话流让位 ---- */
+  
+  
+
+  
+  
+  
+  #clawd-aside .cw-h{ padding-bottom:7px; border-bottom:1px solid var(--cl-line); }
+  #clawd-aside .cw-r{
+    display:flex; justify-content:space-between; gap:14px;
+    padding:6px 0; border-bottom:1px solid var(--cl-line);
+  }
+  #clawd-aside .cw-r b{
+    color:var(--cl-ink); font-weight:700; text-align:right;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  #clawd-aside .cw-g{ margin-bottom:26px; }
+}
+/* 窄屏一律退回侧边栏形态 —— 手机端还没有对得上的参考 */
+
+
+
+
+
+
+
+
+
+
+
+html[data-claude-avatars="off"] #chat .mesAvatarWrapper .avatar{ display:none !important; }
+
+/* 时间 / swipe 序号：JS 写成 data 属性，伪元素自动成为网格项 */
+
+
+
+
+/* 右边注：token */
+
+
+/* run-in 发言人名 */
+
+
+
+
+
+
+/* ---- 输入框：去填充去圆角，只留一条上边线 ---- */
+
+
+
+
+
+/* ---- 抽屉开关：纯文字，无底色无圆角 ---- */
+
+
+
+/* ===================== Clawd 开关（独立于皮，2.0.50）=====================
+ * 那只是 button.clawd-signoff-button::before 用几十个 box-shadow 点画的像素精灵。
+ * 跟 --cw-shadow-* 三个令牌无关，归零阴影杀不掉它，只能单独关。 */
+html[data-claude-clawd="off"] .clawd-signoff-button,
+html[data-claude-clawd="off"] [class*="clawd-idle"],
+html[data-claude-clawd="off"] [class*="clawd-look"]{
+  display:none !important; box-shadow:none !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+/* 头像跟总开关走，不再由结构层写死 */
+
+
+html[data-claude-avatars="off"] .recentChat > .avatar{ display:none !important; }
+
+
+
+
+
+
+
+/* Linear 下抽屉不该盖住会话列表 —— 它是常驻列，不是可被覆盖的临时面板 */
+
+
+
+
+
+:root{
+  
+  --cw-fs-s:12.5px;  --cw-lh-s:1.35;
+  --cw-fs-m:16px;    --cw-lh-m:1.5;
+  --cw-fs-l:28px;    --cw-lh-l:1.25;
+
+  
+  /* 三条侧栏往中间压。正文有 62ch 限宽（为了可读性，不动），所以中间那列
+     再宽也填不满 —— 加宽中间只是在正文两侧堆更多空白。要让版面不空，
+     只能加宽侧栏。这三个值是默认值，用户可以拖（见 index.js 的 pbWatchRails），
+     拖过的值存在 localStorage，由 JS 写成同名的行内变量覆盖这里。 */
+  --cw-c-nav:216px;
+  --cw-c-list:330px;
+  --cw-c-cast:280px;
+  --cw-gut:24px;
+  --cw-track-l:80px;      /* 左边注：头像 / 时间 / swipe 序号 */
+  --cw-track-r:100px;     /* 右边注：token 数 */
+  --cw-track-gap:24px;
+}
+
+
+@media (min-width:1100px){
+
+  /* ---- 第一列：导航 ---- */
+  
+  /* 带 id 的直接子元素特异性压过 .clawd-rail-recents，不排除掉它会把
+     第二列拉成整屏宽。这条是踩出来的，别删。 */
+  
+
+  /* ---- 第二列：会话列表。fixed 不是 absolute —— rail 自己有 overflow:auto，
+         absolute 会跟着 rail 一起滚。 ---- */
+  
+
+  /* ---- 第三列：对话流让位 ---- */
+  
+  
+
+  
+  
+
+  /* 抽屉是临时面板，会话列表是常驻列 —— 面板不该盖住列。 */
+  
+}
+
+
+/* ---------------------------------------------------------------------------
+   导航列的长相
+   --------------------------------------------------------------------------- */
+
+/* 图标：**不要 display:none。**
+   .drawer-icon 被官网皮做成了 position:absolute;inset:0 的整行命中区
+   （见上面 "图标撑满整行当命中区" 那段）—— 酒馆把 role=button 挂在它身上，
+   .drawer-toggle 只是个壳。把它藏了，导航项就点不动了。
+   所以留着元素、只关掉它画的那个 glyph（glyph 是 ::before 用遮罩画的）。 */
+
+
+
+/* 导航行本身。选择器必须写到 body + 子代链才够特异 ——
+   官网皮那条是 `html body #top-settings-holder > .drawer > .drawer-toggle`
+   (1,2,2)，里面有 padding:0 和 min-height:34px；
+   写成 `html[data-claude-skin] #top-settings-holder .drawer-toggle` 只有
+   (1,2,1)，压不住，行高会回到 34px、左右内边距会掉成 0。 */
+
+/* hover 不位移、不铺底色 —— 这套设计只用字色表达状态。 */
+
+/* 标签同理要写到完整子代链。官网皮那条是
+   `html body #top-settings-holder > .drawer > .drawer-toggle > .clawd-rail-label`
+   (1,3,2)，里面有 font-size:var(--cl-fs-md) 和 margin-left:33px
+   —— 33px 是留给图标 glyph 的位置，glyph 已经关掉了，这里必须收回来，
+   否则导航文字会整体右移一格，和品牌行、列表行对不齐。 */
+
+
+
+/* 导航分组头。DOM 由 index.js 插入（酒馆原生没有分组这个概念）。 */
+
+
+
+
+/* 会话行。
+   官网皮把行的长相写在一组结构选择器上（day-pc.css:3979 起）：
+     .clawd-rail-recents > :not(.clawd-rail-recents-label) > *          ← 行内的两列网格
+     .clawd-rail-recents :is(img,.avatar,...)                           ← 头像 30px 跨两行
+     .clawd-rail-recents > :not(...) > * > :not(img)...:first-of-type   ← 标题
+     .clawd-rail-recents > :not(...) > * > :not(img)...:nth-of-type(2)  ← 副行
+   特异性到 (0,5,2)。用 `html[data-claude-skin] .recentChat .chatName` 这种
+   写法只有 (1,1,0)，压不住 —— 必须**照抄它的结构选择器再加皮的属性**，
+   这样才是 (1,5,2)。下面每条都是这么来的，看着啰嗦，但换成短选择器就失效。
+
+   行本身：细线分隔，无圆角无底色。 */
+
+
+
+/* 标题行 = 名字 + 时间并排（参考稿 .lrow-top）。 */
+
+/* 时间在官网皮里是被藏起来的（L4075 那条 :is(small,.timestamp,...)），
+   参考稿要显示，这里放出来。 */
+
+
+/* 头像方形、小一档；关掉时**必须把那一列一起收掉** ——
+   只写 display:none 的话 30px 列 + 9px 间距还占着位，列表左边会留一条空槽。 */
+
+
+
+
+/* 标题：加粗、单行截断。padding-right:34px 是官网皮给行内操作按钮留的位，留着。 */
+
+/* 副行（时间）：降到 muted，字号收回三级里的最小一级。 */
+
+/* 当前对话用一条 accent 细标，不用底色 —— 这套设计不靠色块面积区分层级。 */
+
+
+/* Recents 标题行右边那个装饰图标（::after 贴的遮罩 SVG）在这套主题下不出现。 */
+
+
+
+
+/* **整套重置**，不是逐条抵消。官网皮在 .mes_block 上一次性下发了
+   border / border-radius / box-shadow / width / max-width / background /
+   margin / padding 八个属性，这里八个全部接管。 */
+
+/* 用户与 AI 的区分：正文栏整体缩进，不左右分列、不加底色。 */
+
+
+
+
+
+
+
+/* 藏掉原生元数据：
+   .timestamp 是 "August 4, 2026 10:33 AM" 全串，CSS 截不出 10:33；
+   .mes_timer 装的是生成耗时（88.9s），不是时刻；
+   .ch_name 是 flex 容器且内嵌一排按钮，摊平会把正文一起毁掉。 */
+
+
+
+
+
+/* 关掉头像时整列上移一行，不要在第一行留个空格子。 */
+
+
+
+/* 右边注：token 数 */
+
+
+/* run-in 发言人名。
+   注意名字**不能**从 .mes 的原生 ch_name 属性取 —— attr() 只读伪元素所在
+   元素自己的属性，而 ch_name 挂在 .mes 上、伪元素要长在 .mes_text 上。
+   所以仍然由 index.js 把名字写进 .mes_text 的 data-speaker。 */
+
+
+/* 第一段必须 inline，否则 ::before 的名字会单独占一行，run-in 就不成立。 */
+
+
+
+
+/* ---------------------------------------------------------------------------
+   幕次分隔条。DOM 由 index.js 插入 —— 酒馆没有「幕」这个概念，没有现成节点。
+   口径：幕次 = 回合 = 用户消息条数，每 8 回合一幕。
+   --------------------------------------------------------------------------- */
+
+
+
+
+
+/* ---------------------------------------------------------------------------
+   输入区：去填充去圆角，只留一条上边线。
+   #send_form 的填充和圆角由更高特异性的规则画，必须用 body #form_sheld #x
+   这种链才压得住，单写 #send_form 无效。
+   --------------------------------------------------------------------------- */
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---------------------------------------------------------------------------
+   Clawd 在这套主题下永远不出现 —— 剧场的前提是台上只有演员。
+   它是 button.clawd-signoff-button::before 用几十个 box-shadow 点画的像素精灵，
+   跟 --cw-shadow-* 无关，归零阴影杀不掉，只能显式关。
+   --------------------------------------------------------------------------- */
+
+
+/* 输入框上方那只 Clawd 是 #send_form::after 贴的 icons/clawd.png，
+   跟 .clawd-signoff-button 不是同一个东西，得单独关。 */
+
+/* 输入区宽度按参考稿：居中定宽，不跟着 --cw-column 一起随视口展开。 */
+
+
+
+
+
+
+/* ===================== 2.0.55 · 照真机截图修的六处 =====================
+   都是「fixture 里能看见、但只看 CSS 想不到」的那类问题。 */
+
+
+
+
+/* 2. token：官网皮把 AI 消息的 token 藏了（`.mes[is_user="false"]
+      :is(.mes_timer,.tokenCounterDisplay){display:none}`），于是右边注只有
+      用户消息有数字。参考稿两边都显示。 */
+
+
+/* 3. 发言人名和正文**同字号**，只靠字重区分 —— 参考稿的 .speaker 就是继承
+      正文字号加粗。之前写死成 fs-s，名字比正文小一圈，run-in 看着像脚注。 */
+
+
+/* 4. 导航图标的 glyph。
+      不能靠 `content:none` —— 官网皮是按 id 逐个下发的
+      （`html body #top-settings-holder > .drawer#ai-config-button > ... ::before`，
+      两个 id，特异性 (2,2,3)），皮这边够不着。
+      改成设 display —— 没有任何别的规则给这个伪元素设 display，谁写谁赢。
+      元素本身要留着：它是 position:absolute;inset:0 的整行命中区。 */
+
+
+
+/* 5. 列表行：名字和时间要在同一行的两个格子里（参考稿 .lrow-top）。
+      官网皮把行内所有非头像子元素一律推到 grid-column:2（特异性 (0,5,2)），
+      于是名字和时间挤进同一格上下堆叠，还跟着整体右对齐。 */
+/* 这里的 :not() 要**逐个抄齐**。官网皮那条写的是
+     :not(img):not(.avatar):not(.mesAvatarWrapper):not([class*="avatar" i])
+   四个 :not() 各算一个类，特异性 (0,5,2)。少抄两个就是 (0,4,3)，
+   b 位 4 < 5，前缀里那个属性选择器补不回来 —— 名字还是会被推到第二列。 */
+
+
+/* 行内那排操作按钮（重命名/删除）在这套设计里不常显。 */
+
+
+
+
+
+/* 原生抽屉的开关收掉。**只藏 .drawer-toggle，不藏 .drawer** ——
+   面板 .drawer-content 是 .drawer 的子元素，把 .drawer 整个 display:none
+   会连面板一起藏掉，点"预设"就再也打不开了。 */
+
+
+/* 品牌行改成参考稿的两行。原文字用 font-size:0 收掉，两行由伪元素画 ——
+   这个节点是 Claude Web 自己建的，但改它的文案要动 JS，
+   而文案属于"这套皮长什么样"，放在皮里更该。 */
+
+
+
+
+/* ---------------------------------------------------------------- 导航
+   三角折叠符和圆点都用 clip-path 成形，不用 border 也不用 border-radius ——
+   这套设计全站直角（--cw-radius-scale:0），引入 border-radius 会破例；
+   用 border 拼三角则会引入第二种边框色。 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 「设置」是嵌在剧场组里的二级组，整体再缩进一格。 */
+
+
+
+/* 幕次索引展开后的那一列 */
+
+
+
+
+
+/* 「剧目」筛选：隐藏由 CSS 做，JS 只写一个 class —— \
+JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
+
+
+/* ---------------------------------------------------------------- 节目单封面 */
+
+
+
+
+
+
+
+/* 封面和右栏共用同一套"标签 / 值"行 */
+
+
+
+
+
+/* ---------------------------------------------------------------- 幕次条的场景提示 */
+
+
+/* ---------------------------------------------------------------- 右栏历史对话 */
+
+
+
+
+
+
+
+/* ---------------------------------------------------------------- 输入区
+   参考稿：正文一行占满，第二行左边是功能键、右边是 Send。
+   酒馆的 #send_form 是 flex 一行，这里改成两行网格。
+   左边那两个键用酒馆原生的 #options_button / #extensionsMenuButton ——
+   不新造按钮，功能是现成的。 */
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---- 1. 会话列表：一行 = 头像 + 名字 + 时间，第二行才是预览 ----
+   之前是头像、时间、名字三样各占一行，行高一下子到 70 多像素，
+   六条就把第二列撑满了。参考稿那一列是密的，密才看得出这是一份"目录"。 */
+
+
+
+
+/* 关掉头像时把那一列一起收掉，否则左边留一条空槽。 */
+
+
+/* 正文预览：酒馆的 recentChat 里不一定有这个节点，有就排，没有就当没有 ——
+   不为了排版好看去伪造一段摘要。全量的预览在右栏「历史对话」里，
+   那份数据来自 /api/characters/chats，是真的。 */
+
+
+/* ---- 2. 导航：图标只给常用四个，其余项不画记号 ----
+   记号每项都有就不再是记号，只是一列噪点。圆点只留一个用途：标当前项。 */
+
+
+/* 有图标的项：glyph 用和原生抽屉同一组遮罩 SVG，颜色继续跟主题变量走。
+   这几个 data URI 和上面 #top-settings-holder 那组是同一份，
+   改图标要两处一起改 —— 导航是新建的 DOM，读不到原生元素上的 --clawd-icon。 */
+
+
+
+
+
+/* 没有记号的项要和有记号的项左对齐到同一条线上，不然会看出两条参差的边。 */
+
+
+
+
+/* ---- 3. 角色头像：一幕一张，居中放在幕次条下面 ----
+   每条消息挂一个的问题是同一张脸在一屏里重复十几次，左边注那栏变成
+   一列缩略图，时间和 swipe 序号反而看不见。一幕一张 = 每幕开场亮一次相。 */
+
+
+
+
+
+/* 没有头像时用一条渐变横条顶上，不留一个空洞。 */
+
+
+/* ---- 右栏「历史对话」照原生 Manage chat files 的信息量来 ---- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---- 1. 导航拍平：没有分组头了，直接八项 ---- */
+
+
+
+/* ---- 2. 头像回到每条消息，角色和用户各一个 ----
+   上一轮挪到幕次条下面居中是想省掉重复，但"每个人发一条消息 = 头像 + 正文"
+   本来就是对话这件事的默认读法，抽掉之后左边注那一栏只剩时间，
+   谁在说话得靠读名字。改回来。 */
+
+
+/* 有头像时：头像 row1、时间 row2、swipe row3；关掉头像时整列上移一行。 */
+
+
+
+
+
+/* ---- 3. 自定义配图 ----
+   两处共用一张图（设置里「剧场配图」）。都做底部渐变到页面底色 ——
+   不留硬边，用户传一张很花的图，紧挨着的文字那一带仍然是干净的。
+   渐变色用 --cw-surface-page，所以日夜切换会自动跟着走，不用写两份。 */
+
+
+/* 封面配图：满栏宽，压在标题上方 */
+
+/* 幕间配图：窄一点、矮一点，是个间奏不是新的封面 */
+
+/* 没配图时的兜底：一条渐变横条 */
+
+
+/* ---- 4. 会话列表的正文预览 ----
+   节点由 buildRecentRow 建（.chatPreview）。它在 .chatNameContainer 里，
+   而 .chatNameContainer 被官网皮推到 grid-column:2 —— 预览要单独拉回整行。 */
+
+
+
+
+/* ============================================================================
+   消息操作键：右边注，hover 时顶掉 token 数
+   —— 参考稿原本就是这么设计的（.note-r 里 tok 和 acts 互斥）。
+   ============================================================================ */
+
+/* .mes_buttons 装在 .ch_name 里，而 .ch_name 整个是 display:none 的
+   （它是 flex 容器，摊平会毁掉正文，见上面那条注释）。
+   这里改成 display:contents —— 盒子没了但子元素还在，再把名字和时间戳
+   单独藏掉，只留按钮。**contents 不是 inline**，前者只是让这一层不生成盒子，
+   后者会把整块正文卷进行内格式化上下文，那才是把正文塌掉的原因。
+
+   按钮不进网格第三列，而是相对 .mes 绝对定位到右轨 ——
+   grid-column 只对网格的直接子元素有效，而按钮隔了 .mes_block 一层。 */
+
+
+
+
+/* 只露编辑和「更多」两个。删除、复制、书签这些都在「更多」里 ——
+   右轨只有 100px，七个图标塞进去会挤成一条马赛克。 */
+
+
+
+
+/* token 用 visibility 收，不用 display —— display 会让那一格塌掉，
+   hover 进出时右轨的宽度会跳一下。 */
+
+
+
+/* ============================================================================
+   第五轮：封面配图铺满 / 头像回到居中 / 导航排版 / 用户信息归位
+   ============================================================================ */
+
+/* ---- 1. 封面配图铺满整块封面 ----
+   上一版做成了"标题上方一条 280px 的 band"，那是把它当插图。
+   实际要的是这一场的**封面**：图占满从对话区顶端到元信息表底部的整块，
+   文字压在图上，图跟着内容一起滚（不是 fixed —— fixed 会变成页面背景，
+   滚到第二幕还在那儿，就不是封面了）。
+
+   渐变分两段：上半段留纯图，下半段淡到页面底色。
+   这样标题和元信息表永远落在干净底色上，用户传一张再花的图也读得清。 */
+
+/* 图要顶到对话区最上沿，所以把 #chat 的上内边距在封面这一块补回来。 */
+
+
+
+
+/* 上一版那条独立的 band 不再使用 */
+
+
+/* ---- 2. 配图不插在对话中间；角色头像回到幕次条下面居中 ---- */
+
+
+
+
+
+
+
+/* ---- 3. 导航排版：参考稿的节奏是"两块之间留 22px"，不是八项等距挤一列 ----
+   现在没有分组头了，就用留白分块：带图标的四个是常用区，
+   其余四个是次级区，中间空出一档。 */
+
+
+/* 第一个不带图标的项 = 次级区的开头，在它上面断一档。 */
+
+
+/* ---- 4. 用户信息（零 / Max plan）沉到底，带一条分隔线 ----
+   参考稿左栏底部是 spacer + border-top 的一块，不是跟在导航后面飘着的两行。
+   #top-settings-holder 是 flex column，margin-top:auto 就能把它压到底；
+   会话列表是 position:fixed 的第二列，不在这个流里，不受影响。 */
+
+
+
+
+
+/* ============================================================================
+   第六轮：每条消息一套完整的头 / 顶部固定配图 / 导航排版
+   ============================================================================ */
+
+
+
+
+/* 分隔线。换幕时线中间嵌一个 Act 标签，同一幕内后面几条只有线 ——
+   每条都写一遍 Act III 的话，一屏里同一个词出现五六次，那就不是分节标记了。 */
+
+
+
+
+
+
+/* 名字已经在头里居中显示了，正文前面不再 run-in 一次。 */
+
+/* 头占了第 1 行，下面的东西整体下移一行。 */
+
+
+
+
+
+
+/* 操作键：居中，压在这条消息最底下。用绝对定位而不是网格项 ——
+   .mes_buttons 隔着 .mes_block 一层，grid-column 只对网格的直接子元素有效。 */
+
+
+
+#clawd-pb-banner{ display:none; }
+@media (min-width:1100px){
+  
+  /* 底端渐变：正文滚进这一带时被淡出去，不是被一条硬边切断。 */
+  
+  /* 正文从图下面开始，不然第一条消息一上来就是被挡住的。 */
+  
+}
+/* 上一版那两个内嵌配图节点不再使用 */
+
+/* 没有配图时不留 300px 空白 */
+
+
+
+/* ---- 3. 导航排版：给它一个和 RECENTS 对等的分区标题 ----
+   左栏现在只有两块内容（功能入口 / 会话列表），列表有 "RECENTS" 这个头，
+   功能入口没有，读起来就是"一坨按钮直接贴在品牌下面"。补一个同款的头，
+   两块才有同一种节奏。 */
+
+
+
+
+
+/* ============================================================================
+   第七轮：配图合成一张 / 真透明 / 操作键常显 / 导航三个一组 / 去掉底部用户块
+   ============================================================================ */
+
+/* ---- 1. 配图 ---- 见下面第 3 节，这里那版已删。 */
+/* 图钉住之后，正文要从它下面过去，所以正文的层级必须更低。 */
+
+
+/* 上一版那两个节点作废 */
+#clawd-pb-banner{ display:none !important; }
+
+
+
+/* ---- 2. 操作键常显、居中、压在这条消息最底下 ----
+   之前是 hover 才出现，所以你在截图里只看到一块空白。
+   常显但用 muted 色，不抢正文。 */
+
+
+
+/* ---- 3. 导航三个一组 ----
+   参考稿左栏是 3 / 3 / 3 三组，靠留白分。这里八项按 3 / 3 / 2 断，
+   规则是"每第 4、第 7 项上面断一档"。 */
+
+
+/* ---- 4. 去掉底部那块用户信息 ----
+   参考稿左栏底下没有这个东西；「偏好设置」已经在导航里了，
+   底部再钉一块用户名 + 套餐名，是 Claude 官网侧边栏的习惯，不是这套设计的。 */
+
+
+
+/* ============================================================================
+   第八轮：消息改成单列上下居中 / 自建操作键 / 配图收放 / 品牌行大小写 / 三组三项
+   ============================================================================ */
+
+
+
+/* 原生那几条边注不再参与排版 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 用户消息不再靠缩进区分 —— 头里已经有名字和头像了，缩进反而破坏居中的对称。 */
+
+
+
+/* ---- 2. 编辑 / 删除：自建，纯文字，常显，居中 ----
+   不复用酒馆那两个图标按钮：它们是 Font Awesome 字形，字体没加载时
+   渲染成空白 —— 看起来就是"按钮根本没加"。点下去仍然走酒馆自己的按钮，
+   所以删除的确认、编辑的输入框都还是它原来那套。 */
+
+
+
+
+/* ---- 3. 配图：sticky 的图 + 一块补高垫片 ----
+
+   上一版是「560px 的槽 + 槽里 sticky 的图」，钉不住。原因是 sticky 元素只能在
+   **它父元素的内容盒**里移动：父元素是那个 560px 的槽，图起始高度也是 560px，
+   可移动距离一开始是 0，随着收缩最多长到 410px（560 − 150）。滚过 410px 之后
+   图就跟着槽一起走掉了 —— 表现就是「完全不跟随」。
+
+   现在图直接是 #chat 的孩子，父元素是整条对话，可移动距离等于全文长度，一钉到底。
+   图收缩带来的流变化由紧跟其后的 .cw-cover-pad 补回来（图高 + 垫高恒等于 560），
+   所以下面的内容一格都不会跳，也就不需要那个槽了。
+
+   .cw-cover-anchor 是图前面一个 0 高度的标记，JS 拿它的 getBoundingClientRect()
+   算滚过了多少 —— 不读 scrollTop。真机和 fixture 的滚动容器不是同一个，
+   读 scrollTop 就得先猜对是谁在滚，测量位置不用猜。
+
+   flex:0 0 auto 是防的：#chat 若是 column flex 容器，默认 flex-shrink:1 会把
+   写死的高度压掉。
+
+   底端用 mask 让图本身淡成透明，不叠同色渐变（那是假透明，换个背景就露馅）。 */
+
+
+
+/* 旧结构作废。留一条兜底，万一有残留节点不至于画出一个 560px 的空洞。 */
+
+
+
+
+
+
+
+/* ---- 5. 导航三组三项 ---- */
+
+
+/* ---- 6. 右栏：幕次表 + 历史对话的 Act 编号 ---- */
+
+
+
+
+
+
+
+/* ============================================================================
+   第九轮：拿掉借来的图标 / 正文限宽 / 输入框置底 / Send 用文字
+   ============================================================================ */
+
+/* ---- 1. 侧栏记号只剩圆点，且只给常用四项 ----
+   参考稿左栏通篇只有两种形状：分组头前面的三角、条目前面的圆点。
+   之前从官网皮那边搬了一组遮罩 SVG 当图标 —— 那是 Claude 侧栏的语言，
+   不是这套设计的。全部作废。 */
+
+
+
+/* 圆点只有两种状态：常用项是实心 muted，当前项是实心 accent。其余透明占位 ——
+   占位是为了让所有条目的文字左边缘对齐在同一条线上。 */
+
+
+
+
+/* ---- 2. 正文限宽，只往下长不往右长 ----
+   一条消息里有五样东西（名字 / 元数据 / 正文 / 操作键 / 分隔线），
+   它们各自的间距要拉开，否则挤成一团；正文本身则要限宽，
+   不然长句会一直铺到栏的右边缘，和居中的头对不上。 */
+
+
+
+
+
+
+
+
+@media (min-width:1100px){
+  
+  /* 输入框是 fixed 的，最后一条消息会被它盖住，末尾补出等高的余量。 */
+  
+}
+
+/* ---- 4. 发送键用文字 Send ----
+   原生 #send_but 是 Font Awesome 字形 + 一个遮罩箭头。两个都关掉，写字。 */
+
+
+
+
+/* ---- 5. 右栏「幕次表」（= 历史存档）行 ---- */
+
+
+/* 限宽要压过 `html body #chat > .mes[is_user="false"] .mes_block{max-width:100%}`
+   —— 那条是 (1,3,2)，选择器里不写 body 就只有 (1,3,1)，压不住，
+   正文会一路铺到栏的右边缘，和居中的头对不上。 */
+
+
+
+
+
+
+
+
+/* ============================================================================
+   第八轮：列表行照参考稿重排 / 角色卡名单 / 栏宽可拖 / 导航拉开
+   ============================================================================ */
+
+
+.chatMeta{ display:none; }
+
+
+/* 第一行左：存档名。.chatName 里原来是「角色名 – 存档名」三个节点，
+   角色名挪到第二行去了，这里只留存档名那一个 span。 */
+
+
+/* 第一行右：时间。参考稿是和标题同一行的最右端，不是标题下面一行。 */
+
+/* 第二行：角色 · 第 X 幕 · N 句，横跨两列。 */
+
+/* 正文预览和头像在这一版不出现。数据还在（entry.preview 照旧算），
+   哪天想加回来把这两条删掉即可。 */
+
+/* 删除键压到行右上，hover 才出现 —— 常显的话它和时间抢同一块地方。 */
+
+
+
+
+
+
+
+/* 3 / 3 / 3 分组：第 4 项和第 7 项前面各留一段空。靠留白分组，不画线。 */
+
+
+
+
+
+
+
+
+
+/* 当前角色和"当前对话"用同一个记号：一条 accent 竖标，不用底色。
+   这套设计不靠色块面积区分层级。 */
+
+/* 左栏要能把名单顶到底，自己得是一个纵向 flex 容器。 */
+
+
+/* ---- 12. 栏宽拖拽把手 ----
+   三条竖缝上各一个。平时完全看不见，鼠标压上去才出一条细线 ——
+   常显的话版面上就多了三条和内容无关的竖线，这套设计里线是有含义的。 */
+
+
+
+
+
+
+/* 拖动时别让指针在文字上刷出一片选中蓝。 */
+html.cw-rail-dragging, html.cw-rail-dragging *{
+  user-select:none !important; cursor:col-resize !important;
+}
+/* 窄屏退回侧边栏形态时，把手不能留在屏幕上。 */
+
+
+
+
+
+
+
+
+/* 编辑 / 删除跟着正文贴左，不再居中 —— 正文左对齐之后，居中的按钮会飘在
+   一段文字的右下方，看着像属于别的东西。 */
+
+
+/* ---- 14. 消息头：四行 → 两行 ---- */
+
+
+
+/* 第二行：头像 · 名字 · 元数据。三样在一条基线上，靠 gap 分开，不靠换行。 */
+
+
+
+/* 元数据是这一行里唯一可以被压掉的东西：窗口窄的时候先截它，
+   名字和头像不动 —— 名字被截成半个字是最难认的一种失败。 */
+
+
+
+
+
+
+/* 导航：上一轮拉到 9px 是矫枉过正 —— 拉开的应该是**组与组之间**，
+   不是每一行之间。行回到 6px，组间距 16 → 14px。 */
+
+
+
+
+/* 会话列表行：两行内容，11px 的上下留白偏多。 */
+
+/* 右栏幕次表的预览行是三行里最占地方的一段，收到两行。 */
+
+/* 段间距：正文段落之间 14 → 11px。行内已经有 1.5 的行距，段距不必再拉开一倍。 */
+
+
+
+
+
+/* ---- 16. 消息头：一行的结构留着，间距还回去 ----
+   合成一行本身是对的（省掉的是「四样东西各占一行」的堆叠），
+   错的是把这一行上下的留白也一起削了。 */
+
+
+
+
+
+
+
+
+
+/* 段距 18px：比行距（16 × 1.72 ≈ 27px）小，段与段才是「同一段话的两节」，
+   而不是两条独立的消息。比行距还大就会读成断开的两块。 */
+
+
+
+/* ---- 18. 操作键：离正文远一点 ----
+   贴着正文最后一行会读成正文的一部分。 */
+
+
+
+/* ============================================================================
+   第十一轮：对齐说死 + 再松一档
+   ----------------------------------------------------------------------------
+   对齐分两类，写死不靠继承：
+     · 左对齐 —— 封面标题、正文、编辑/删除键
+     · 居中   —— ACT 分隔条、场景标语、头像 + 名字 + 时间那一行
+   这不是随意分的：左对齐的都是**要读的**（眼睛需要一条固定的行首），
+   居中的都是**标记**（它们标的是「这里换人了」，居中才读得出对称的分界感）。
+
+   之前这两组有一半是靠继承拿到的默认值 —— 没有规则写，只是碰巧对。
+   碰巧对的东西，下次别人加一条 text-align 就会塌，所以这里全部显式写出来。
+   ============================================================================ */
+
+/* ---- 19. 左对齐：封面 / 正文 / 操作键 ---- */
+
+
+
+/* ---- 20. 居中：ACT 条 / 标语 / 头像那一行 ---- */
+
+
+
+
+
+
+
+
+
+/* 段距 22px：仍然小于行距（16 × 1.72 ≈ 27px）。这条线不能越过 ——
+   段距一旦大于行距，段与段就读成两条独立的消息，而不是一段话的两节。 */
+
+
+
+/* 封面同步放松，不然封面显得比下面的正文挤。 */
+/* 写成 longhand，不写 padding 简写：上面 L7258 那条声明的是 padding-top 长写法，
+   两种写法混在一起时，谁压谁要连 !important 一起看，很容易看错。 */
+
+
+
+
+
+/* ============================================================================
+   第十二轮：消息头退回堆叠 —— 头像必须落在同一条竖轴上
+   ----------------------------------------------------------------------------
+   第九轮把 头像 / 名字 / 元数据 合成一行（.cw-card-line，居中的 flex）省竖向空间。
+   那是个真错误，不是取舍：
+
+     元数据每条的长短不一样 —— 用户消息是 "14:13 · 22 tok"，
+     角色消息是 "14:14 · 8.4s · 1/4 · 95 tok"。
+     [头像][名字][元数据] 作为一整组居中，组宽不一样，
+     **头像的横坐标就每条都在飘。**
+
+   一列头像左右跳，比多占一百像素严重得多：视线沿着这一列往下走时，
+   每换一条都要重新找中轴。所以退回堆叠 —— 各占一行、各自居中，
+   头像才永远在同一条竖轴上。
+
+   .cw-card-line 这个节点已经从 index.js / fixture.html 里删掉了，
+   下面那条 display:contents 只是兜底：万一还有旧的缓存 DOM 留着这个壳，
+   让它不生成盒子，里面三样直接按 .cw-card-head 的居中排。
+   ============================================================================ */
+
+/* 头像：block + 左右 auto，居中靠自己的 margin，不靠父元素的 flex ——
+   这样它的位置只和自己的宽度有关，和同行有什么东西无关。 */
+
+
+
+
+
+
+
+
+
+/* ============================================================================
+   第十四轮：宽度只定义一次 / 头用网格锁列位 / 三个小修
+   ----------------------------------------------------------------------------
+   前四轮反复出错的根源：「正文列有多宽」这件事写在四个选择器里
+   （.cw-card-head / .mes_block / .cw-msg-acts / .cw-cover），各写一遍
+   max-width + margin:auto。改一次宽度要同步改四处，漏一处就错位。
+
+   现在宽度只写在 .mes 上 —— 一条消息的最外层盒子。里面三样宽度设成 100%，
+   跟着外层走。以后调列宽只改一个数。
+   （.cw-cover 不在 .mes 里面，仍然自己定，但用同一个令牌 --cw-pb-measure。）
+
+   **没有照搬的一点**：参考实现把分隔线改成了 .mes 的 border-top。这里不改 ——
+   现在那条线中间夹着「ACT II」，是 .cw-card-bar 用两条伪元素线加中间的字画的。
+   换成边框就没地方夹字了。线的活儿留给 .cw-card-bar。
+   ============================================================================ */
+
+/* 里面三样不再各自定宽，撑满外层即可。 */
+
+/* 封面不在 .mes 里，但用同一个令牌，两边不会漂。 */
+
+
+/* ---- 22. 消息头：居中的外观不变，实现换成网格 ----
+   居中原来靠每个子元素自己的 margin:auto / text-align。那是三套机制拼出来的
+   同一个效果，任何一处被别的规则改掉就会有一样东西偏出去。
+   网格只有一套：一列，justify-items:center，所有子元素落在同一条竖轴上。
+   .cw-card-bar 要例外 —— 它是「细线 + Act 号 + 细线」，必须撑满整行，
+   缩到内容宽两边的线就没了。 */
+
+
+
+
+/* ---- 23. 长英文串不撑破列 ----
+   中文靠标点和字符自动折行，但一串没有空格的英文或网址（贴进来的链接常常
+   两百个字符）浏览器不会拆，会一路顶到列外面，把这条消息撑得比别的宽。 */
+
+
+/* ---- 24. 编辑 / 删除：平时淡，hover 才实 ----
+   常显的话一屏五条消息就是十个灰字。.28 是「看得见但不抢」——
+   不设 0，设 0 就变成隐藏功能，新用户根本不知道有这两个键。 */
+
+
+
+/* ---- 25. 右栏幕次表：三段各占固定列位 ----
+   原来是 flex，谁长谁占地方：存档名一长，右边的「49 句」就被挤出去或者换行。
+   网格三列 auto / 1fr / auto —— Act 号和句数位置固定，要截断只截中间的名字。 */
+
+
+
+
+
+
+
+
+
+/* ---- 26. 顶栏 ---- */
+
+
+/* 标识：两个方块，不用图标字体也不用 SVG ——
+   参考稿左栏通篇只有三角和圆点两种形状，顶栏也守同一条。 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================================
+   第十六轮：配图挪到标题区下面 + 图注
+   ----------------------------------------------------------------------------
+   照参考稿的编辑页顺序排：
+
+     .cw-cover        标题行 + 四列细线表
+     .cw-cover-anchor 高 0，测量用
+     .cw-cover-art    配图（sticky，470 → 110）
+     .cw-cover-pad    补回图收缩掉的高度
+     .cw-cover-cap    图注 = 那句随机场景标语
+
+   **滚动跟随照旧生效。** sticky 只能在父元素的内容盒里移动，这四个节点仍然是
+   #chat 的直接孩子，父元素就是整条对话，可移动距离和图排在第几位无关。
+   测量用的 anchor 跟着图一起挪到标题区下面，所以「滚过了多少」从图自己的
+   流位置开始算 —— 标题区滚完图才开始收缩，正是要的。
+
+   宽度用整列宽（920），不是参考稿那个 760。参考稿的图窄一档、居中在 1040 的
+   列里，那是因为它下面全是同样窄的正文块；我们下面是 920 的对话列，图窄一档
+   就会和标题、正文三条左右边线对不齐。图钉住之后更明显 —— 一条 760 的横幅
+   浮在 920 的正文上，两侧各露出 80px。要换回窄版把下面的 width 改成
+   min(760px,100%) 即可，但左右就不齐了。
+   ============================================================================ */
+
+
+
+
+/* 标题区和图之间留一段。标题区自己的下内边距在上一轮是 38px，
+   现在它下面紧跟着图，收到 30px，图注下面再留 44px 接第一条消息。 */
+
+
+/* 标语已经不在标题区里了（挪到图注去了），旧节点如果还在就别画。 */
+
+
+/* Claude Web 2.0.62 — a closed desktop drawer must leave layout entirely.
+   Earlier reveal animations forced every drawer to display:block, keeping
+   thousands of invisible settings controls in style/layout work while a chat
+   was being rendered. The host's openDrawer class remains the single gate. */
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
@@ -5414,3 +6587,24 @@ html[data-claude-font="custom"] {
     display:block !important;
   }
 }
+
+
+/* ============================================================================
+   第十七轮：砍掉滚动跟随，图变成流里的一块
+   ----------------------------------------------------------------------------
+   参考稿的编辑页里，图就是流里的一个静态块 + 下面一行图注，什么都不钉。
+   收缩钉顶是营销页的手法，风格上对不上。而且那套一直在收成本 ——
+   测量锚点 / 补高垫片 / 滚动监听 / 每帧 rAF，这一轮最难的几个 bug 全出在它身上，
+   换来的是一条 110px 的横幅永久占住阅读列顶部。
+
+   现在只剩：标题区 → 图 → 图注。
+
+   遮罩和 55% 不透明度一起去掉了。那两样当初是为了压住「一张 680px 的巨图
+   占满首屏」的重量；现在图是一个 470px 的有界插图、下面还有图注收口，
+   本来就不重，再压反而像没加载完。
+   （想要回半透明：把下面的 opacity 打开即可，一行。）
+   ============================================================================ */
+
+/* 旧结构的三个节点已经从 JS 里删了。留一条兜底：从旧版本升上来时 DOM 里
+   可能还有残留，别让它们画出两块空白。 */
+
