@@ -164,6 +164,7 @@ const CLAUDE_DECORATIONS_ENABLED = claudeReadSetting('decorations', ['on', 'off'
 const CLAUDE_GEN_TIMER_ENABLED = claudeReadSetting('genTimer', ['on', 'off'], 'off') !== 'off';
 const CLAUDE_BG_TRANSPARENT_ENABLED = claudeReadSetting('bgTransparent', ['on', 'off'], 'off') === 'on';
 const CLAUDE_BG_BLUR_ENABLED = claudeReadSetting('bgBlur', ['on', 'off'], 'off') === 'on';
+const CLAUDE_QUOTE_BODY_COLOR_ENABLED = claudeReadSetting('quoteBodyColor', ['on', 'off'], 'on') !== 'off';
 /* 毛玻璃浓度：8~60 之间的整数，表示 color-mix 里 --cw-surface-page 的占比。
    数字越大越"糊"（底色更浓、越不透）；越小越接近纯透明。允许字符串是
    开区间，这里手动做数值校验和夹取，claudeReadSetting 那套白名单机制
@@ -224,6 +225,7 @@ document.documentElement.dataset.claudeDecorations = CLAUDE_DECORATIONS_ENABLED 
 document.documentElement.dataset.claudeGenTimer = CLAUDE_GEN_TIMER_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgTransparent = CLAUDE_BG_TRANSPARENT_ENABLED ? 'on' : 'off';
 document.documentElement.dataset.claudeBgBlur = CLAUDE_BG_BLUR_ENABLED ? 'on' : 'off';
+document.documentElement.dataset.claudeQuoteBodyColor = CLAUDE_QUOTE_BODY_COLOR_ENABLED ? 'on' : 'off';
 document.documentElement.style.setProperty('--claude-bg-blur-opacity', `${CLAUDE_BG_BLUR_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-drawer-tint-opacity', `${CLAUDE_DRAWER_TINT_OPACITY}%`);
 document.documentElement.style.setProperty('--claude-glass-base', CLAUDE_GLASS_BASE);
@@ -352,7 +354,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.114-public-compat-framework-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
+  id: '2.0.115-public-compat-framework-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
     + '-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
@@ -965,7 +967,14 @@ if (CLAUDE_ENABLED) {
   );
   const RESTORE_KEY = 'claude-integrated-theme-restore:v2';
   const WATCHDOG_KEY = '__claudeIntegratedThemeWatchdog';
-  const STYLE_ATTRIBUTE_SELECTOR_MARK = '[style';
+  const HOST_DELETE_MODE_STYLESHEET_SUFFIX = '/css/toggle-dependent.css';
+  const HOST_DELETE_MODE_SELECTOR_MARKS = [
+    'body.documentstyle',
+    '#chat',
+    '.last_mes:has(',
+    '.del_checkbox[style',
+    '.mes_text',
+  ];
   const INSTANCE_TOKEN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   let destroyed = false;
   let hostPageUnloading = false;
@@ -1152,15 +1161,22 @@ if (CLAUDE_ENABLED) {
      write enter expensive :has() invalidation. A reversible same-page A/B on
      a long chat measured roughly 70ms before removal and 2ms after it.
 
-     A same-page scan found three candidate rules and only this host rule
-     contains "[style". Match that CSSOM marker directly: selectorText
-     serialization differs between Chromium/SillyTavern builds, so a regex
-     for the attribute value produced false negatives in 2.0.59. Keep a
-     cssText fallback for rule implementations without selectorText. */
-  function isStyleAttributeRule(rule) {
-    if (typeof rule?.selectorText === 'string'
-      && rule.selectorText.includes(STYLE_ATTRIBUTE_SELECTOR_MARK)) return true;
-    return (rule?.cssText || '').split('{')[0].includes(STYLE_ATTRIBUTE_SELECTOR_MARK);
+     2.0.59-2.0.119 used a global "[style" scan. That also deleted legitimate
+     third-party selectors such as .del_checkbox[style="display: block"] from
+     extension user.css files, breaking plugins that lock or stack messages.
+
+     Keep the performance workaround, but only for SillyTavern's own
+     css/toggle-dependent.css and only for the known delete-mode selector.
+     CSSOM serialization may change quotes/spacing, so match stable structural
+     marks instead of the attribute value while still requiring the core URL. */
+  function isHostDeleteModeRule(rule, source) {
+    let pathname = '';
+    try { pathname = new URL(source, hostDocument.baseURI).pathname; } catch { return false; }
+    if (!pathname.endsWith(HOST_DELETE_MODE_STYLESHEET_SUFFIX)) return false;
+    const selector = typeof rule?.selectorText === 'string'
+      ? rule.selectorText
+      : (rule?.cssText || '').split('{')[0];
+    return HOST_DELETE_MODE_SELECTOR_MARKS.every(mark => selector.includes(mark));
   }
 
   function collectStyleAttributeRules(parent, source, removed) {
@@ -1174,7 +1190,7 @@ if (CLAUDE_ENABLED) {
          property's existence therefore misclassified every normal selector
          as a grouping rule and skipped it in 2.0.59/2.0.60. Test the selector
          before descending, and recurse only when child rules actually exist. */
-      if (isStyleAttributeRule(rule)) {
+      if (isHostDeleteModeRule(rule, source)) {
         const cssText = rule.cssText;
         try {
           parent.deleteRule(index);
@@ -1200,7 +1216,7 @@ if (CLAUDE_ENABLED) {
     if (!removed.length) return 0;
     neutralizedHostRules.push(...removed);
     console.info(
-      '[Claude Web] 已中和 ' + removed.length + ' 条匹配 style 属性的高开销选择器：',
+      '[Claude Web] 已中和 ' + removed.length + ' 条 ST 核心删除模式高开销选择器：',
       removed.map(entry => ({ source: entry.source, rule: entry.cssText })),
     );
     return removed.length;
@@ -1346,6 +1362,10 @@ if (CLAUDE_ENABLED) {
 
   function valuesWithPreservedQuote(settings, values) {
     const next = { ...values };
+    if (hostDocument.documentElement.dataset.claudeQuoteBodyColor !== 'off') {
+      next.quote_text_color = next.main_text_color ?? values.quote_text_color;
+      return next;
+    }
     const current = settings?.quote_text_color;
     const defaults = typeof CLAUDE_THEMES !== 'undefined'
       ? Object.values(CLAUDE_THEMES).map(theme => theme?.quote_text_color).filter(Boolean)
@@ -1667,6 +1687,7 @@ if (CLAUDE_ENABLED) {
     }
     hostWindow.removeEventListener('beforeunload', markHostPageUnloading, true);
     hostWindow.removeEventListener('pagehide', markHostPageUnloading, true);
+    window.removeEventListener('pageshow', handleRunnerPageShow);
     restoreStyleAttributeRules();
     removeRuntimeArtifacts();
     if (hostWindow[INSTANCE_KEY] === api) delete hostWindow[INSTANCE_KEY];
@@ -1677,14 +1698,23 @@ if (CLAUDE_ENABLED) {
     hostPageUnloading = true;
   }
 
-  function handleRunnerPageHide() {
-    if (hostPageUnloading) {
+  function handleRunnerPageHide(event) {
+    if (extensionMode && (event?.persisted || event?.originalEvent?.persisted)) return;
+    if (hostPageUnloading && !extensionMode) {
       destroy({ restore: false });
       return;
     }
     /* pagehide is TavernHelper's documented script-disable hook. Cleanup must be
        synchronous: delaying it means Via can destroy this realm before it runs. */
     destroy({ restore: true });
+  }
+
+  function handleRunnerPageShow(event) {
+    if (!extensionMode || !event?.persisted || destroyed) return;
+    hostPageUnloading = false;
+    /* once 监听器在进入 bfcache 时也会被消费；页面恢复后重新装一份，保证之后
+       真正刷新或关闭扩展仍会同步恢复进入前主题。 */
+    window.addEventListener('pagehide', handleRunnerPageHide, { once: true });
   }
 
   function watchRunnerPresence() {
@@ -1715,6 +1745,7 @@ if (CLAUDE_ENABLED) {
   installHostWatchdog();
   $(start);
   window.addEventListener('pagehide', handleRunnerPageHide, { once: true });
+  window.addEventListener('pageshow', handleRunnerPageShow);
   window.addEventListener('unload', handleRunnerPageHide, { once: true });
   $(window).on('pagehide', handleRunnerPageHide);
 })();
@@ -1757,6 +1788,8 @@ if (CLAUDE_ENABLED) {
   const PRESET_REASONING_CLASS = 'claude-has-preset-reasoning';
   const SWIPE_VIEW_CLASS = 'claude-swipe-in-viewport';
   const USER_ACTIONS_CLASS = 'claude-user-message-actions';
+  const PROMPT_DRAG_HANDLE_CLASS = 'clawd-prompt-drag-handle';
+  const PROMPT_DRAG_GLYPH_CLASS = 'clawd-prompt-drag-glyph';
   /* R3「表面自持」在 2.0.86 拆掉了。它存在的理由是属性过滤器把外壳的背景色筛掉了，
      于是要靠注入一个背板子元素把面板重新填成不透明。生成器改成区域制之后，
      真正的 background 直接从 day-pc.css 搬过来，背板没有用了。
@@ -1780,7 +1813,21 @@ if (CLAUDE_ENABLED) {
   const MOBILE_COMPOSER_TRANSLATE_PROPERTY = '--cl-mobile-composer-translate-y';
   const MOBILE_VIEWPORT_HEIGHT_PROPERTY = '--cl-mobile-viewport-height';
   const MOBILE_VIEWPORT_TOP_PROPERTY = '--cl-mobile-viewport-top';
+  const MOBILE_POPUP_HEIGHT_PROPERTY = '--cl-mobile-popup-height';
   const STYLE_ID = 'claude-clawd-interaction-style';
+  const THEME_LIVE_STYLE_ID = 'claude-integrated-theme-live-style';
+  const CHARACTER_MANAGER_SELECTOR = '#charManagerModal';
+  const EXTERNAL_MODAL_OPEN_CLASS = 'clawd-external-modal-open';
+  const EXTERNAL_MODAL_SELECTOR = [
+    '[role="dialog"]',
+    'dialog[open]',
+    '[class*="modal-backdrop" i]',
+    '[class*="modal_backdrop" i]',
+    '[class*="modal-overlay" i]',
+    '[class*="modal_overlay" i]',
+    '[class*="popup-backdrop" i]',
+    '[class*="popup_backdrop" i]',
+  ].join(',');
   const EMBED_STYLE_ID = 'claude-embedded-surface-style';
   const EMBED_ATTRIBUTE = 'data-claude-transparent-surface';
   const EMBED_SRCDOC_MARKER = '<!-- claude-transparent-surface -->';
@@ -1812,6 +1859,8 @@ if (CLAUDE_ENABLED) {
 
   let observer = null;
   let chatAttributeObserver = null;
+  let externalModalObserver = null;
+  let externalModalRailState = [];
   let observedAttributeChat = null;
   let scrollHost = null;
   let lastManualScrollAt = 0;
@@ -1875,6 +1924,8 @@ if (CLAUDE_ENABLED) {
   let keyboardDiagnostics = null;
   let diagnosticRefreshPaused = false;
   let diagnosticIsolationMode = 'standard';
+  let suspendedThemeStyle = null;
+  let suspendedThemeMedia = null;
   const DIAGNOSTIC_COMPOSITOR_STYLE_ID = 'clawd-via-compositor-isolation';
   const AUTOCOMPLETE_RESIZE_GUARD_KEY = '__claudeClawdAutoCompleteResizeGuard';
   const AUTOCOMPLETE_GUARDED_METHODS = [
@@ -1948,6 +1999,13 @@ if (CLAUDE_ENABLED) {
         #chat > .mes[is_user="false"] .mes_text .${REGEX_SURFACE_CLASS} {
         background: transparent !important;
         background-color: transparent !important;
+      }
+
+      /* Claude 的桌面侧栏使用高层级常驻。第三方扩展打开真正的全屏弹窗时，
+         侧栏必须退到遮罩后面，否则会把弹窗左侧工具区盖住。body 状态由下面
+         的通用几何检测维护，不依赖任何插件名称。 */
+      html[data-claude-mode] body.${EXTERNAL_MODAL_OPEN_CLASS} #top-settings-holder {
+        z-index: 1 !important;
       }
 
       body.${READY_CLASS} #chat > .mes[is_user="false"] > .swipe_left,
@@ -2446,15 +2504,6 @@ if (CLAUDE_ENABLED) {
         position: relative !important;
       }
 
-      /* 这条藏的是酒馆自带的用户消息按钮（编辑/删除），前提是完整模式会用
-         .claude-user-message-actions 顶上去。兼容模式按边界不往消息里注入任何
-         Claude 操作按钮，所以这里一藏就等于用户消息没有编辑键了 ——
-         2.0.92 在 MUJI / 天使爱 / 狸猫 / 苹果啵啵 上都是这个症状。
-         兼容模式下必须让酒馆自己的按钮留着。 */
-      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes[is_user="true"] .mes_buttons {
-        display: none !important;
-      }
-
       #chat > .mes[is_user="true"] .mes_block {
         overflow: visible !important;
       }
@@ -2556,6 +2605,478 @@ if (CLAUDE_ENABLED) {
           visibility: visible !important;
           pointer-events: auto !important;
           transform: translateY(0) !important;
+        }
+      }
+
+      /* 真实动作仍全部保留，但默认折叠必须交还酒馆。2.0.117 把
+         .extraMesButtons 和它的每个孩子都强制 display:flex，等于绕过了
+         extraMesButtonsHint 的原生开关，P2/P5 才会整排常驻。 */
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes .mes_buttons {
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        flex-wrap: nowrap !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes .extraMesButtons {
+        display: none !important;
+        align-items: center !important;
+        gap: 4px !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        flex-wrap: nowrap !important;
+      }
+
+      /* 主题源 CSS 会先把角色消息下的每个 .mes_button 全部隐藏。
+         省略号和编辑键属于原生主操作，必须明确恢复；额外动作仍由
+         .visible / expandMessageActions 控制，不能跟着一起常驻。 */
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}:not(.expandMessageActions)
+        #chat > .mes .mes_buttons:not(:has(> .extraMesButtons.visible))
+        > .extraMesButtonsHint,
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="false"] .mes_buttons > .mes_edit {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      /* 用户消息的原生编辑键挂在 .ch_name 里。TT 的气泡布局会把整段标题栏
+         压成零高，按钮即使 display:flex 也在画面外。下方的编辑代理负责转发
+         给同一枚原生 .mes_edit；这里收起原节点，避免 ST 出现双铅笔。 */
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="true"] .mes_buttons > .mes_edit {
+        display: none !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}.expandMessageActions
+        #chat > .mes .mes_buttons > .extraMesButtonsHint,
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes .mes_buttons:has(> .extraMesButtons.visible)
+        > .extraMesButtonsHint {
+        display: none !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}.expandMessageActions
+        #chat > .mes .extraMesButtons,
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes .extraMesButtons.visible {
+        display: flex !important;
+      }
+
+      /* 主题源曾只白名单显示复制和朗读，所以点省略号后看起来只有两个功能。
+         展开区改成独立浮层：只恢复酒馆没有显式隐藏的真实按钮，并允许换行，
+         不再把十几个动作硬塞进消息底部的一条 26px 横线。 */
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="false"]:has(.extraMesButtons.visible),
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="false"]:has(.extraMesButtons.visible) .mes_block,
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="false"] .mes_buttons:has(> .extraMesButtons.visible) {
+        overflow: visible !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="false"] .mes_buttons > .extraMesButtons.visible {
+        position: absolute !important;
+        inset: auto auto 32px 0 !important;
+        z-index: 32 !important;
+        display: flex !important;
+        align-items: center !important;
+        align-content: flex-start !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        box-sizing: border-box !important;
+        width: min(248px, calc(100vw - 32px)) !important;
+        max-width: calc(100vw - 32px) !important;
+        height: auto !important;
+        min-height: 38px !important;
+        max-height: min(44dvh, 220px) !important;
+        margin: 0 !important;
+        padding: 6px !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        color: var(--cw-text-body, #ece9e2) !important;
+        background: var(--cw-surface-raised, #242422) !important;
+        border: 1px solid var(--cw-rule-hairline, rgba(128,128,128,.24)) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,.18) !important;
+        scrollbar-width: thin !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes[is_user="false"] .extraMesButtons.visible
+        > .mes_button:not(.displayNone):not([hidden]):not([style*="display: none"]):not([style*="display:none"]) {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 30px !important;
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        max-height: 30px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: visible !important;
+        opacity: .82 !important;
+        pointer-events: auto !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS}
+        #chat > .mes .mes_buttons > :not(script):not(style) {
+        visibility: visible !important;
+        opacity: .72 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+        flex: 0 0 auto !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes :is(.mes_create_bookmark,.mes_create_branch) {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes:has(.edit_textarea) .mes_buttons {
+        display: none !important;
+      }
+
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes .mes_buttons > :is(.displayNone,[hidden]),
+      html:not([data-claude-mode="compat"]) body.${READY_CLASS} #chat > .mes .extraMesButtons > :is(.displayNone,[hidden]) {
+        display: none !important;
+      }
+
+      html[data-claude-quote-body-color="on"] body.${READY_CLASS} #chat :is(.mes_text,.mes_reasoning) :is(q,.quote) {
+        color: var(--cw-text-body, var(--SmartThemeBodyColor)) !important;
+      }
+
+      body.${READY_CLASS}.${GENERATING_CLASS} #chat #typing_indicator.typing_indicator {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+
+      :is(#completion_prompt_manager,#completion_prompt_manager_popup)
+        .prompt_manager_prompt_controls > :is(
+          .prompt-manager-detach-action,
+          .prompt-manager-edit-action,
+          .prompt-manager-delete-action,
+          .prompt-manager-toggle-action,
+          [data-action*="delete" i]
+        ) {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        color: var(--cw-text-secondary, var(--cw-text-muted)) !important;
+        opacity: .88 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+      }
+
+      :is(#completion_prompt_manager,#completion_prompt_manager_popup)
+        .prompt_manager_prompt_controls > :is(.prompt-manager-delete-action,[data-action*="delete" i]) {
+        color: var(--cw-mark, currentColor) !important;
+      }
+
+      #completion_prompt_manager :is(.completion_prompt_manager_footer,[class$="prompt_manager_footer"]) {
+        position: sticky !important;
+        bottom: 0 !important;
+        z-index: 4 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        padding: 8px 4px !important;
+        background: var(--cw-surface-page) !important;
+      }
+
+      #completion_prompt_manager :is(.completion_prompt_manager_footer,[class$="prompt_manager_footer"]) > select {
+        flex: 1 1 140px !important;
+        min-width: 100px !important;
+      }
+
+      #completion_prompt_manager :is(.completion_prompt_manager_footer,[class$="prompt_manager_footer"]) > .menu_button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 32px !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        height: 32px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        opacity: .9 !important;
+        visibility: visible !important;
+      }
+
+      #completion_prompt_manager :is(.completion_prompt_manager_footer,[class$="prompt_manager_footer"])
+        > .caution[title*="delete" i] {
+        color: #c15f50 !important;
+        border-color: color-mix(in srgb, #c15f50 55%, transparent) !important;
+        opacity: 1 !important;
+      }
+
+      @media (max-width:700px) {
+        /* 移动抽屉自己从屏幕顶端铺开，但内容必须从 56px 顶栏下方开始。
+           这同时避免设置标题和右上角 Clawd 叠在一起。 */
+        html body.${MOBILE_LAYOUT_CLASS} #top-settings-holder
+          > .drawer > .drawer-content.openDrawer,
+        html body.${MOBILE_LAYOUT_CLASS} #top-settings-holder
+          > #rightNavHolder > .drawer-content.openDrawer {
+          top: 0 !important;
+          bottom: auto !important;
+          height: 100dvh !important;
+          min-height: 100dvh !important;
+          max-height: 100dvh !important;
+          margin: 0 !important;
+          padding-top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
+          scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 58px) !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #rightNavHolder
+          > .drawer-content.openDrawer > :is(#right-nav-panelheader,#CharListButtonAndHotSwaps,#rm_PinAndTabs,.scrollableInner),
+        html body.${MOBILE_LAYOUT_CLASS} #rightNavHolder
+          > .drawer-content.openDrawer #rm_characters_block,
+        html body.${MOBILE_LAYOUT_CLASS} #rightNavHolder
+          > .drawer-content.openDrawer #charListFixedTop {
+          inset: auto !important;
+          margin-top: 0 !important;
+          translate: none !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #user-settings-block
+          > .flex-container.flexFlowColumn:first-child {
+          gap: 8px !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #user-settings-block [name="userSettingsRowOne"] {
+          display: grid !important;
+          grid-template-columns: minmax(0,1fr) minmax(132px,1fr) !important;
+          align-items: start !important;
+          gap: 7px 10px !important;
+          width: 100% !important;
+          min-height: 0 !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #user-settings-block [name="userSettingsRowOne"]
+          > :first-child {
+          grid-column: 1 / 2 !important;
+          min-width: 0 !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #user-settings-block #UI-language-block {
+          grid-column: 2 / 3 !important;
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 4px !important;
+          min-width: 0 !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #user-settings-block #version_display {
+          grid-column: 1 / -1 !important;
+          display: block !important;
+          min-width: 0 !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #user-settings-block [name="UserSettingsRowTwo"] {
+          display: grid !important;
+          grid-template-columns: minmax(0,auto) minmax(120px,1fr) !important;
+          align-items: center !important;
+          gap: 8px !important;
+        }
+
+        /* TT 的 WebView 在全屏抽屉 transform 动画期间会重绘整个长设置页。
+           静态切换比持续卡顿更可用，ST/Via 仍保留原动画。 */
+        html body.${MOBILE_LAYOUT_CLASS}.${TAURITAVERN_HOST_CLASS}
+          #top-settings-holder > .drawer > .drawer-content {
+          transition: none !important;
+          animation: none !important;
+          will-change: auto !important;
+        }
+
+        #completion_prompt_manager #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt > span:has(> .prompt_manager_prompt_controls),
+        #completion_prompt_manager #completion_prompt_manager_list .prompt_manager_prompt_controls {
+          min-width: 104px !important;
+        }
+
+        /* TT 偶尔保留 drag-handle 节点却不画它的 ☰ 文本。把字形放进伪元素，
+           触摸事件仍由原节点接收，拖拽排序行为与 ST 原生实现一致。 */
+        html body.${MOBILE_LAYOUT_CLASS}
+          :is(#completion_prompt_manager,#completion_prompt_manager_popup) #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt:has(> .${PROMPT_DRAG_HANDLE_CLASS}) {
+          display: grid !important;
+          grid-template-columns: 28px minmax(0,1fr) auto auto !important;
+          align-items: center !important;
+          column-gap: 4px !important;
+          padding-left: 4px !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS}
+          :is(#completion_prompt_manager,#completion_prompt_manager_popup) #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt:has(> .${PROMPT_DRAG_HANDLE_CLASS})
+          > .drag-handle {
+          position: static !important;
+          inset: auto !important;
+          grid-column: 1 !important;
+          grid-row: 1 !important;
+          z-index: 3 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          box-sizing: border-box !important;
+          width: 28px !important;
+          min-width: 28px !important;
+          height: 28px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: var(--cw-text-secondary, var(--cw-text-muted, #777)) !important;
+          background-color: transparent !important;
+          background-image: none !important;
+          box-shadow: none !important;
+          filter: none !important;
+          text-shadow: none !important;
+          font-size: 0 !important;
+          line-height: 1 !important;
+          visibility: visible !important;
+          opacity: .9 !important;
+          pointer-events: auto !important;
+          cursor: grab !important;
+          touch-action: none !important;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS}
+          :is(#completion_prompt_manager,#completion_prompt_manager_popup) #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt:has(> .${PROMPT_DRAG_HANDLE_CLASS})
+          > .drag-handle::before {
+          content: none !important;
+          display: none !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS}
+          :is(#completion_prompt_manager,#completion_prompt_manager_popup) #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt:has(> .${PROMPT_DRAG_HANDLE_CLASS})
+          > .drag-handle > .${PROMPT_DRAG_GLYPH_CLASS} {
+          display: inline-flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 3px !important;
+          width: 16px !important;
+          height: 16px !important;
+          color: var(--cw-text-secondary, var(--cw-text-muted, #777)) !important;
+          box-shadow: none !important;
+          filter: none !important;
+          text-shadow: none !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS}
+          :is(#completion_prompt_manager,#completion_prompt_manager_popup) #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt:has(> .${PROMPT_DRAG_HANDLE_CLASS})
+          > .drag-handle > .${PROMPT_DRAG_GLYPH_CLASS} > span {
+          display: block !important;
+          box-sizing: border-box !important;
+          width: 16px !important;
+          min-width: 16px !important;
+          height: 2px !important;
+          min-height: 2px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: currentColor !important;
+          border: 0 !important;
+          border-radius: 1px !important;
+          box-shadow: none !important;
+          filter: none !important;
+          text-shadow: none !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS}
+          :is(#completion_prompt_manager,#completion_prompt_manager_popup) #completion_prompt_manager_list
+          > li.completion_prompt_manager_prompt:has(> .${PROMPT_DRAG_HANDLE_CLASS})
+          > .completion_prompt_manager_prompt_name {
+          grid-column: 2 !important;
+          grid-row: 1 !important;
+          display: grid !important;
+          grid-template-columns: 26px minmax(0,1fr) !important;
+          align-items: center !important;
+          column-gap: 8px !important;
+          min-width: 0 !important;
+        }
+
+        #completion_prompt_manager_list
+          .completion_prompt_manager_prompt_name > :is(.fa-fw,.fa-solid,.fa-regular):first-child {
+          position: static !important;
+          inset: auto !important;
+          grid-column: 1 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          box-sizing: border-box !important;
+          width: 26px !important;
+          min-width: 26px !important;
+          max-width: 26px !important;
+          margin: 0 !important;
+          transform: none !important;
+        }
+
+        #completion_prompt_manager_list
+          .completion_prompt_manager_prompt_name > :is(a,span):not(.fa-fw):not(.fa-solid):not(.fa-regular) {
+          grid-column: 2 !important;
+          min-width: 0 !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+
+        #completion_prompt_manager :is(.completion_prompt_manager_footer,[class$="prompt_manager_footer"]) {
+          flex-wrap: wrap !important;
+          justify-content: flex-end !important;
+          padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+        }
+
+        #completion_prompt_manager :is(.completion_prompt_manager_footer,[class$="prompt_manager_footer"]) > select {
+          flex: 1 0 100% !important;
+          width: 100% !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #qr--bar #input_helper_toolbar,
+        html body.${MOBILE_LAYOUT_CLASS} #qr--bar .qrq-wrapper-visible #input_helper_toolbar {
+          position: static !important;
+          inset: auto !important;
+          transform: none !important;
+          float: none !important;
+          max-width: 100% !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #completion_prompt_manager_popup.openDrawer {
+          inset: 0 0 auto 0 !important;
+          height: var(${MOBILE_POPUP_HEIGHT_PROPERTY}, var(${MOBILE_VIEWPORT_HEIGHT_PROPERTY}, 100vh)) !important;
+          min-height: var(${MOBILE_POPUP_HEIGHT_PROPERTY}, var(${MOBILE_VIEWPORT_HEIGHT_PROPERTY}, 100vh)) !important;
+          max-height: var(${MOBILE_POPUP_HEIGHT_PROPERTY}, var(${MOBILE_VIEWPORT_HEIGHT_PROPERTY}, 100vh)) !important;
+        }
+
+        html body.${MOBILE_LAYOUT_CLASS} #completion_prompt_manager_popup.openDrawer::after {
+          flex-basis: max(0px, calc(var(${MOBILE_POPUP_HEIGHT_PROPERTY}, var(${MOBILE_VIEWPORT_HEIGHT_PROPERTY}, 100vh)) - 100dvh + 16px)) !important;
+          height: max(0px, calc(var(${MOBILE_POPUP_HEIGHT_PROPERTY}, var(${MOBILE_VIEWPORT_HEIGHT_PROPERTY}, 100vh)) - 100dvh + 16px)) !important;
+          min-height: max(0px, calc(var(${MOBILE_POPUP_HEIGHT_PROPERTY}, var(${MOBILE_VIEWPORT_HEIGHT_PROPERTY}, 100vh)) - 100dvh + 16px)) !important;
         }
       }
 
@@ -3286,9 +3807,10 @@ if (CLAUDE_ENABLED) {
     });
   }
 
-  function createUserActions(message) {
+  function createUserEditAction(message) {
     const actions = hostDocument.createElement('div');
     actions.className = USER_ACTIONS_CLASS;
+    actions.dataset.claudeUserActionVersion = 'edit-only';
     actions.setAttribute('aria-label', '用户消息操作');
 
     const edit = hostDocument.createElement('button');
@@ -3301,38 +3823,114 @@ if (CLAUDE_ENABLED) {
       event.stopPropagation();
       const nativeEdit = message.querySelector('.mes_edit');
       if (nativeEdit instanceof hostWindow.HTMLElement) nativeEdit.click();
-      else hostWindow.toastr?.warning('当前酒馆没有提供可用的原生编辑入口。', '编辑不可用');
+      else hostWindow.toastr?.warning('没有找到酒馆原生编辑入口。', '无法编辑');
     });
 
-    const remove = hostDocument.createElement('button');
-    remove.type = 'button';
-    remove.className = USER_DELETE_CLASS;
-    remove.title = '删除消息（需要确认）';
-    remove.setAttribute('aria-label', '删除消息（需要确认）');
-    remove.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      safelyDeleteMessage(message).catch(error => {
-        console.error('[Claude Clawd] Failed to delete user message safely.', error);
-        hostWindow.toastr?.error('删除消息时发生错误，原消息已保留。', '删除失败');
-      });
-    });
-
-    actions.append(edit, remove);
+    actions.append(edit);
     return actions;
   }
 
   function refreshUserActions() {
+    /* TT 会把用户消息的 .ch_name 压成零高，里面的原生铅笔因此不可见。
+       这里只做一个可见入口并转发给原生 .mes_edit；不复制编辑实现，也不放
+       快捷删除，删除仍留在酒馆自己的编辑确认流程里。 */
     const messages = [...hostDocument.querySelectorAll('#chat > .mes[is_user="true"]')];
     const liveMessages = new Set(messages);
     hostDocument.querySelectorAll(`.${USER_ACTIONS_CLASS}`).forEach(actions => {
-      if (!liveMessages.has(actions.closest('#chat > .mes'))) actions.remove();
+      const message = actions.closest('#chat > .mes');
+      if (!liveMessages.has(message)) actions.remove();
     });
     messages.forEach(message => {
       const block = message.querySelector(':scope > .mes_block');
-      if (!block || block.querySelector(`:scope > .${USER_ACTIONS_CLASS}`)) return;
-      block.append(createUserActions(message));
+      if (!block) return;
+      let actions = block.querySelector(`:scope > .${USER_ACTIONS_CLASS}`);
+      if (actions?.dataset.claudeUserActionVersion !== 'edit-only') {
+        actions?.remove();
+        actions = null;
+      }
+      if (!actions) block.append(createUserEditAction(message));
     });
+  }
+
+  /* ST 会为每个提示词行生成真实的 .drag-handle，TT 2.2.0 则会把这个
+     节点整个省掉，只留下类型图标和名称。Sortable 的 handle 选择器在
+     pointerdown 时按 class 匹配，所以补回同名真实节点即可恢复拖拽；
+     已有手柄的 ST 行不动，避免重复显示或改变它的原生事件链。 */
+  function refreshPromptManagerDragHandles() {
+    hostDocument
+      .querySelectorAll('#completion_prompt_manager_list > li.completion_prompt_manager_prompt')
+      .forEach(row => {
+        const existingHandle = row.querySelector(':scope > .drag-handle');
+        if (existingHandle && !existingHandle.classList.contains(PROMPT_DRAG_HANDLE_CLASS) && !isTauriTavernHost()) return;
+        let handle = existingHandle;
+        if (!handle) {
+          handle = hostDocument.createElement('span');
+          handle.className = 'drag-handle';
+          handle.setAttribute('aria-hidden', 'true');
+          row.prepend(handle);
+        }
+        handle.classList.add(PROMPT_DRAG_HANDLE_CLASS);
+        Object.entries({
+          position: 'static',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '28px',
+          minWidth: '28px',
+          height: '28px',
+          margin: '0',
+          padding: '0',
+          color: '#73736f',
+          visibility: 'visible',
+          opacity: '0.9',
+          pointerEvents: 'auto',
+          boxShadow: 'none',
+          filter: 'none',
+          textShadow: 'none',
+        }).forEach(([property, value]) => handle.style.setProperty(property.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`), value, 'important'));
+        if (handle.querySelector(':scope > .' + PROMPT_DRAG_GLYPH_CLASS)) return;
+        handle.textContent = '';
+        const glyph = hostDocument.createElement('span');
+        glyph.className = PROMPT_DRAG_GLYPH_CLASS;
+        glyph.setAttribute('aria-hidden', 'true');
+        Object.entries({
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '3px',
+          width: '16px',
+          height: '16px',
+          visibility: 'visible',
+          opacity: '1',
+          boxShadow: 'none',
+          filter: 'none',
+          textShadow: 'none',
+        }).forEach(([property, value]) => glyph.style.setProperty(property.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`), value, 'important'));
+        for (let index = 0; index < 3; index += 1) {
+          const bar = hostDocument.createElement('span');
+          Object.entries({
+            display: 'block',
+            boxSizing: 'border-box',
+            width: '16px',
+            minWidth: '16px',
+            height: '2px',
+            minHeight: '2px',
+            margin: '0',
+            padding: '0',
+            background: '#73736f',
+            border: '0',
+            borderRadius: '1px',
+            boxShadow: 'none',
+            filter: 'none',
+            textShadow: 'none',
+            visibility: 'visible',
+            opacity: '1',
+          }).forEach(([property, value]) => bar.style.setProperty(property.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`), value, 'important'));
+          glyph.append(bar);
+        }
+        handle.append(glyph);
+      });
   }
 
   function removeStaleButtons(currentMessage) {
@@ -3993,13 +4591,19 @@ if (CLAUDE_ENABLED) {
     return Boolean(mobileEnabled && hostWindow.matchMedia?.('(max-width:700px)').matches);
   }
 
+  function usesNativeAndroidKeyboardLayout() {
+    return isMobileLayout() && /Android/i.test(hostWindow.navigator?.userAgent || '');
+  }
+
   /* Chrome/Android 支持 VirtualKeyboard API 时，直接让软键盘覆盖页面，而不是
      缩放 layout viewport。这样键盘开合只改变 keyboard-inset 环境变量，重角色卡
      和整段聊天历史都不用重新布局。Via 等 WebView 可能不暴露这个 API，所以这里
      只做能力检测；老内核的降级靠冻结根视口变量（applyMobileViewportMetrics）
      和 transform 位移，不再依赖任何形式的屏外 containment。 */
   function installVirtualKeyboardOverlay() {
-    if (!isMobileLayout() || keyboardBaselineMode) return;
+    /* Android 的 TT、Via 和当前 System WebView 都会随 IME 缩小可布局区域。
+       再强制 overlaysContent 或按 visualViewport 补位，会把输入框上移两次。 */
+    if (!isMobileLayout() || keyboardBaselineMode || usesNativeAndroidKeyboardLayout()) return;
     const keyboard = hostWindow.navigator?.virtualKeyboard;
     if (!keyboard || !('overlaysContent' in keyboard)) return;
     try {
@@ -4046,6 +4650,7 @@ if (CLAUDE_ENABLED) {
     if (!isMobileLayout()) {
       root.style.removeProperty(MOBILE_VIEWPORT_HEIGHT_PROPERTY);
       root.style.removeProperty(MOBILE_VIEWPORT_TOP_PROPERTY);
+      root.style.removeProperty(MOBILE_POPUP_HEIGHT_PROPERTY);
       return;
     }
     /* baseline 诊断包：根视口变量保持 CSS 兜底值，JS 一个字也不写。 */
@@ -4076,6 +4681,10 @@ if (CLAUDE_ENABLED) {
     if (Date.now() < mobileKeyboardSettlingUntil) return;
     const viewport = hostWindow.visualViewport;
     const height = Math.max(1, Math.round(viewport?.height || hostWindow.innerHeight || 1));
+    const popupHeight = Math.max(
+      height,
+      Math.round(hostWindow.innerHeight || hostDocument.documentElement.clientHeight || height),
+    );
     const top = Math.max(0, Math.round(viewport?.offsetTop || 0));
     const heightValue = `${height}px`;
     const topValue = `${top}px`;
@@ -4084,6 +4693,10 @@ if (CLAUDE_ENABLED) {
     }
     if (root.style.getPropertyValue(MOBILE_VIEWPORT_TOP_PROPERTY) !== topValue) {
       root.style.setProperty(MOBILE_VIEWPORT_TOP_PROPERTY, topValue);
+    }
+    const popupHeightValue = `${popupHeight}px`;
+    if (root.style.getPropertyValue(MOBILE_POPUP_HEIGHT_PROPERTY) !== popupHeightValue) {
+      root.style.setProperty(MOBILE_POPUP_HEIGHT_PROPERTY, popupHeightValue);
     }
   }
 
@@ -4104,6 +4717,15 @@ if (CLAUDE_ENABLED) {
       : hostDocument.querySelector('#form_sheld');
     if (!shell) return;
     if (!isMobileLayout()) {
+      shell.style.removeProperty(MOBILE_COMPOSER_TRANSLATE_PROPERTY);
+      return;
+    }
+    if (usesNativeAndroidKeyboardLayout()) {
+      mobileKeyboardRecoveryActive = false;
+      mobileStableLayoutHeight = Math.max(
+        1,
+        Math.round(hostWindow.innerHeight || hostDocument.documentElement.clientHeight || 1),
+      );
       shell.style.removeProperty(MOBILE_COMPOSER_TRANSLATE_PROPERTY);
       return;
     }
@@ -4153,7 +4775,7 @@ if (CLAUDE_ENABLED) {
   }
 
   function scheduleMobileComposerTranslate() {
-    if (destroyed || keyboardBaselineMode || mobileComposerTranslateRaf) return;
+    if (destroyed || keyboardBaselineMode || usesNativeAndroidKeyboardLayout() || mobileComposerTranslateRaf) return;
     mobileComposerTranslateRaf = hostWindow.requestAnimationFrame(applyMobileComposerTranslate);
   }
 
@@ -6452,6 +7074,20 @@ if (CLAUDE_ENABLED) {
 
   let lastFocusReactionAt = 0;
   const handleFocusIn = event => {
+    if (isMobileLayout() && isSoftKeyboardTarget(event.target)) {
+      /* TT 的部分 WebView 会在 focusin 后立刻缩 layout viewport。先在同一任务里
+         单独锁住编辑弹窗高度；它不再依赖之后可能已经变矮的 visualViewport。 */
+      const root = hostDocument.documentElement;
+      const current = parseFloat(root.style.getPropertyValue(MOBILE_POPUP_HEIGHT_PROPERTY)) || 0;
+      const height = Math.max(
+        1,
+        current,
+        Math.round(hostWindow.innerHeight || hostDocument.documentElement.clientHeight || 1),
+        Math.round(hostWindow.visualViewport?.height || 0),
+      );
+      root.style.setProperty(MOBILE_POPUP_HEIGHT_PROPERTY, `${height}px`);
+      scheduleMobileViewportSettle();
+    }
     if (event.target?.id !== 'send_textarea') return;
     /* 聚焦输入框本身就是「人在」的信号，得跟敲键盘一样刷新打盹计时——
        不然 syncCcComposerState 只是切了一个视觉用的 class，用户光盯着
@@ -6485,6 +7121,7 @@ if (CLAUDE_ENABLED) {
     });
   };
   const handleFocusOut = event => {
+    if (isMobileLayout() && isSoftKeyboardTarget(event.target)) scheduleMobileViewportSettle();
     if (event.target?.id !== 'send_textarea') return;
     /* 不等下一帧：WebView 随后若开始重排长聊天，rAF/定时器都会被主线程堵住。
        在 focusout 的同一任务内先把旧键盘偏移清零，避免输入框沿用抬高位置。 */
@@ -7208,6 +7845,99 @@ if (CLAUDE_ENABLED) {
       && !target.closest('#chat');
   }
 
+  function restoreExternalThemeStyle() {
+    if (!suspendedThemeStyle) return;
+    if (suspendedThemeMedia == null) suspendedThemeStyle.removeAttribute('media');
+    else suspendedThemeStyle.setAttribute('media', suspendedThemeMedia);
+    suspendedThemeStyle = null;
+    suspendedThemeMedia = null;
+    delete hostDocument.documentElement.dataset.claudeExternalSurface;
+  }
+
+  function syncExternalSurfaceIsolation() {
+    const manager = hostDocument.querySelector(CHARACTER_MANAGER_SELECTOR);
+    const visible = manager && !manager.hidden && (() => {
+      const style = hostWindow.getComputedStyle(manager);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    })();
+    if (!visible) {
+      restoreExternalThemeStyle();
+      return;
+    }
+    const style = hostDocument.getElementById(THEME_LIVE_STYLE_ID);
+    if (!style) return;
+    if (suspendedThemeStyle && suspendedThemeStyle !== style) restoreExternalThemeStyle();
+    if (!suspendedThemeStyle) {
+      suspendedThemeStyle = style;
+      suspendedThemeMedia = style.getAttribute('media');
+    }
+    style.setAttribute('media', 'not all');
+    hostDocument.documentElement.dataset.claudeExternalSurface = 'character-manager';
+  }
+
+  function observeExternalModalCandidates() {
+    if (!externalModalObserver) return [];
+    const candidates = [...hostDocument.querySelectorAll(EXTERNAL_MODAL_SELECTOR)];
+    for (const candidate of candidates) {
+      if (candidate === hostDocument.body || candidate === hostDocument.documentElement) continue;
+      externalModalObserver.observe(candidate, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'hidden', 'open'],
+      });
+    }
+    return candidates;
+  }
+
+  function isVisibleFullScreenExternalModal(element) {
+    if (!(element instanceof hostWindow.HTMLElement)) return false;
+    const rail = hostDocument.querySelector('#top-settings-holder');
+    if (rail && (rail === element || rail.contains(element) || element.contains(rail))) return false;
+    const style = hostWindow.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+    if (style.position !== 'fixed') return false;
+    const rect = element.getBoundingClientRect();
+    const viewportWidth = Math.max(1, hostWindow.innerWidth || hostDocument.documentElement.clientWidth || 1);
+    const viewportHeight = Math.max(1, hostWindow.innerHeight || hostDocument.documentElement.clientHeight || 1);
+    return rect.width >= viewportWidth * 0.7 && rect.height >= viewportHeight * 0.7;
+  }
+
+  function syncExternalModalRailLayer() {
+    const modalOpen = observeExternalModalCandidates().some(isVisibleFullScreenExternalModal);
+    hostDocument.body.classList.toggle(EXTERNAL_MODAL_OPEN_CLASS, modalOpen);
+    /* Claude 桌面左栏由两个同级 fixed 外壳共同组成：#top-settings-holder
+       放设置按钮，#top-bar 负责整条侧栏底板。只降低前者时，视觉上似乎
+       退让了，但命中测试仍会落到 #top-bar，第三方弹窗里的按钮依旧点不到。 */
+    const rails = Array.from(hostDocument.querySelectorAll('#top-settings-holder, #top-bar'));
+    if (modalOpen && rails.length) {
+      const sameRails = externalModalRailState.length === rails.length
+        && externalModalRailState.every((state, index) => state.element === rails[index]);
+      if (!sameRails) {
+        restoreExternalModalRailLayer();
+        externalModalRailState = rails.map(element => ({
+          element,
+          value: element.style.getPropertyValue('z-index'),
+          priority: element.style.getPropertyPriority('z-index'),
+        }));
+      }
+      /* 兼容样式位于 @layer cw-frame。级联层中的 !important 会反向压过
+         普通未分层规则，所以这里只靠选择器无法保证退让；节点级 important
+         同时保留并在关闭时恢复原内联值。 */
+      for (const rail of rails) rail.style.setProperty('z-index', '1', 'important');
+      return;
+    }
+    restoreExternalModalRailLayer();
+  }
+
+  function restoreExternalModalRailLayer() {
+    const states = externalModalRailState;
+    externalModalRailState = [];
+    for (const state of states) {
+      if (!state?.element) continue;
+      if (state.value) state.element.style.setProperty('z-index', state.value, state.priority);
+      else state.element.style.removeProperty('z-index');
+    }
+  }
+
   function mutationNeedsFullRefresh(record) {
     const target = record.target instanceof hostWindow.Element ? record.target : record.target.parentElement;
     if (!(target instanceof hostWindow.Element)) return true;
@@ -7229,6 +7959,7 @@ if (CLAUDE_ENABLED) {
        真机实测：生成期间它产生 1566 条记录，是全场最多的一类，比第二名还多 57%。
        整个 #completion_prompt_manager 子树直接不参与刷新判断。 */
     if (target.closest('#completion_prompt_manager')) return false;
+    if (target.closest(CHARACTER_MANAGER_SELECTOR)) return false;
 
     /* Third-party floating panels update inline position styles on every pointer
        move. Outside #chat those writes cannot affect message decoration, so do
@@ -7265,11 +7996,36 @@ if (CLAUDE_ENABLED) {
     if (chat) chatAttributeObserver.observe(chat, CHAT_ATTRIBUTE_OBSERVER_INIT);
   }
 
+  let externalSurfaceIsolationRaf = 0;
+
+  function scheduleExternalSurfaceIsolation() {
+    if (destroyed || externalSurfaceIsolationRaf) return;
+    externalSurfaceIsolationRaf = hostWindow.requestAnimationFrame(() => {
+      externalSurfaceIsolationRaf = 0;
+      if (!destroyed) {
+        syncExternalSurfaceIsolation();
+        syncExternalModalRailLayer();
+      }
+    });
+  }
+
   function handleObservedMutations(records) {
+    /* Character Manager 的可见性只需每帧检查一次。TT 一批 DOM 变动里可能送来
+       数百条记录，旧代码会为每批同步 querySelector + getComputedStyle。 */
+    scheduleExternalSurfaceIsolation();
     refreshStats.recordsSeen += records.length;
     trackDirtyMessages(records);
     ensureChatAttributeObserver();
     preserveStreamingReasoning(isTypingActive());
+    /* Prompt Manager 的海量变动仍不进入全量聊天刷新；但 TT 会在打开面板时
+       重新生成列表，而且省略 drag-handle 节点。这里单独跑一次 O(当前行数)
+       的缺口修补，已有手柄立即跳过，不触发布局测量。 */
+    if (records.some(record => {
+      const target = record.target instanceof hostWindow.Element
+        ? record.target
+        : record.target?.parentElement;
+      return target?.closest?.('#completion_prompt_manager_list');
+    })) refreshPromptManagerDragHandles();
     if (!records.some(mutationNeedsFullRefresh)) return;
     refreshStats.recordsPassedFilter += records.length;
     if (refreshing) { dirtyWhileRefreshing = true; return; }
@@ -7454,6 +8210,7 @@ if (CLAUDE_ENABLED) {
     refreshRailUser();
     refreshRailGrip();
     refreshIdleSleep();
+    refreshPromptManagerDragHandles();
     refreshUserActions();
     refreshSwipeProxies(messages, typingActive);
     trackSwipeArrows();
@@ -7479,12 +8236,13 @@ if (CLAUDE_ENABLED) {
   let lastRefreshAt = 0;
   let throttleTimer = 0;
   const REFRESH_MIN_GAP = 50;
-  const MOBILE_GENERATION_REFRESH_MIN_GAP = 140;
+  const MOBILE_REFRESH_MIN_GAP = 110;
+  const MOBILE_GENERATION_REFRESH_MIN_GAP = 180;
 
   function scheduleRefresh() {
     if (destroyed || diagnosticRefreshPaused || frameId || throttleTimer) return;
-    const minGap = isMobileLayout() && previousTypingActive
-      ? MOBILE_GENERATION_REFRESH_MIN_GAP
+    const minGap = isMobileLayout()
+      ? (previousTypingActive ? MOBILE_GENERATION_REFRESH_MIN_GAP : MOBILE_REFRESH_MIN_GAP)
       : REFRESH_MIN_GAP;
     const wait = minGap - (Date.now() - lastRefreshAt);
     if (wait > 0) {
@@ -7740,6 +8498,9 @@ if (CLAUDE_ENABLED) {
     hostDocument.body.classList.add(READY_CLASS);
     hostDocument.body.classList.toggle(MOBILE_LAYOUT_CLASS, mobileEnabled);
     hostDocument.body.classList.toggle(TAURITAVERN_HOST_CLASS, isTauriTavernHost());
+    externalModalObserver = new hostWindow.MutationObserver(scheduleExternalSurfaceIsolation);
+    syncExternalSurfaceIsolation();
+    syncExternalModalRailLayer();
     installVirtualKeyboardOverlay();
     watchGenerationEvents();
     observer = new hostWindow.MutationObserver(handleObservedMutations);
@@ -7886,6 +8647,13 @@ if (CLAUDE_ENABLED) {
     reconcileTimer = 0;
     if (destroyed) return;
     destroyed = true;
+    externalModalObserver?.disconnect();
+    externalModalObserver = null;
+    hostDocument.body.classList.remove(EXTERNAL_MODAL_OPEN_CLASS);
+    restoreExternalModalRailLayer();
+    if (externalSurfaceIsolationRaf) hostWindow.cancelAnimationFrame(externalSurfaceIsolationRaf);
+    externalSurfaceIsolationRaf = 0;
+    restoreExternalThemeStyle();
     hostDocument.querySelectorAll(`.${SURFACE_HOST_CLASS}`).forEach(host => host.classList.remove(SURFACE_HOST_CLASS));
     hostDocument.querySelectorAll(`.${SURFACE_BACKING_CLASS}`).forEach(backing => backing.remove());
     restoreAutoCompleteResizeGuard();
@@ -8022,7 +8790,7 @@ if (CLAUDE_ENABLED) {
     [...welcomeAvatarOriginals.keys()].forEach(restoreWelcomeAvatar);
     hostDocument.querySelectorAll(`.${WELCOME_PROMPT_CLASS}`).forEach(message => message.classList.remove(WELCOME_PROMPT_CLASS));
     hostDocument
-      .querySelectorAll(`.${BUTTON_CLASS}, .${LEFT_SWIPE_PROXY_CLASS}, .${SWIPE_PROXY_CLASS}, .${REROLL_CLASS}, .${USER_ACTIONS_CLASS}, .clawd-click-particle, .clawd-typing-hit, .clawd-typing-exit-ghost`)
+      .querySelectorAll(`.${BUTTON_CLASS}, .${LEFT_SWIPE_PROXY_CLASS}, .${SWIPE_PROXY_CLASS}, .${REROLL_CLASS}, .${USER_ACTIONS_CLASS}, .${PROMPT_DRAG_HANDLE_CLASS}, .clawd-click-particle, .clawd-typing-hit, .clawd-typing-exit-ghost`)
       .forEach(element => element.remove());
     hostDocument.querySelectorAll('#chat .typing_indicator').forEach(indicator => {
       indicator.classList.remove('clawd-typing-enter', 'clawd-typing-ready', 'clawd-typing-native-suppressed', 'clawd-typing-click', 'clawd-typing-press', 'clawd-cheer', 'clawd-wobble-sway', 'clawd-wobble-tilt');
@@ -8047,6 +8815,7 @@ if (CLAUDE_ENABLED) {
     hostDocument.documentElement.style.removeProperty(MOBILE_COMPOSER_HEIGHT_PROPERTY);
     hostDocument.documentElement.style.removeProperty(MOBILE_VIEWPORT_HEIGHT_PROPERTY);
     hostDocument.documentElement.style.removeProperty(MOBILE_VIEWPORT_TOP_PROPERTY);
+    hostDocument.documentElement.style.removeProperty(MOBILE_POPUP_HEIGHT_PROPERTY);
     if (hostWindow[INSTANCE_KEY] === api) delete hostWindow[INSTANCE_KEY];
   }
 
@@ -8505,6 +9274,12 @@ if (CLAUDE_ENABLED) {
                   <input id="claude-web-font-custom" class="text_pole" style="margin-top:6px;display:none"
                          placeholder='自定义 font-family，例如："LXGW WenKai", serif'>
                 </div>
+
+                <label class="checkbox_label claude-web-check claude-web-field">
+                  <input id="claude-web-quote-body-color" type="checkbox">
+                  <span>引号文字跟随正文颜色</span>
+                </label>
+                <div class="claude-web-help">关闭后恢复主题原本的引号强调色。</div>
 
                 <details id="claude-web-colors" class="claude-web-field">
                   <summary style="cursor:pointer;user-select:none;opacity:.85">自定义配色</summary>
@@ -9170,6 +9945,18 @@ if (CLAUDE_ENABLED) {
       try { window.localStorage.setItem('claude-web:fontCustom', v); } catch { /* 无痕 */ }
       if (v) document.documentElement.style.setProperty('--cw-font-custom', v);
       else document.documentElement.style.removeProperty('--cw-font-custom');
+    });
+
+    const quoteBodyColorBox = panel.querySelector('#claude-web-quote-body-color');
+    quoteBodyColorBox.checked = read('quoteBodyColor', ['on', 'off'], 'on') !== 'off';
+    quoteBodyColorBox.addEventListener('change', () => {
+      if (!write('quoteBodyColor', quoteBodyColorBox.checked ? 'on' : 'off')) return;
+      document.documentElement.dataset.claudeQuoteBodyColor = quoteBodyColorBox.checked ? 'on' : 'off';
+      const variant = document.documentElement.dataset.claudeIntegratedTheme;
+      if (variant) window.__claudeIntegratedTheme?.applyVariant?.(variant);
+      hint.textContent = quoteBodyColorBox.checked
+        ? '引号文字已固定为正文颜色。'
+        : '引号文字已恢复主题强调色。';
     });
 
     layoutSelect.addEventListener('change', () => {
