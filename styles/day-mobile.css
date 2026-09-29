@@ -2442,8 +2442,8 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
    在内容末尾补出键盘遮挡区；弹窗仍不缩，底部按钮却能被手动滚到键盘上方。
    但 fixed 遇到祖先 transform/filter/contain 会退化成局部定位，所以只在编辑页打开
    期间清掉 html/body 这一整类包含块属性；关闭后规则不命中，主题状态自动恢复。 */
-html:has(#completion_prompt_manager_popup.openDrawer),
-html:has(#completion_prompt_manager_popup.openDrawer) body {
+html.claude-pm-open:not(#claude-spec),
+html.claude-pm-open:not(#claude-spec) body {
   transform:none !important;
   perspective:none !important;
   filter:none !important;
@@ -2479,7 +2479,7 @@ html:has(#completion_prompt_manager_popup.openDrawer) body {
   min-height:max(0px, calc(var(--cl-mobile-viewport-height, 100vh) - 100dvh + 16px));
   pointer-events:none;
 }
-html body:has(#completion_prompt_manager_popup.openDrawer) #form_sheld {
+html.claude-pm-open:not(#claude-spec) body #form_sheld {
   visibility:hidden !important;
   pointer-events:none !important;
 }
@@ -4274,7 +4274,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   html body #top-settings-holder:has(> .drawer > .drawer-content.openDrawer) {
     z-index:10060 !important;
   }
-  html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer)
+  html.claude-top-drawer-open:not(#claude-spec.claude-spec.claude-spec) body
     :is(.clawd-mobile-menu-button,button.clawd-mobile-clawd-button) {
     /* 两个悬浮按钮是真正的开关入口，提高到面板之上，保持可见可点。 */
     z-index:10070 !important;
@@ -5743,7 +5743,7 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
 
 /* Claude Web 2.0.11 — keep the original mobile header stable while a drawer opens. */
 @media (max-width:700px) {
-  html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer) #top-bar {
+  html.claude-top-drawer-open:not(#claude-spec.claude-spec.claude-spec) body #top-bar {
     pointer-events:auto !important;
     background:var(--cw-topbar-surface, var(--cw-surface-page)) !important;
     background-image:none !important;
@@ -5753,7 +5753,7 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
     content:none !important;
     display:none !important;
   }
-  html body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer)
+  html.claude-top-drawer-open:not(#claude-spec.claude-spec.claude-spec) body
     #top-settings-holder > :is(.clawd-rail-brand,.clawd-mobile-new-chat,.clawd-rail-toggles,.clawd-rail-recents) {
     display:none !important;
   }

@@ -354,7 +354,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.115-public-compat-framework-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
+  id: '2.0.116-public-compat-framework-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
     + '-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext',
   mode: 'full',
 };
@@ -474,6 +474,37 @@ if (new URLSearchParams(location.search).has('shellcheck')) {
 /* 总开关。关掉之后除了设置面板什么都不跑 ——
    面板必须留着，不然没有地方把它开回来。 */
 if (CLAUDE_ENABLED) {
+
+/* 2.0.116：弹层状态标记。主题里原先用 html:has(#completion_prompt_manager_popup.openDrawer)、
+   body:has(#top-settings-holder > .drawer > .drawer-content.openDrawer) 判断弹层是否打开，
+   根节点 :has() 让聊天区每次追加内容都要重新判断整页样式，长聊天生成回复时明显卡顿。
+   改成这里在 <html> 上挂两个 class：
+     claude-pm-open          Prompt 编辑弹层打开
+     claude-top-drawer-open  顶栏任一抽屉打开
+   只监听这两处元素自己的 class 变化，不看聊天区；状态真的变了 classList.toggle 才会改根节点。 */
+(() => {
+  'use strict';
+  const root = document.documentElement;
+  const sync = () => {
+    const pm = document.getElementById('completion_prompt_manager_popup');
+    const holder = document.getElementById('top-settings-holder');
+    root.classList.toggle('claude-pm-open', !!pm?.classList.contains('openDrawer'));
+    root.classList.toggle('claude-top-drawer-open',
+      !!holder?.querySelector(':scope > .drawer > .drawer-content.openDrawer'));
+  };
+  const install = () => {
+    const observer = new MutationObserver(sync);
+    const pm = document.getElementById('completion_prompt_manager_popup');
+    const holder = document.getElementById('top-settings-holder');
+    if (pm) observer.observe(pm, { attributes: true, attributeFilter: ['class'] });
+    /* 抽屉是 holder 的孙辈，后来插进来的抽屉也要算，所以用 subtree；只收 class 属性，
+       抽屉里面板内容的增删不会触发。 */
+    if (holder) observer.observe(holder, { attributes: true, attributeFilter: ['class'], subtree: true });
+    sync();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
+  else install();
+})();
 
 /* 配色预设。只在扩展形态里打包。
  *

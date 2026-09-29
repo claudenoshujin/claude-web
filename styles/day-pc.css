@@ -2376,7 +2376,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   background-image:none !important;
   isolation:isolate;
 }
-html body:has(#completion_prompt_manager_popup.openDrawer) #form_sheld {
+html.claude-pm-open:not(#claude-spec) body #form_sheld {
   visibility:hidden !important;
   pointer-events:none !important;
 }
