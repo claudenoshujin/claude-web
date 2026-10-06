@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.117. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.118. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,13 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.117";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.118";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.117";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.118";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.117";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.118";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.117";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.118";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -361,7 +361,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.117-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.118-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -377,7 +377,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.117", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.118", import.meta.url).href;
 
 document.head.append(officialStyle);
 

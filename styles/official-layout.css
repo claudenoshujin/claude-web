@@ -3543,3 +3543,6 @@ html[data-cw-v4][data-claude-integrated-theme="night"] body>.cw-desk-win,html[da
   html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder>.drawer:not(#persona-management-button)>.drawer-toggle .drawer-icon{background-color:#c9c7c0!important}
   html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{border-color:#5a5955!important}
 }
+
+
+.clr-p-shadow,.clawd-pile-shadow{display:none!important}
