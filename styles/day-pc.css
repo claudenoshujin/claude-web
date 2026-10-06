@@ -1,6 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Arimo:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@300&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Arimo:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@300;400&display=swap");
 
-/* Claude / Clawd 1.1 — shared theme structure */
+
 :root {
   --cl-color-scheme:light;
   --cl-canvas:#f8f8f6;
@@ -56,7 +56,7 @@ body {
   background-image:none !important;
   padding:20px clamp(8px,2vw,28px) 6px !important;
   backdrop-filter:none !important;
-  scroll-behavior:smooth;
+  scroll-behavior:auto;
 }
 #chat .mes {
   background:transparent !important;
@@ -639,24 +639,8 @@ hr {
   left:calc(var(--avatar-base-width) + 74px) !important;
   bottom:15px !important;
 }
-.typing_indicator::after {
-  content:"";
-  position:absolute;
-  left:38px;
-  z-index:1;
-  width:3px;
-  height:3px;
-  background:transparent;
-  pointer-events:none;
-  box-shadow:var(--cl-greeting-particle-shadow);
-  opacity:.92;
-  transform-origin:27px 12px;
-  will-change:transform, opacity;
-  top:-6px !important;
-  animation:var(--cl-greeting-particle-animation) !important;
-}
 :root {
-  /* 1.1 public tuning controls */
+  
   --cl-pc-font-size:.94em;
   --cl-pc-composer-font-size:.80em;
   --cl-mobile-font-size:.9rem;
@@ -664,59 +648,26 @@ hr {
   --cl-clawd-motion-strength:1;
   --cl-swipe-opacity:.48;
 
-  /* 中文回落一个个写死，不写 sans-serif 了事 ——
-     改过系统字体的机器上（手机端尤其常见）sans-serif 指向什么完全不可控。
-     官网自己的字体栈也是这么逐个列的。
-     另外官网衬线栈里的中文回落全是黑体，不是宋体：英文衬线 + 中文黑体是它的原样，
-     之前用 Noto Serif SC 让中文变成宋体，跟英文对不上，是标题读着别扭的主因。 */
+  
   --cl-cjk:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans CJK SC","Source Han Sans SC","Heiti SC",sans-serif;
   --cl-serif:"Newsreader",Georgia,"Times New Roman",Times,var(--cl-cjk);
   --cl-sans:"Hanken Grotesk",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,var(--cl-cjk);
-  /* 只给欢迎页大标题用。正文不换字体族，理由在交接文档第四节 A：
-     宋体的辨识特征全在笔画末端，17px 上先被渲染抹平，收益接近零；
-     而 31px 的 hero 上差别一眼可见。
-     成本也只有大字号才划得来 —— Google Fonts 的中文按 unicode-range
-     分包，hero 只有五六个字，浏览器只会下 1~2 片；正文要下几十片。
-     Newsreader 在前，所以拉丁仍走 Newsreader，只有汉字落到思源宋体。 */
+  
   --cl-serif-hero:"Newsreader",Georgia,"Noto Serif SC",var(--cl-cjk);
-  /* ---- 字体层级（FR-4 第一步）----
-     这一轮只建词汇表，不换字体族、不动任何一个尺寸。
-
-     下面三条是给现有两族起语义名字，指向完全没变：
-     阅读内容 = Newsreader，界面 = Hanken Grotesk。
-     现在只有两条，因为现在就是两族 —— 需求文档要的第三族
-     （Manrope 做标题）等真要引入时在这里加 --cl-font-title，
-     改这里就够，不用回头翻九十多处 font-size。 */
+  
   --cl-font-reading:var(--cl-serif);
   --cl-font-ui:var(--cl-sans);
 
-  /* 六档界面字号。取值全部是从现有代码里已经在用的数归纳出来的，
-     不是从需求文档抄的区间，所以替换后渲染结果逐像素不变。
+  
+  --cl-fs-display:clamp(26px, 3.1vw, 40px);  
+  --cl-fs-lg:calc(16px * var(--fontScale, 1));                           
+  --cl-fs-md:calc(15px * var(--fontScale, 1));                           
+  --cl-fs-sm:calc(14px * var(--fontScale, 1));                           
+  --cl-fs-xs:calc(13px * var(--fontScale, 1));                           
+  --cl-fs-meta:calc(12px * var(--fontScale, 1));                         
+  --cl-fs-micro:calc(11px * var(--fontScale, 1));                        
 
-     每一档都乘了 --fontScale。酒馆自带的「字体缩放」滑杆是用户唯一
-     能调字号的入口，界面文字不接上去，侧栏嫌小就只能改代码。
-
-     聊天正文仍然不在这套档位里：它归 --cl-pc-font-size /
-     --cl-mobile-font-size 管，那两条自己已经乘过 --fontScale。
-
-     --cl-fs-display 故意没乘：它是 clamp(26px, 3.1vw, 40px)，已经跟着
-     视口走，再乘一次会把上下限一起顶飞。
-
-     放大后侧栏标签会更早触发 ellipsis 截断，那是预期行为。
-     别为此给容器加宽度 —— 宽度是按图标网格定的。 */
-  --cl-fs-display:clamp(26px, 3.1vw, 40px);  /* 欢迎页大标题 */
-  --cl-fs-lg:calc(16px * var(--fontScale, 1));                           /* 问候 toast */
-  --cl-fs-md:calc(15px * var(--fontScale, 1));                           /* 侧栏抽屉标签 */
-  --cl-fs-sm:calc(14px * var(--fontScale, 1));                           /* 抽屉内容、菜单项 */
-  --cl-fs-xs:calc(13px * var(--fontScale, 1));                           /* 用户名、空态提示 */
-  --cl-fs-meta:calc(12px * var(--fontScale, 1));                         /* 时间、次级操作 */
-  --cl-fs-micro:calc(11px * var(--fontScale, 1));                        /* 最小标签、代码条 */
-
-  /* 注意：代码里还有一批 px 型 font-size 是 Font Awesome 字形尺寸，
-     不是文字 —— #send_but(14px)、.mes_button(12px)、badge(9px) 等。
-     它们归 --cl-icon-size 那条线管，别往上面的档位里塞。
-     另外 #send_textarea 手机端的 16px 是 iOS 防聚焦缩放的功能常量，
-     同样不是排版选择，不要令牌化。 */
+  
 
   --cl-icon-size:16px;
   --cl-icon-hit:32px;
@@ -767,12 +718,7 @@ hr {
 }
 .mes_text {
   line-height:1.76 !important;
-  /* text-wrap:pretty 是为西文段落消除末行孤字设计的；中文每个字都能断行，
-     本来就没有孤字问题，收益接近零。代价是浏览器要对整段反复试算断行，
-     而各家实现差异很大——Chrome 只调整最后几行，Safari 更激进。
-     实测：同一段正文在安卓上排版整齐，在 iPhone Safari 上右侧空出一截。
-     对中文正文这是零收益、有风险，改回 auto。标题上的 balance 保留：
-     那是短文本、只影响两三行，而且视觉收益是真的。 */
+  
   text-wrap:auto;
   font-feature-settings:"kern" 1, "liga" 1;
 }
@@ -974,11 +920,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
 }
 .select2-results__option {
   min-height:34px;
-  /* 酒馆原生 select2-overrides.css 给每一行都画了个 14px 的方形复选框，
-     绝对定位在 left:6px，指望这里的左内边距能让出空间给它站。这条规则
-     原来给的是 10px，勾选框实际占到 20px 左右，文字紧跟着 10px 就起排，
-     跟复选框叠在一起——尤其是选中态那个 "✓"，正好糊在名字第一个字上。
-     左内边距加到 30px，给复选框留出足够空间，不再跟文字打架。 */
+  
   padding:7px 10px 7px 30px !important;
   font-family:var(--cl-sans) !important;
   font-size:.9em;
@@ -1281,7 +1223,7 @@ body.claude-generation-active #chat > .mes.last_mes[is_user="false"] .mes_text::
   color:var(--cw-text-muted) !important;
   opacity:.82;
 }
-html body #chat .mes .mes_reasoning :is(code,kbd,samp,.inline-code,.inlineCode,[class*="inline-code"]), html body #chat .mes .mes_reasoning :is(code,kbd,samp,.inline-code,.inlineCode,[class*="inline-code"]) * {
+html body #chat .mes .mes_reasoning :is(code,kbd,samp,.inline-code,.inlineCode,[class*="inline-code"]), html body #chat .mes .mes_reasoning :is(code,kbd,samp,.inline-code,.inlineCode) * {
   display:inline !important;
   margin:0 !important;
   padding:0 .05em !important;
@@ -1315,7 +1257,7 @@ html body #chat .mes .mes_reasoning pre, html body #chat .mes .mes_reasoning pre
   font-size:.92em !important;
   font-weight:400 !important;
 }
-html body #chat .mes .mes_reasoning pre :is(code,kbd,samp,.inline-code,.inlineCode,[class*="inline-code"]), html body #chat .mes .mes_reasoning pre :is(code,kbd,samp,.inline-code,.inlineCode,[class*="inline-code"]) * {
+html body #chat .mes .mes_reasoning pre :is(code,kbd,samp,.inline-code,.inlineCode,[class*="inline-code"]), html body #chat .mes .mes_reasoning pre :is(code,kbd,samp,.inline-code,.inlineCode) * {
   display:inline !important;
   padding:0 !important;
   color:inherit !important;
@@ -1584,7 +1526,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
   box-shadow:none !important;
 }
 #chat > .mes[type="assistant_message"] {
-  /* 变量放第一个参数 —— 见 module-welcome.css 里同样的注释。 */
+  
   width:min(var(--cw-column),100%) !important;
   margin:4px auto 20px !important;
   padding:10px 8px !important;
@@ -1604,11 +1546,7 @@ body.clawd-interactive-ready #chat > .mes[is_user="false"] > .swipeRightBlock {
 #chat > .mes[type="assistant_message"] .mes_text {
   color:var(--cw-text-body) !important;
   font-family:var(--cl-font-reading) !important;
-  /* 这条的权重是 (1,3,0)，压过下面接 --fontScale 的那条 (1,1,2)
-     —— id 数相同、类计数 3 > 1。所以它必须自己乘一次缩放系数，
-     否则酒馆的字体缩放滑杆对 assistant_message 类型的消息无效。
-     跟 4940 行踩过的是同一个坑：给 .mes_text 单独设字号、
-     权重又比 --fontScale 那条高。数值 .98em 不变。 */
+  
   font-size:calc(.98em * var(--fontScale, 1)) !important;
   line-height:1.65 !important;
 }
@@ -1786,22 +1724,6 @@ html body #top-settings-holder :is(.fab, .fa-brands) {
   background:var(--cw-surface-hover) !important;
   opacity:1 !important;
 }
-.typing_indicator::before {
-  content:"";
-  display:block;
-  flex:0 0 auto;
-  position:relative;
-  z-index:2;
-  width:3px;
-  height:3px;
-  margin:0 49px 45px 3px;
-  background:transparent;
-  box-shadow:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  animation:clawd-bounce-inbetween 1.18s cubic-bezier(.42,0,.24,1) infinite !important;
-  backface-visibility:hidden;
-  transform-origin:24px 48px;
-  will-change:transform;
-}
 html:not([data-claude-archive="on"]) #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name {
   display:flex !important;
   justify-content:flex-end !important;
@@ -1949,9 +1871,6 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
 }
 }
 @media (prefers-reduced-motion:reduce) {
-.typing_indicator::before, .typing_indicator::after {
-  animation:none !important;
-}
 * {
   transition:none !important;
 }
@@ -1960,9 +1879,6 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
 }
 .mes[is_user="false"] :is(.mes_timer,.tokenCounterDisplay), .mes[is_user="false"] :is(.mes_timer,.tokenCounterDisplay)::before {
   transition:none !important;
-}
-.typing_indicator::after {
-  animation:none !important;
 }
 .mes_reasoning_details .mes_reasoning_arrow, .mes_reasoning_details::details-content, .mes_reasoning_details[open] .mes_reasoning {
   animation:none !important;
@@ -1981,22 +1897,9 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
 #chat > .mes.last_mes[is_user="false"] .mes_text::after, #chat > .mes[is_user="false"]:last-child .mes_text::after {
   transition:none !important;
 }
-.typing_indicator::before {
-  animation:none !important;
-}
-}
-html body .typing_indicator::before {
-  position:absolute !important;
-  left:23px !important;
-  bottom:63px !important;
-  margin:0 !important;
 }
 html body .typing_indicator {
   padding-left:76px !important;
-}
-html body .typing_indicator.clawd-typing-enter::before {
-  animation-delay:140ms !important;
-  animation-fill-mode:backwards !important;
 }
 @media (min-width:701px) {
   .clawd-typing-hit {
@@ -2170,17 +2073,8 @@ html body .typing_indicator {
   margin:6px 0 10px !important;
   padding:8px 14px 12px 76px !important;
   box-sizing:border-box !important;
-  /* Clawd 进场/常驻只允许出现在自己的区域内：从区域底边钻出、
-     沉到底边之下就被裁掉，视觉上始终被下方内容（输入框）挡住。 */
+  
   overflow:hidden !important;
-}
-/* Clawd 不再作为 flex item 参与 typing 文本排版。原生三个点和文字晚一帧
-   插入时，绝对定位锚点不会再从中间被挤向左侧。 */
-html body .typing_indicator::before {
-  position:absolute !important;
-  left:17px !important;
-  bottom:52px !important;
-  margin:0 !important;
 }
 html:not([data-claude-archive="on"]) #chat .mes_edit_buttons {
   gap:6px !important;
@@ -2246,12 +2140,6 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
     animation:cl-reasoning-fallback-in 300ms cubic-bezier(.2,.72,.18,1) both;
   }
 }
-@keyframes clawd-bounce {
-  0%, 100% { transform:translateY(0) scaleY(1); }
-  25% { transform:translateY(1px) scaleY(.94); }
-  55% { transform:translateY(-7px) scaleY(1.03); }
-  80% { transform:translateY(0) scaleY(.98); }
-}
 @keyframes clawd-question-float {
   0%, 7% { opacity:0; transform:translate(-1px,8px); }
   24% { opacity:.82; transform:translate(0,3px); }
@@ -2282,34 +2170,13 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   from { opacity:0; transform:translateY(-5px); }
   to { opacity:1; transform:translateY(0); }
 }
-@keyframes clawd-bounce-inbetween {
-  0% { transform:translate3d(0,0,0) scaleX(1) scaleY(1); }
-  8% { transform:translate3d(0,0,0) scaleX(1.01) scaleY(.99); }
-  16% { transform:translate3d(0,1px,0) scaleX(1.025) scaleY(.965); }
-  24% { transform:translate3d(0,2px,0) scaleX(1.045) scaleY(.925); }
-  32% { transform:translate3d(0,0,0) scaleX(1.015) scaleY(.985); }
-  40% { transform:translate3d(0,-3px,0) scaleX(.995) scaleY(1.02); }
-  48% { transform:translate3d(0,-6px,0) scaleX(.985) scaleY(1.035); }
-  56% { transform:translate3d(0,-7px,0) scaleX(.985) scaleY(1.04); }
-  64% { transform:translate3d(0,-6px,0) scaleX(.99) scaleY(1.03); }
-  72% { transform:translate3d(0,-3px,0) scaleX(1) scaleY(1.01); }
-  80% { transform:translate3d(0,0,0) scaleX(1.025) scaleY(.965); }
-  88% { transform:translate3d(0,1px,0) scaleX(1.035) scaleY(.945); }
-  94% { transform:translate3d(0,0,0) scaleX(.995) scaleY(1.01); }
-  100% { transform:translate3d(0,0,0) scaleX(1) scaleY(1); }
-}
 
-/* Interaction polish and accessibility */
-/* iOS-only anti-zoom: Android keeps the compact size */
+
+
 @supports (-webkit-touch-callout: none) {
   @media (max-width:700px) {
     html body #send_textarea { font-size:16px !important; }
   }
-}
-.mes.last_mes { animation:claude-fade-rise 240ms cubic-bezier(.16,1,.3,1) both; }
-@keyframes claude-fade-rise {
-  from { opacity:0; transform:translateY(4px); }
-  to { opacity:1; transform:translateY(0); }
 }
 :is(button,.mes_button,.menu_button,.drawer-icon,a,select,.inline-drawer-toggle):focus-visible {
   outline:2px solid var(--cw-mark) !important; outline-offset:2px !important;
@@ -2319,7 +2186,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   .mes.last_mes { animation:none !important; }
 }
 
-/* Unified outer shell */
+
 #top-settings-holder {
   background:var(--cw-surface-page) !important;
   background-color:var(--cw-surface-page) !important;
@@ -2358,10 +2225,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   box-shadow:none !important;
 }
 
-/* Prompt Manager 的编辑页是盖在提示词列表上的二级面板。它不能沿用上面给
-   普通内容块的透明表面，否则列表和固定输入框会从底下透出来；同时将其层级
-   提到主题自己的导航、输入框和浮动控件之上。编辑页打开期间隐藏聊天输入框，
-   避免不同酒馆版本的祖先层叠上下文仍把 fixed composer 抬到编辑按钮上方。 */
+
 #completion_prompt_manager_popup.openDrawer {
   position:absolute !important;
   inset:0 !important;
@@ -2376,7 +2240,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   background-image:none !important;
   isolation:isolate;
 }
-html.claude-pm-open:not(#claude-spec) body #form_sheld {
+html[data-claude-pm-open]:not(#claude-spec) body #form_sheld {
   visibility:hidden !important;
   pointer-events:none !important;
 }
@@ -2457,10 +2321,7 @@ html.claude-pm-open:not(#claude-spec) body #form_sheld {
   fill:currentColor;
 }
 
-/* Prompt Manager 的原生行是三列 grid；触屏拖拽柄又是一个没有 left 的绝对定位
-   元素。抽屉被主题改宽、列表异步重绘后，它会从各行不同的 static position 起画，
-   就是 COT 列表里「☰ 到处漂、名称和开关挤成一团」的来源。这里固定四个槽位：
-   拖拽柄脱离 grid 且永远贴左，名称可以收缩省略，操作与 token 列保持可点宽度。 */
+
 #completion_prompt_manager #completion_prompt_manager_list {
   box-sizing:border-box !important;
   display:flex !important;
@@ -2538,9 +2399,7 @@ html.claude-pm-open:not(#claude-spec) body #form_sheld {
   white-space:nowrap !important;
 }
 
-/* TT 窄窗中 prompt 名称的实际文字节点不一定带 inspect-action 类。
-   无论它是链接还是普通 span，都必须在名称列里省略，不能把整行撑高后
-   与下一条 sortable 项目发生视觉重叠。 */
+
 #completion_prompt_manager #completion_prompt_manager_list
   .completion_prompt_manager_prompt_name > :is(a,span):not(.fa-solid):not(.fa-regular) {
   display:block !important;
@@ -2598,8 +2457,7 @@ html.claude-pm-open:not(#claude-spec) body #form_sheld {
   white-space:nowrap !important;
 }
 
-/* 原生把每行的断开、编辑、开关统一压到 opacity:.4。浅色背景上这会像整个
-   列表被禁用；恢复为清晰的次级操作亮度，开启态再用强调色区分。 */
+
 :is(#completion_prompt_manager,#completion_prompt_manager_popup,[id*="spreset" i],[class*="spreset" i])
   .prompt_manager_prompt_controls > :is(
     .prompt-manager-detach-action,
@@ -2647,7 +2505,7 @@ html.claude-pm-open:not(#claude-spec) body #form_sheld {
   }
 }
 
-/* Top navigation and drawer opacity */
+
 #top-bar {
   background:color-mix(in srgb,var(--cw-surface-page) 78%,transparent) !important;
   background-color:color-mix(in srgb,var(--cw-surface-page) 78%,transparent) !important;
@@ -2681,10 +2539,7 @@ html.claude-pm-open:not(#claude-spec) body #form_sheld {
 }
 
 @media (hover:hover) and (pointer:fine) {
-  /* 原来这里是 opacity:.34，鼠标进侧栏才亮起来。
-     那是「不触碰就暗」的来源 —— 图标和文字一起被压到三成，
-     看着像图标单独发灰（细描边在低透明度下衰减得比文字快）。
-     现在常驻满色，只保留悬停时那一点点上浮。 */
+  
   #top-settings-holder > .drawer > .drawer-toggle {
     opacity:1 !important;
     transform:translateY(0);
@@ -2707,7 +2562,7 @@ html.claude-pm-open:not(#claude-spec) body #form_sheld {
   }
 }
 
-/* Welcome screen frame */
+
 html body #chat > .welcomePanel,
 html body #chat > .mes[type="assistant_message"] {
   width:min(100%,980px) !important;
@@ -2747,10 +2602,7 @@ html body #chat > .mes[type="assistant_message"] .mes_text > :not(.clawd-signoff
   box-sizing:border-box !important;
 }
 
-/* Welcome shortcuts belong to the welcome assistant card, never to the viewport.
-   Do not match every assistant message here: character-authored status/variable cards
-   commonly use .flex-container for their own layout. Rewriting those containers caused
-   narrow mobile cards to collapse into one-character-wide columns. */
+
 html body #chat > .mes.claude-welcome-clawd-assistant .mes_text > :is(.flex-container,.flex-container-centered) {
   position:static !important;
   inset:auto !important;
@@ -2761,13 +2613,13 @@ html body #chat > .mes.claude-welcome-clawd-assistant .mes_text > :is(.flex-cont
   box-sizing:border-box !important;
 }
 
-/* A welcome assistant must not inherit ordinary reply navigation or sign-off. */
+
 html body #chat > .mes[type="assistant_message"] > :is(.swipe_left,.swipeRightBlock,.claude-swipe-left-proxy,.claude-swipe-right-proxy),
 html body #chat > .mes[type="assistant_message"] :is(.clawd-signoff-button,.claude-reroll-button) {
   display:none !important;
 }
 
-/* Welcome shortcut prompt */
+
 html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt,[type="welcome_prompt"]) {
   position:relative !important;
   display:block !important;
@@ -2854,7 +2706,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:is(.claude-welcome-prompt
   }
 }
 
-/* Composer edge and device typography */
+
 html body #sheld {
   gap:0 !important;
 }
@@ -2876,9 +2728,7 @@ html body #form_sheld {
 
 @media (min-width:701px) {
   html body #chat :is(.mes_text,.mes_reasoning) {
-    /* 正文字号放大功能：接入酒馆原生"字体缩放"滑杆(#font_scale)写入的
-       --fontScale。以前这个变量只被设进 root，没有任何规则消费它，
-       导致滑杆对正文完全没有效果。 */
+    
     font-size:calc(var(--cl-pc-font-size) * var(--fontScale, 1)) !important;
   }
 
@@ -2894,13 +2744,13 @@ html body #form_sheld {
   }
 
   html body #send_textarea {
-    /* Keep 16px on iOS to prevent focus zoom. */
+    
     font-size:16px !important;
     line-height:1.4 !important;
   }
 }
 
-/* User message edit state */
+
 html:not([data-claude-archive="on"]) body #chat > .mes[is_user="true"]:has(.edit_textarea) .mes_block {
   width:min(76%,66ch) !important;
   max-width:min(76%,66ch) !important;
@@ -2958,7 +2808,7 @@ html body #chat > .mes[is_user="true"]:has(.edit_textarea) .edit_textarea:focus 
   }
 }
 
-/* User edit top alignment */
+
 html:not([data-claude-archive="on"]) body #chat > .mes[is_user="true"]:has(.edit_textarea) .ch_name {
   position:static !important;
   display:block !important;
@@ -2969,280 +2819,30 @@ html:not([data-claude-archive="on"]) body #chat > .mes[is_user="true"]:has(.edit
   padding:0 !important;
   line-height:0 !important;
 }
-/* ===== v1.2 motion: weighted hop + 2-frame sprite + blink ===== */
-:root {
-  --clawd-f-open:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-look-l:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px var(--cl-clawd-eye), 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px var(--cl-clawd-eye), 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px var(--cl-clawd-eye), 12px 27px 0 .3px #d97757, 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px var(--cl-clawd-eye), 33px 27px 0 .3px #d97757, 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-look-r:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px var(--cl-clawd-eye), 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px var(--cl-clawd-eye), 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px #d97757, 15px 27px 0 .3px var(--cl-clawd-eye), 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px #d97757, 36px 27px 0 .3px var(--cl-clawd-eye), 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-look-u:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px var(--cl-clawd-eye), 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px var(--cl-clawd-eye), 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px #d97757, 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px #d97757, 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-look-d:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px var(--cl-clawd-eye), 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px var(--cl-clawd-eye), 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-blink-u:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px #d97757, 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px #d97757, 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-blink-d:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px #d97757, 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px #d97757, 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px var(--cl-clawd-eye), 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px var(--cl-clawd-eye), 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-blink-l:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px var(--cl-clawd-eye), 12px 27px 0 .3px #d97757, 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px var(--cl-clawd-eye), 33px 27px 0 .3px #d97757, 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-blink-r:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px #d97757, 15px 27px 0 .3px var(--cl-clawd-eye), 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px #d97757, 36px 27px 0 .3px var(--cl-clawd-eye), 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-shut:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px var(--cl-clawd-eye), 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px var(--cl-clawd-eye), 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 12px 42px 0 .3px #d97757, 18px 42px 0 .3px #d97757, 27px 42px 0 .3px #d97757, 33px 42px 0 .3px #d97757;
-  --clawd-f-cheer-mid:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 0px 24px 0 .3px #d97757, 3px 24px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 42px 24px 0 .3px #d97757, 45px 24px 0 .3px #d97757, 0px 27px 0 .3px #d97757, 3px 27px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 42px 27px 0 .3px #d97757, 45px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-  --clawd-f-tucked:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 12px 42px 0 .3px #d97757, 18px 42px 0 .3px #d97757, 27px 42px 0 .3px #d97757, 33px 42px 0 .3px #d97757;
-  --clawd-f-tucked-blink:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 12px 42px 0 .3px #d97757, 18px 42px 0 .3px #d97757, 27px 42px 0 .3px #d97757, 33px 42px 0 .3px #d97757;
-  --clawd-f-blink:6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px #d97757, 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px #d97757, 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 0px 33px 0 .3px #d97757, 3px 33px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 42px 33px 0 .3px #d97757, 45px 33px 0 .3px #d97757, 0px 36px 0 .3px #d97757, 3px 36px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 42px 36px 0 .3px #d97757, 45px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757;
-}
-@keyframes clawd-hop-v21 {
-  0%, 100% { transform:translateY(0) scale(1,1); }
-  14%  { transform:translateY(1px) scale(1.035,.965); animation-timing-function:cubic-bezier(.2,.7,.24,1); }
-  38%  { transform:translateY(-7px) scale(.985,1.018); animation-timing-function:cubic-bezier(.38,0,.62,1); }
-  55%  { transform:translateY(-8px) scale(1,1); animation-timing-function:cubic-bezier(.42,0,.76,.3); }
-  76%  { transform:translateY(0) scale(1.025,.975); animation-timing-function:cubic-bezier(.18,.76,.24,1); }
-  89%  { transform:translateY(-1px) scale(.998,1.008); }
-}
-@keyframes clawd-frames-v20 {
-  0.0% { box-shadow:var(--clawd-f-open); }
-  3.0% { box-shadow:var(--clawd-f-tucked); }
-  10.33% { box-shadow:var(--clawd-f-open); }
-  16.67% { box-shadow:var(--clawd-f-open); }
-  19.67% { box-shadow:var(--clawd-f-tucked); }
-  27.0% { box-shadow:var(--clawd-f-open); }
-  33.33% { box-shadow:var(--clawd-f-open); }
-  36.33% { box-shadow:var(--clawd-f-tucked); }
-  43.66% { box-shadow:var(--clawd-f-open); }
-  50.0% { box-shadow:var(--clawd-f-open); }
-  53.0% { box-shadow:var(--clawd-f-tucked); }
-  60.33% { box-shadow:var(--clawd-f-open); }
-  66.67% { box-shadow:var(--clawd-f-open); }
-  69.67% { box-shadow:var(--clawd-f-tucked); }
-  77.0% { box-shadow:var(--clawd-f-open); }
-  78.67% { box-shadow:var(--clawd-f-blink); }
-  80.67% { box-shadow:var(--clawd-f-open); }
-  83.33% { box-shadow:var(--clawd-f-open); }
-  86.33% { box-shadow:var(--clawd-f-tucked); }
-  93.66% { box-shadow:var(--clawd-f-open); }
-  100.0% { box-shadow:var(--clawd-f-open); }
-}
-.typing_indicator::before {
-  rotate:0deg;
-  translate:0 0;
-  scale:1;
-  animation:clawd-hop-v21 1.32s linear infinite, clawd-frames-v20 7.92s step-end infinite !important;
-}
-.typing_indicator::after {
-  animation:var(--cl-typing-float-animation) !important;
-}
-/* 持续跳跃只占 transform；偶发动作改用独立的 rotate/translate 通道。
-   这样举钳、摇晃和歪头都不会再覆盖跳跃，也不会在 class 摘掉时从
-   后台随机进度突然跳回。 */
-.typing_indicator.clawd-wobble-sway::before {
-  animation:clawd-hop-v21 1.32s linear infinite, clawd-frames-v20 7.92s step-end infinite, clawd-head-sway-v21 820ms cubic-bezier(.25,.72,.28,1) 1 !important;
-}
-@keyframes clawd-head-sway-v21 {
-  0%, 100% { rotate:0deg; }
-  24% { rotate:-7deg; }
-  52% { rotate:6deg; }
-  76% { rotate:-2deg; }
-}
-.typing_indicator.clawd-wobble-tilt::before {
-  animation:clawd-hop-v21 1.32s linear infinite, clawd-frames-v20 7.92s step-end infinite, clawd-head-tilt-pause-v21 1.08s cubic-bezier(.25,.72,.28,1) 1 !important;
-}
-@keyframes clawd-head-tilt-pause-v21 {
-  0%, 100% { rotate:0deg; translate:0 0; }
-  34%, 70% { rotate:9deg; translate:0 -1px; }
-  86% { rotate:-1deg; translate:0 0; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .typing_indicator.clawd-wobble-sway::before, .typing_indicator.clawd-wobble-tilt::before {
-    animation:none !important;
-  }
-}
-/* click: pixel squash with spring return.
-   原来用 :active 触发；触屏上 :active 容易粘住不清，还会跟松手后 JS 加的
-   反应 class 抢同一个 transform，把后面的反应动画盖掉。现在换成 JS 用
-   pointerdown/up 手动控制的 .clawd-button-press，选择器换了，效果不变。 */
-button.clawd-signoff-button { transition:transform 240ms cubic-bezier(.34,1.6,.64,1) !important; }
-button.clawd-signoff-button.clawd-button-press {
-  transform:scale(1.25,.65) translateY(5px) !important;
-  transition-duration:70ms !important;
-}
 
-/* ===== v1.2 desktop column + type scale ===== */
+button.clawd-signoff-button { transition:transform 240ms cubic-bezier(.34,1.6,.64,1) !important; }
+
+
 @media (min-width:701px) {
-  /* 内容岛宽度走令牌。1280px 上取值仍是 820px（64vw=819.2，被下限接住），
-     更宽的屏上跟着长到 1120px —— 这是普查 E11 在官网量到的行为。 */
+  
   #chat > .mes { max-width:var(--cw-column); margin-left:auto !important; margin-right:auto !important; }
   #chat > .typing_indicator { max-width:var(--cw-column); margin-left:auto !important; margin-right:auto !important; }
   #send_form { max-width:var(--cw-column); }
 }
-/* 这两条权重只有 (0,1,0)，在 #chat 里一定被上面的 --fontScale 规则压掉，
-   目前不生效。留着是因为 .mes_text 出现在 #chat 之外时（编辑预览等）
-   还靠它兜底。别往上加权重 —— 一加就会盖掉字体缩放。 */
+
 .mes_text { font-size:16px !important; }
 .mes_reasoning { font-size:13px !important; }
-/* motion accessibility: must stay last */
+
 @media (prefers-reduced-motion:reduce) {
-  .typing_indicator::before, .typing_indicator::after { animation:none !important; }
   button.clawd-signoff-button { transition:none !important; }
 }
 
-/* ===== v1.3 signoff sprite + CC eggs + input type ===== */
+
 @media (min-width:701px) {
   html body #send_textarea { font-size:15px !important; }
 }
-:root { --clawd-f-cheer:3px 18px 0 .3px #d97757, 42px 18px 0 .3px #d97757, 0px 12px 0 .3px #d97757, 3px 12px 0 .3px #d97757, 42px 12px 0 .3px #d97757, 45px 12px 0 .3px #d97757, 0px 15px 0 .3px #d97757, 3px 15px 0 .3px #d97757, 42px 15px 0 .3px #d97757, 45px 15px 0 .3px #d97757, 6px 18px 0 .3px #d97757, 9px 18px 0 .3px #d97757, 12px 18px 0 .3px #d97757, 15px 18px 0 .3px #d97757, 18px 18px 0 .3px #d97757, 21px 18px 0 .3px #d97757, 24px 18px 0 .3px #d97757, 27px 18px 0 .3px #d97757, 30px 18px 0 .3px #d97757, 33px 18px 0 .3px #d97757, 36px 18px 0 .3px #d97757, 39px 18px 0 .3px #d97757, 6px 21px 0 .3px #d97757, 9px 21px 0 .3px #d97757, 12px 21px 0 .3px #d97757, 15px 21px 0 .3px #d97757, 18px 21px 0 .3px #d97757, 21px 21px 0 .3px #d97757, 24px 21px 0 .3px #d97757, 27px 21px 0 .3px #d97757, 30px 21px 0 .3px #d97757, 33px 21px 0 .3px #d97757, 36px 21px 0 .3px #d97757, 39px 21px 0 .3px #d97757, 6px 24px 0 .3px #d97757, 9px 24px 0 .3px #d97757, 12px 24px 0 .3px var(--cl-clawd-eye), 15px 24px 0 .3px #d97757, 18px 24px 0 .3px #d97757, 21px 24px 0 .3px #d97757, 24px 24px 0 .3px #d97757, 27px 24px 0 .3px #d97757, 30px 24px 0 .3px #d97757, 33px 24px 0 .3px var(--cl-clawd-eye), 36px 24px 0 .3px #d97757, 39px 24px 0 .3px #d97757, 6px 27px 0 .3px #d97757, 9px 27px 0 .3px #d97757, 12px 27px 0 .3px var(--cl-clawd-eye), 15px 27px 0 .3px #d97757, 18px 27px 0 .3px #d97757, 21px 27px 0 .3px #d97757, 24px 27px 0 .3px #d97757, 27px 27px 0 .3px #d97757, 30px 27px 0 .3px #d97757, 33px 27px 0 .3px var(--cl-clawd-eye), 36px 27px 0 .3px #d97757, 39px 27px 0 .3px #d97757, 6px 30px 0 .3px #d97757, 9px 30px 0 .3px #d97757, 12px 30px 0 .3px #d97757, 15px 30px 0 .3px #d97757, 18px 30px 0 .3px #d97757, 21px 30px 0 .3px #d97757, 24px 30px 0 .3px #d97757, 27px 30px 0 .3px #d97757, 30px 30px 0 .3px #d97757, 33px 30px 0 .3px #d97757, 36px 30px 0 .3px #d97757, 39px 30px 0 .3px #d97757, 6px 33px 0 .3px #d97757, 9px 33px 0 .3px #d97757, 12px 33px 0 .3px #d97757, 15px 33px 0 .3px #d97757, 18px 33px 0 .3px #d97757, 21px 33px 0 .3px #d97757, 24px 33px 0 .3px #d97757, 27px 33px 0 .3px #d97757, 30px 33px 0 .3px #d97757, 33px 33px 0 .3px #d97757, 36px 33px 0 .3px #d97757, 39px 33px 0 .3px #d97757, 6px 36px 0 .3px #d97757, 9px 36px 0 .3px #d97757, 12px 36px 0 .3px #d97757, 15px 36px 0 .3px #d97757, 18px 36px 0 .3px #d97757, 21px 36px 0 .3px #d97757, 24px 36px 0 .3px #d97757, 27px 36px 0 .3px #d97757, 30px 36px 0 .3px #d97757, 33px 36px 0 .3px #d97757, 36px 36px 0 .3px #d97757, 39px 36px 0 .3px #d97757, 6px 39px 0 .3px #d97757, 9px 39px 0 .3px #d97757, 12px 39px 0 .3px #d97757, 15px 39px 0 .3px #d97757, 18px 39px 0 .3px #d97757, 21px 39px 0 .3px #d97757, 24px 39px 0 .3px #d97757, 27px 39px 0 .3px #d97757, 30px 39px 0 .3px #d97757, 33px 39px 0 .3px #d97757, 36px 39px 0 .3px #d97757, 39px 39px 0 .3px #d97757, 9px 42px 0 .3px #d97757, 15px 42px 0 .3px #d97757, 30px 42px 0 .3px #d97757, 36px 42px 0 .3px #d97757, 9px 45px 0 .3px #d97757, 15px 45px 0 .3px #d97757, 30px 45px 0 .3px #d97757, 36px 45px 0 .3px #d97757; }
-button.clawd-signoff-button::before {
-  content:''; position:absolute; left:-4px; top:-14px;
-  width:3px; height:3px; background:transparent;
-  box-shadow:var(--clawd-f-open);
-  transform:scale(.85); transform-origin:24px 48px;
-  animation:clawd-idle-breath 4.2s ease-in-out infinite, clawd-idle-frames 3s step-end infinite;
-  pointer-events:none;
-}
-@keyframes clawd-idle-breath {
-  0%, 100% { transform:scale(.85,.85); }
-  50% { transform:scale(.862,.838); }
-}
-@keyframes clawd-idle-frames {
-  0%, 90% { box-shadow:var(--clawd-f-open); }
-  91%, 95% { box-shadow:var(--clawd-f-blink); }
-  96%, 100% { box-shadow:var(--clawd-f-open); }
-}
-button.clawd-signoff-button.clawd-cheer::before { box-shadow:var(--clawd-f-cheer) !important; }
-/* 睡觉：闭眼 + 慢深呼吸 + 整只往下沉一点，另外飘一个 z */
-button.clawd-signoff-button.clawd-sleeping::before {
-  box-shadow:var(--clawd-f-shut) !important;
-  animation:clawd-sleep-breath 5.2s ease-in-out infinite !important;
-}
-button.clawd-signoff-button.clawd-sleeping::after {
-  content:'z';
-  position:absolute;
-  left:34px;
-  top:-2px;
-  font-family:var(--cl-sans);
-  font-size:11px;
-  font-weight:500;
-  color:var(--cw-mark);
-  opacity:0;
-  pointer-events:none;
-  animation:clawd-sleep-z 2.6s ease-in-out infinite;
-}
 
-/* ===== 2.0.40 状态符号 =====
-   为什么用符号而不是继续做表情：Clawd 是 16×16 点阵（3px 一格、48px 见方），
-   眼睛只占 4 个像素。现有 15 套精灵里 14 套都在改脸，睁眼和半闭眼的差别是
-   两个像素换颜色 —— 在侧栏边缘用余光看，分辨不出来是必然的，不是画得不够
-   用力。脸上的表达空间已经用尽了。
 
-   符号挂在 ::after 上，好处是：不受点阵分辨率限制；不用 JS 定位；class 一
-   移除就消失，不需要任何清理代码（睡觉那个 z 本来就是这么做的，这里只是把
-   同一套办法铺到其余状态）。
-
-   四个状态在代码里是互斥的（sleeping 压过一切，害羞优先于冷落），所以同一
-   时刻最多只有一个符号，不会堆在一起。
-
-   除睡觉外一律静态：常驻状态用常驻符号。持久的动画在余光里会变成噪音 ——
-   这个教训在 ccMaybeCheer 的注释里吃过一次，2.0.40 删掉踱步是第二次。
-   位置全部对齐睡觉那个 z（left:34px），四个符号共用同一个"槽"，读起来是
-   同一件事的不同取值，而不是四个各自为政的装饰。 */
-
-/* 快睡着了：比 z 弱一档，不飘。 */
-button.clawd-signoff-button.clawd-idle-drowsy:not(.clawd-sleeping)::after,
-button.clawd-mobile-clawd-button.clawd-idle-drowsy:not(.clawd-sleeping)::after {
-  content:'z';
-  position:absolute;
-  left:34px;
-  top:1px;
-  font-family:var(--cl-sans);
-  font-size:9px;
-  font-weight:500;
-  color:var(--cw-mark);
-  opacity:.4;
-  pointer-events:none;
-}
-
-/* 害羞：沿用点击彩蛋里已经在用的"心"这个语汇，不另造符号。 */
-button.clawd-signoff-button.clawd-shy-ambient:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after,
-button.clawd-mobile-clawd-button.clawd-shy-ambient:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after {
-  content:'\2665';
-  position:absolute;
-  left:34px;
-  top:-1px;
-  font-size:9px;
-  line-height:1;
-  color:var(--cw-mark);
-  opacity:.62;
-  pointer-events:none;
-}
-
-/* 被冷落：一直没人戳它。muted 色，比强调色更"没被看见"。 */
-button.clawd-signoff-button.clawd-neglected:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after,
-button.clawd-mobile-clawd-button.clawd-neglected:not(.clawd-sleeping):not(.clawd-idle-drowsy)::after {
-  content:'?';
-  position:absolute;
-  left:34px;
-  top:-2px;
-  font-family:var(--cl-sans);
-  font-size:11px;
-  font-weight:500;
-  color:var(--cw-text-muted);
-  opacity:.55;
-  pointer-events:none;
-}
-
-/* 手机端睡觉也要有 z —— 之前只有 PC 那只有。 */
-button.clawd-mobile-clawd-button.clawd-sleeping::after {
-  content:'z';
-  position:absolute;
-  left:34px;
-  top:-2px;
-  font-family:var(--cl-sans);
-  font-size:11px;
-  font-weight:500;
-  color:var(--cw-mark);
-  opacity:0;
-  pointer-events:none;
-  animation:clawd-sleep-z 2.6s ease-in-out infinite;
-}
-
-/* 生成中整体让位：人这时候在看回复，别在侧栏边上放符号抢注意力。 */
-body.claude-generation-active button.clawd-signoff-button::after,
-body.claude-generation-active button.clawd-mobile-clawd-button::after {
-  content:none !important;
-}
-@keyframes clawd-sleep-breath {
-  0%, 100% { transform:scale(.85,.828) translateY(1.5px); }
-  50%      { transform:scale(.862,.812) translateY(2.4px); }
-}
-@keyframes clawd-sleep-z {
-  0%   { opacity:0; transform:translate(0,4px) scale(.75); }
-  22%  { opacity:.9; }
-  62%  { opacity:.55; }
-  100% { opacity:0; transform:translate(7px,-13px) scale(1.15); }
-}
-/* 呼吸和睡觉两档之间原来是空的：入睡前最后一段安静时间加一档「东张西望」，
-   用摆动代替原来纯粹的呼吸缩放，读起来像在左右瞅一眼，不需要新画像素帧。 */
-button.clawd-signoff-button.clawd-idle-drowsy::before {
-  animation:clawd-drowsy-sway 6s ease-in-out infinite, clawd-idle-frames 3s step-end infinite !important;
-}
-@keyframes clawd-drowsy-sway {
-  0%, 100% { transform:scale(.85,.85) rotate(0deg); }
-  22%      { transform:scale(.856,.842) rotate(-7deg); }
-  50%      { transform:scale(.85,.85) rotate(0deg); }
-  78%      { transform:scale(.856,.842) rotate(7deg); }
-}
-/* 真正睡着前打个哈欠：先拉长再压扁回弹，跟呼吸动画错开时间播（JS 里等
-   这段播完 900ms 才切 clawd-sleeping），不会两段 transform 叠在一起抢镜。 */
-button.clawd-signoff-button.clawd-sleep-transition::before {
-  animation:clawd-yawn-stretch 900ms cubic-bezier(.34,.4,.24,1) 1 !important;
-}
-@keyframes clawd-yawn-stretch {
-  0%   { transform:scale(.85,.85); }
-  35%  { transform:scale(.78,.98) translateY(-3px); }
-  62%  { transform:scale(.92,.78) translateY(1px); }
-  100% { transform:scale(.85,.85); }
-}
-@media (prefers-reduced-motion:reduce) {
-  button.clawd-signoff-button.clawd-sleeping::before { animation:none !important; }
-  button.clawd-signoff-button.clawd-sleeping::after,
-  button.clawd-mobile-clawd-button.clawd-sleeping::after { animation:none !important; opacity:.55 !important; }
-  button.clawd-signoff-button.clawd-idle-drowsy::before { animation:none !important; }
-  button.clawd-signoff-button.clawd-sleep-transition::before { animation:none !important; }
-}
 button.clawd-signoff-button {
   display:block !important;
   position:relative !important;
@@ -3256,145 +2856,23 @@ button.clawd-signoff-button {
   flex:0 0 auto !important;
 }
 html body #chat > .mes .mes_text { overflow:visible !important; position:relative !important; }
-.clawd-cc-toast {
-  position:absolute; transform:translateY(-50%);
-  white-space:nowrap; width:max-content; max-width:min(340px, 62%); padding:4px 10px;
-  font-family:var(--cl-font-ui); font-size:var(--cl-fs-micro); letter-spacing:.02em;
-  color:var(--cw-text-body); background:var(--cw-surface-raised);
-  border:1px solid var(--cw-rule-hairline); border-radius:var(--cw-radius-8);
-  box-shadow:0 6px 18px rgba(0,0,0,.18);
-  pointer-events:none; z-index:30; opacity:0;
-  animation:clawd-toast 2.4s ease forwards;
-}
-.clawd-cc-toast .asterisk { color:var(--cw-mark); }
-.clawd-hi-toast {
-  position:absolute; transform:translateY(-50%);
-  white-space:nowrap; width:max-content; max-width:min(44ch, 62%);
-  font-family:var(--cl-font-reading); font-size:var(--cl-fs-lg); line-height:1.35;
-  letter-spacing:.005em; color:var(--cw-text-body);
-  background:transparent; border:0; padding:0;
-  pointer-events:none; z-index:30; opacity:0;
-  animation:clawd-hi 3s ease forwards;
-}
-.clawd-hi-toast .asterisk {
-  color:var(--cw-mark); font-family:var(--cl-sans);
-  margin-right:.34em; font-size:.86em; vertical-align:.06em;
-}
-@keyframes clawd-hi {
-  0% { opacity:0; transform:translateY(-50%) translateX(-6px); }
-  16%, 76% { opacity:1; transform:translateY(-50%) translateX(0); }
-  100% { opacity:0; transform:translateY(-50%) translateX(4px); }
-}
-@media (max-width:700px) {
-  .clawd-hi-toast { font-size:14px; white-space:normal; max-width:58vw; }
-}
-@keyframes clawd-toast {
-  0% { opacity:0; transform:translateY(-50%) translateX(-5px); }
-  14%, 78% { opacity:1; transform:translateY(-50%) translateX(0); }
-  100% { opacity:0; transform:translateY(-50%) translateX(5px); }
-}
-@media (max-width:700px) {
-  .clawd-cc-toast { white-space:normal; max-width:56vw; font-size:10px; }
-}
-@media (prefers-reduced-motion:reduce) {
-  button.clawd-signoff-button::before { animation:none !important; }
-}
 
 
-/* ===== v1.7 ===== */
 
-/* 1. 举钳：三帧序列 + 上跳。原来是加个 class 换一次 box-shadow，360ms 一闪而过 */
-button.clawd-signoff-button.clawd-cheer::before {
-  animation:clawd-cheer-seq 900ms step-end 1, clawd-cheer-bob 900ms cubic-bezier(.34,1.2,.64,1) 1 !important;
-}
-.typing_indicator.clawd-cheer::before {
-  animation:clawd-hop-v21 1.32s linear infinite, clawd-cheer-seq 900ms step-end 1, clawd-cheer-lift-v21 900ms cubic-bezier(.25,.72,.28,1) 1 !important;
-}
-@keyframes clawd-cheer-lift-v21 {
-  0%, 100% { translate:0 0; scale:1; }
-  22% { translate:0 -2px; scale:.99 1.02; }
-  50% { translate:0 0; scale:1.01 .995; }
-  68% { translate:0 -1px; scale:.995 1.01; }
-}
-@keyframes clawd-cheer-seq {
-  0%       { box-shadow:var(--clawd-f-open); }
-  10%      { box-shadow:var(--clawd-f-cheer-mid); }
-  22%, 66% { box-shadow:var(--clawd-f-cheer); }
-  80%      { box-shadow:var(--clawd-f-cheer-mid); }
-  92%,100% { box-shadow:var(--clawd-f-open); }
-}
-/* 举钳的上跳。
-   基准缩放【必须】跟着元素走，不能写死。
-   这套关键帧同时用在两个地方：签名按钮上的 Clawd 常态是 scale(.85)，
-   输入指示器上的 Clawd 常态是 scale(1)。原来这里硬写 .85，
-   于是一举钳，输入指示器里的 Clawd 当场缩到 85% —— 看着就是「举手比平时小一圈」。
-   现在基准由各自的元素通过 --clawd-cheer-base 给出。 */
-@keyframes clawd-cheer-bob {
-  0%   { transform:scale(var(--clawd-cheer-base,1)) translateY(0); }
-  22%  { transform:scale(calc(var(--clawd-cheer-base,1) * .988), calc(var(--clawd-cheer-base,1) * 1.024)) translateY(-2.5px); }
-  46%  { transform:scale(calc(var(--clawd-cheer-base,1) * 1.012), calc(var(--clawd-cheer-base,1) * .994)) translateY(0); }
-  66%  { transform:scale(calc(var(--clawd-cheer-base,1) * .994), calc(var(--clawd-cheer-base,1) * 1.014)) translateY(-1.2px); }
-  100% { transform:scale(var(--clawd-cheer-base,1)) translateY(0); }
-}
-button.clawd-signoff-button.clawd-cheer::before { --clawd-cheer-base:.85; }
-.typing_indicator.clawd-cheer::before { --clawd-cheer-base:1; }
-
-/* 酒馆会先把原生 typing 节点显示一帧，下一帧脚本才收到刷新。未进入我们
-   的 ready/enter 两态（或被 ghost 压制）前，先从 CSS 层封住精灵与粒子，
-   消除遗留帧。 */
-body.clawd-interactive-ready #chat .typing_indicator:not(.clawd-typing-ready):not(.clawd-typing-enter)::before,
-body.clawd-interactive-ready #chat .typing_indicator:not(.clawd-typing-ready):not(.clawd-typing-enter)::after {
-  opacity:0 !important;
-  animation:none !important;
-}
-
-/* 生成提示首次出现时，文字留在原位，只有 Clawd 从区域底边钻上来。
-   入场占独立的 translate/scale 通道，结束点与持续跳跃完全一致。
-   v25 起不再用 opacity 渐显：typing 节点已经 overflow:hidden，
-   起始帧整只位于区域底边之下（被裁掉），钻出过程是纯物理位移。 */
-.typing_indicator.clawd-typing-enter::before {
-  animation:clawd-hop-v21 1.32s linear infinite, clawd-frames-v20 7.92s step-end infinite, clawd-typing-burrow-v25 720ms cubic-bezier(.16,.86,.28,1) 1 !important;
-}
-@keyframes clawd-typing-burrow-v25 {
-  0% { translate:0 42px; scale:.9 .8; }
-  55% { translate:0 -2.5px; scale:.985 1.02; }
-  74% { translate:0 1px; scale:1.01 .99; }
-  88% { translate:0 -.5px; scale:.998 1.002; }
-  100% { translate:0 0; scale:1; }
-}
-.typing_indicator.clawd-typing-enter::after {
-  opacity:0 !important;
-  animation:none !important;
-}
-
-/* 入场/常驻期间锁住原生节点的横向 transition，酒馆的位移不会露出来。
-   （退场不再依赖原生节点 —— 见下面的 ghost。） */
 body.clawd-interactive-ready #chat .typing_indicator {
   transform:none !important;
   transition:none !important;
 }
 
-/* 退场 ghost：GENERATION_ENDED/STOPPED 的同一任务里，脚本压掉原生精灵，
-   用缓存的稳定坐标+姿势在 document.body 上生成 fixed 副本，由副本原地
-   向下淡出。原生节点此刻可能被酒馆同步向右挪、被改 class、被改 inline
-   style —— 都追不到已经脱离酒馆 DOM 的 ghost，「先向右切出再向下」
-   从结构上被消除，不用再跟原生 transition 抢第一帧。 */
+
 body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppressed {
   color:transparent !important;
   pointer-events:none !important;
 }
-body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppressed::before,
-body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppressed::after {
-  opacity:0 !important;
-  animation:none !important;
-}
 body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppressed > :not(.clawd-typing-hit) {
   opacity:0 !important;
 }
-/* 退场裁剪窗口：脚本把它放在 typing 区域顶边到输入框顶边之间，
-   overflow:hidden。ghost 在窗口里下沉，碰到窗口底（= 输入框顶边）
-   就被裁掉 —— 视觉上 Clawd 是被对话框挡住，而不是飘进对话/输入框上面。
-   z-index 低于手机输入框(120)，即使没裁干净也压在对话框下面。 */
+
 .clawd-typing-exit-viewport {
   position:fixed !important;
   z-index:119 !important;
@@ -3406,9 +2884,7 @@ body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppres
   overflow:hidden !important;
   pointer-events:none !important;
 }
-/* ghost 就是那只 3px 锚点：left/top/boxShadow/transform 由脚本按退场前
-   最后一个稳定快照写成 inline（相对窗口）；动画只动独立的
-   translate/opacity 通道，不会覆盖快照保存下来的 transform。 */
+
 .clawd-typing-exit-ghost {
   position:absolute !important;
   display:block !important;
@@ -3435,7 +2911,7 @@ body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppres
   }
 }
 
-/* 透明命中区只覆盖 Clawd 本体，不吞掉整条 typing indicator 的滚动/点击。 */
+
 .clawd-typing-hit {
   position:absolute !important;
   left:12px !important;
@@ -3462,59 +2938,8 @@ body.clawd-interactive-ready #chat .typing_indicator.clawd-typing-native-suppres
   .clawd-typing-hit { left:0 !important; }
 }
 
-/* pointerdown 只做短促压感；click 随后换帧并弹回。两者都用独立的
-   scale/translate 通道，因此底层持续跳跃不会被重置。 */
-.typing_indicator.clawd-typing-press::before {
-  scale:1.055 .84;
-  translate:0 3px;
-  transition:scale 55ms ease-out, translate 55ms ease-out;
-}
-.typing_indicator.clawd-typing-click::before {
-  animation:clawd-hop-v21 1.32s linear infinite, clawd-typing-click-frames-v21 560ms step-end 1, clawd-typing-click-pop-v21 560ms cubic-bezier(.2,.82,.22,1) 1 !important;
-}
-@keyframes clawd-typing-click-frames-v21 {
-  0%, 18% { box-shadow:var(--clawd-f-blink); }
-  19%, 66% { box-shadow:var(--clawd-f-cheer-mid); }
-  67%, 100% { box-shadow:var(--clawd-f-open); }
-}
-@keyframes clawd-typing-click-pop-v21 {
-  0%, 100% { translate:0 0; scale:1; rotate:0deg; }
-  18% { translate:0 3px; scale:1.06 .82; rotate:-2deg; }
-  42% { translate:0 -3px; scale:.98 1.04; rotate:2deg; }
-  72% { translate:0 0; scale:1.015 .985; rotate:-1deg; }
-}
-
-/* 2. 眼睛跟鼠标。只在有精确指针的设备上开，触屏没有光标可跟。
-   每个方向配一套自己的眨眼关键帧，否则挂上 look 类就不眨眼了 */
-@media (hover:hover) and (pointer:fine) {
-  button.clawd-signoff-button.clawd-look-l::before {
-    animation:clawd-idle-breath 4.2s ease-in-out infinite, clawd-idle-frames-l 3s step-end infinite;
-  }
-  button.clawd-signoff-button.clawd-look-r::before {
-    animation:clawd-idle-breath 4.2s ease-in-out infinite, clawd-idle-frames-r 3s step-end infinite;
-  }
-}
-@keyframes clawd-idle-frames-l {
-  0%, 90%   { box-shadow:var(--clawd-f-look-l); }
-  91%, 95%  { box-shadow:var(--clawd-f-blink-l); }
-  96%, 100% { box-shadow:var(--clawd-f-look-l); }
-}
-@keyframes clawd-idle-frames-r {
-  0%, 90%   { box-shadow:var(--clawd-f-look-r); }
-  91%, 95%  { box-shadow:var(--clawd-f-blink-r); }
-  96%, 100% { box-shadow:var(--clawd-f-look-r); }
-}
-
-/* 3. 输入框聚焦时抬头。按钮上已有弹性 transition，直接给个位移就行 */
-button.clawd-signoff-button.clawd-perk { transform:translateY(-4px) !important; }
-
-/* 4. 姿势跟内容 */
-/* 每个状态都得配自己的眨眼关键帧。
-   animation 是简写属性，只写 breath 会把 clawd-idle-frames 一起替换掉，
-   结果就是姿势对了但不眨眼。 */
 
 
-/* 6. 消息按钮 hover 才出现。触屏和窄屏保持常驻，否则没法点 */
 @media (hover:hover) and (pointer:fine) and (min-width:701px) {
   html body #chat > .mes:not([is_user="true"]) :is(.mes_buttons,.extraMesButtons) {
     opacity:0;
@@ -3526,7 +2951,7 @@ button.clawd-signoff-button.clawd-perk { transform:translateY(-4px) !important; 
   }
 }
 
-/* 9. 代码块顶栏 */
+
 html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !important; }
 .clawd-code-bar {
   display:flex; align-items:center; justify-content:space-between;
@@ -3544,54 +2969,15 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
 }
 .clawd-code-copy:hover { color:var(--cw-text-body); }
 
-@media (prefers-reduced-motion:reduce) {
-  button.clawd-signoff-button.clawd-cheer::before,
-  .typing_indicator.clawd-cheer::before { animation:none !important; }
-  .typing_indicator.clawd-typing-enter::before { animation:none !important; }
-  .typing_indicator.clawd-typing-press::before {
-    scale:1;
-    translate:0 0;
-    transition:none !important;
-  }
-  .typing_indicator.clawd-typing-click::before {
-    animation:none !important;
-    box-shadow:var(--clawd-f-cheer-mid) !important;
-  }
-}
 
 
-/* ===== 上下看 ===== */
-@media (hover:hover) and (pointer:fine) {
-  button.clawd-signoff-button.clawd-look-u::before {
-    animation:clawd-idle-breath 4.2s ease-in-out infinite, clawd-idle-frames-u 3s step-end infinite;
-  }
-  button.clawd-signoff-button.clawd-look-d::before {
-    animation:clawd-idle-breath 4.2s ease-in-out infinite, clawd-idle-frames-d 3s step-end infinite;
-  }
-}
-@keyframes clawd-idle-frames-u {
-  0%, 90%   { box-shadow:var(--clawd-f-look-u); }
-  91%, 95%  { box-shadow:var(--clawd-f-blink-u); }
-  96%, 100% { box-shadow:var(--clawd-f-look-u); }
-}
-@keyframes clawd-idle-frames-d {
-  0%, 90%   { box-shadow:var(--clawd-f-look-d); }
-  91%, 95%  { box-shadow:var(--clawd-f-blink-d); }
-  96%, 100% { box-shadow:var(--clawd-f-look-d); }
-}
-
-/* 左侧竖栏模块 —— 由 tools/gen-modules.js 生成，不要直接改这个文件。
-   要改就改生成器，重新跑一次。直接改输出的话，下次生成就没了。
-
-   只在 min-width:701px 生效，手机保持酒馆原来的顶栏。 */
 
 @media (min-width:701px) {
 
-  /* ===== 尺寸 ===== */
+  
   :root, html body {
     --cl-rail:280px;
-    /* 顶部导航不再用纯白/纯黑；常态压到页面主文字与 muted 之间，
-       悬停只轻微提亮，避免左上角比欢迎标题更抢眼。 */
+    
     --cl-rail-nav:color-mix(in srgb, var(--cw-icon) 76%, var(--cw-surface-page));
     --cl-rail-nav-hover:color-mix(in srgb, var(--cw-icon) 94%, var(--cw-surface-page));
     --cl-rail-icon:color-mix(in srgb, var(--cw-icon) 88%, var(--cw-surface-page));
@@ -3600,15 +2986,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     --cl-rail-edge:color-mix(in srgb, var(--cw-icon) 14%, transparent);
   }
 
-  /* ===== 硬约束：抽屉的祖先永远不许建立包含块 / 层叠上下文 =====
-     这些属性只要出现在 .drawer 或 #top-settings-holder 上，
-     position:fixed 的 .drawer-content 会同时遭遇两件事：
-       · 定位基准从视口变成那个几十像素高的祖先 —— 面板被挤到看不见的地方
-       · z-index 被关进祖先的层叠上下文 —— 面板排到聊天消息下面
-     第二条尤其阴险：面板确实打开了、有尺寸、也在屏幕上，就是被正文盖住，
-     看起来像「点了没反应」，能查很久。
-     要给侧栏做位移动画，请挂到 .drawer-toggle 上 —— 它是 .drawer-content
-     的兄弟不是祖先，怎么变形都不影响后者。 */
+  
   html body #top-settings-holder > .drawer {
     position:static !important;
     transform:none !important;
@@ -3624,7 +3002,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     padding:0 !important;
   }
 
-  /* ===== 竖栏本体 ===== */
+  
   html body #top-bar {
     position:fixed !important;
     top:0 !important; right:auto !important; bottom:0 !important; left:0 !important;
@@ -3633,7 +3011,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     max-width:320px !important;
     height:100dvh !important;
     margin:0 !important;
-    /* 官网的侧栏跟页面同色，靠右边一条细线分隔，不靠明度差 */
+    
     background:var(--cw-surface-page) !important;
     border-bottom:0 !important;
     border-right:1px solid var(--cl-rail-edge) !important;
@@ -3673,7 +3051,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     z-index:3995 !important;
   }
 
-  /* ===== 排序：角色卡常用提上来，玩家角色钉底当账号行 ===== */
+  
   html body #top-settings-holder > * { order:2; }
   html body #top-settings-holder > .clawd-rail-brand { order:0; }
   html body #top-settings-holder > .drawer#rightNavHolder { order:3; margin-bottom:2px !important; }
@@ -3693,13 +3071,8 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     transform:translateY(-6px);
   }
 
-  /* ===== 每一行 ===== */
-  /* 整行的可点区域 =【图标本身】，不是这个容器。
-     线索是光标：图标那块是手指，文字那块是箭头 —— 说明酒馆把
-     .drawer-icon 当按钮（role=button + cursor:pointer），
-     .drawer-toggle 只是个壳。点文字那块走的是另一条路径。
-     所以不去处理点击，而是让图标铺满整行：结构上整行就是那个按钮，
-     glyph 只画在左边。这样点哪儿都是点在酒馆认的元素上。 */
+  
+  
   html body #top-settings-holder > .drawer > .drawer-toggle {
     position:relative !important;
     width:100% !important;
@@ -3736,13 +3109,13 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
   html body #top-settings-holder > .drawer:nth-of-type(8) > .drawer-toggle { animation-delay:192ms; }
   html body #top-settings-holder > .drawer:nth-of-type(9) > .drawer-toggle { animation-delay:216ms; }
 
-  /* 分组留白：官网靠留白分隔，不画线 */
+  
   html body #top-settings-holder > .drawer:is(#user-settings-button,#logo_block) {
     margin-top:16px !important;
   }
 
-  /* ===== 图标 ===== */
-  /* 图标撑满整行当命中区，glyph 靠 ::before 画在左侧 */
+  
+  
   html body #top-bar .drawer-icon {
     position:absolute !important;
     inset:0 !important;
@@ -3759,15 +3132,14 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     border-radius:0 !important;
     background:transparent !important;
     cursor:pointer !important;
-    /* 描边仍保持 2.2，但颜色降一档；靠 hover 提亮表达可交互性。 */
+    
     color:var(--cl-rail-icon) !important;
     opacity:1 !important;
     flex:0 0 auto !important;
     transition:opacity 130ms ease, color 130ms ease !important;
   }
 
-  /* 描边 SVG 换掉 Font Awesome 的实心字形。
-     用遮罩不直接贴图，是为了让颜色继续跟着主题变量走 */
+  
   html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon,
   html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon.fa-sliders,
   html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon.fa-sliders-h {
@@ -3846,10 +3218,9 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     mask:var(--clawd-icon) center / 18px 18px no-repeat;
   }
 
-  /* ===== 文字标签 ===== */
+  
   html body #top-settings-holder > .drawer > .drawer-toggle > .clawd-rail-label {
-    /* 不接收点击，让事件落到底下铺满整行的图标上。
-       它画在图标之上，所以要用 margin 让开左边的 glyph。 */
+    
     pointer-events:none;
     position:relative;
     z-index:1;
@@ -3873,25 +3244,17 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     color:var(--cl-rail-nav-hover) !important;
   }
 
-  /* ===== 抽屉面板 ===== */
+  
   html body #top-settings-holder > .drawer > .drawer-content {
     position:fixed !important;
     top:0 !important;
     bottom:0 !important;
     left:var(--cl-rail,288px) !important;
     right:auto !important;
-    /* 按常规屏幕定（1440~1920），不按带鱼屏。上限写死，屏幕再宽也不摊开 */
+    
     width:min(var(--cw-drawer), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
     max-width:calc(100vw - var(--cl-rail,288px) - 24px) !important;
-    /* 【不要】在这里写 height / max-height。
-       top:0 + bottom:0 已经能撑满高度，本来也不需要 height，
-       写了反而会跟酒馆自己的开合过渡打架。
-
-       补一句更正：早先这里写的是「酒馆用 jQuery slideToggle 开关抽屉」。
-       查过 1.15 的源码，顶栏抽屉不是 slideToggle，是切 class + CSS 过渡；
-       slideToggle 只用在面板内部的折叠块（.inline-drawer-toggle）上。
-       「点一次先开后关」也不是这里造成的，真正原因见 clawd-interaction.js
-       里的「抽屉状态守卫」那一段。 */
+    
     margin:0 !important;
     padding:22px 20px 30px !important;
     border:0 !important;
@@ -3904,8 +3267,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     animation:clawd-drawer-in 200ms cubic-bezier(.22,.8,.3,1) both;
   }
 
-  /* 面板内部的纵向节奏。原本这些面板是横铺在顶栏下的宽而矮的条，
-     竖过来之后行距明显不够 */
+  
   html body #top-settings-holder > .drawer > .drawer-content > :first-child {
     margin-bottom:14px !important;
   }
@@ -3923,32 +3285,24 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     :is(.range-block,.checkbox_label,.settings_label) {
     margin-bottom:6px !important;
   }
-  /* 用 break-word 不用 anywhere：anywhere 会把元素的最小内容宽度降到一个字符，
-     flex 容器于是能把「Extensions」压成竖着一列字 */
+  
   html body #top-settings-holder > .drawer > .drawer-content
     :is(h1,h2,h3,h4,h5,label,span,small,p,.inline-drawer-header) {
     overflow-wrap:break-word;
   }
 
-  /* ===== 扩展面板：只给宽度，内部一律不碰 =====
-     它没有滚动条，靠分两列把内容铺开 —— 双列是它的设计前提不是 bug。
-     早先几版一直想把它压成单列，等于跟设计意图对着干，
-     压住一处就从另一处冒出来。给够宽度它自己就正常。 */
+  
   html body #rm_extensions_block.drawer-content,
   html body #top-settings-holder > .drawer:has(#rm_extensions_block) > .drawer-content {
     width:min(var(--cw-drawer), calc(100vw - var(--cl-rail,288px) - 32px)) !important;
   }
 
-  /* 关着的时候不跑入场动画。
-     这里【不要】再写 display:none —— 酒馆自己的样式已经负责把关着的面板藏起来，
-     我再压一层 !important 只会盖掉它的开合过渡，让面板变成硬切。
-     （之前这条写着 display:none !important，注释却说「别锁死 display」，
-      两边是矛盾的，现在按注释来。） */
+  
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer {
     animation:none !important;
   }
 
-  /* ===== Recents ===== */
+  
   .clawd-rail-recents {
     flex:1 1 auto;
     min-height:0;
@@ -4011,10 +3365,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
   }
   .clawd-rail-recents > :not(.clawd-rail-recents-label) { display:contents !important; }
 
-  /* 一条 = 头像 + 两行文字。
-     用 grid 不用 flex：不知道酒馆把头像、标题、简介按什么顺序放进行里，
-     而 grid 能不管顺序地指派位置 —— 头像固定占左列跨两行，其余进右列。
-     flex 只能按 DOM 顺序排，遇到顺序不确定的结构就没辙。 */
+  
   .clawd-rail-recents > :not(.clawd-rail-recents-label) > * {
     display:grid !important;
     grid-template-columns:30px minmax(0, 1fr) !important;
@@ -4114,9 +3465,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     display:none !important;
   }
 
-  /* ===== 底部用户行 =====
-     用的是玩家角色抽屉【自己的】toggle，不另造一个 div 去驱动它。
-     早先造过假的行再转发点击，结果是把本来开着的抽屉给关上了。 */
+  
   html body #top-settings-holder > .drawer#persona-management-button {
     order:5;
     margin-top:auto !important;
@@ -4133,7 +3482,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     :is(.drawer-icon, .clawd-rail-label) {
     display:none !important;
   }
-  /* 注入进 toggle 的内容一律不接收点击，理由同上面的标签 */
+  
   html body #top-settings-holder > .drawer#persona-management-button
     > .drawer-toggle > * { pointer-events:none; }
   .clawd-user-face {
@@ -4166,7 +3515,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
   }
   .clawd-user-more { flex:0 0 auto; color:var(--cw-text-muted); font-size:var(--cl-fs-micro); }
 
-  /* ===== 拖拽调宽 ===== */
+  
   .clawd-rail-grip {
     position:fixed;
     top:0; bottom:0;
@@ -4186,9 +3535,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
     transition:none !important;
   }
 
-  /* ===== 正文区让位 =====
-     用内边距不用外边距加宽度计算：不跟前面一堆 width:100% !important 抢，
-     也不会顶出横向滚动条。消息列的 margin:auto 会在剩余宽度里居中，正好。 */
+  
   html body #chat { padding-left:calc(clamp(8px,2vw,28px) + var(--cl-rail,288px)) !important; }
   html body #form_sheld {
     padding-left:var(--cl-rail,288px) !important;
@@ -4212,8 +3559,7 @@ html body #chat .mes .mes_text pre:has(> .clawd-code-bar) { padding-top:0 !impor
   html body #top-settings-holder > .drawer > .drawer-toggle:hover,
   .clawd-rail-recents > :not(.clawd-rail-recents-label) > *:hover { transform:none !important; }
 }
-/* ===== 顶部导航亮度：兜底覆盖 =====
-   留在所有 @media 之外以覆盖共享主题的旧顶栏规则；常态克制，悬停再提亮。 */
+
 html body :is(#top-bar, #top-settings-holder) .drawer-icon,
 html body :is(#top-bar, #top-settings-holder) .drawer-toggle .drawer-icon::before {
   color:var(--cl-rail-icon) !important;
@@ -4226,19 +3572,14 @@ html body :is(#top-bar, #top-settings-holder) .drawer-toggle:hover .drawer-icon 
   color:var(--cl-rail-icon-hover) !important;
   opacity:1 !important;
 }
-/* 选中态的遮罩继续使用强调色 */
+
 html body :is(#top-bar, #top-settings-holder) .drawer-icon.openIcon::before {
   background-color:var(--cw-mark) !important;
 }
 
-/* 欢迎页模块 —— 由 tools/gen-modules.js 生成，不要直接改这个文件。
 
-   官网的欢迎页是「问候语 + 输入框」整体垂直居中，
-   发出第一条消息之后才变成「对话在上、输入框在下」。
-   欢迎态由交互脚本判断（没有真实消息时给 body 挂 clawd-welcome）。 */
 
-/* html 与顶栏本身也必须是实色。只盖 #sheld 会在视口最上面漏出
-   酒馆背景图的一条缝，尤其带刘海安全区或顶栏透明时最明显。 */
+
 html { background:var(--cw-surface-page) !important; background-image:none !important; }
 html body.clawd-welcome #top-bar {
   background:var(--cw-surface-page) !important;
@@ -4246,36 +3587,31 @@ html body.clawd-welcome #top-bar {
   backdrop-filter:none !important;
   -webkit-backdrop-filter:none !important;
 }
-/* 去掉 textarea 右下角可拖拽的小斜线；输入框高度由主题布局控制。 */
+
 html body #send_textarea { resize:none !important; }
 html body #send_textarea::-webkit-resizer { display:none !important; }
-/* 角色卡 / 酒馆助手可能把 Quick Reply 条直接插成 #send_form 的兄弟行。
-   欢迎页只保留标准输入控件容器；角色专属按钮等真正进入对话后再恢复。 */
+
 html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !important; }
 
 @media (min-width:701px) {
 
-  /* ===== 布局：整体位于视口中上部 ===== */
+  
   html body.clawd-welcome #sheld {
     display:flex !important;
     flex-direction:column !important;
     justify-content:center !important;
     padding-top:0 !important;
   }
-  /* 欢迎态下 #chat 里只保留问候语。角色预选会让酒馆在后台载入已有长对话；
-     visibility:hidden 仍会让这些消息占高度并保留旧 scrollTop，标题便被推出视口。
-     快捷入口的搬运只查 DOM、不量尺寸，因此这里可以直接退出布局。 */
+  
   html body.clawd-welcome #chat > *:not(.clawd-welcome-hero) {
     display:none !important;
   }
 
   html body.clawd-welcome #chat {
     flex:0 1 auto !important;
-    /* 欢迎态下容器不许被压到比问候语还矮 —— 压矮了配合下面的 overflow-y:auto
-       和酒馆的「载入时滚到底」，表现就是问候语顶部被切掉一截。 */
+    
     min-height:min-content !important;
-    /* 欢迎态只有问候语；基础 #chat 的顶部 padding 会让 scrollHeight 多出 20px，
-       这里若保留 auto，就会在页面最右侧画出一根没有用途的滚动条。 */
+    
     overflow-y:hidden !important;
     padding-bottom:8px !important;
     background:transparent !important;
@@ -4284,8 +3620,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     flex:0 0 auto !important;
     padding-bottom:22px !important;
   }
-  /* 标题、输入框和快捷按钮同量上移；按视口高度缩放，
-     在截图尺寸约上移 150px，小屏不会抬得过头。 */
+  
   html body.clawd-welcome :is(#chat, #form_sheld) {
     transform:translateY(clamp(-128px, -10vh, -72px)) !important;
   }
@@ -4294,7 +3629,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
                transform 260ms cubic-bezier(.22,.8,.3,1) !important;
   }
 
-  /* ===== 背景：盖住酒馆的背景图 ===== */
+  
   html body #sheld {
     min-height:100dvh !important;
     background:var(--cw-surface-page) !important;
@@ -4316,39 +3651,28 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     z-index:0;
   }
 
-  /* ===== 问候语 =====
-     注意：不要给 .asterisk 设 font-size。
-     它的 width/height 用的是 em，而 em 相对元素【自己】的字号 ——
-     一旦这里设了 font-size:.82em，外面写 width:1.05em 实际只有 0.86 倍。
-     早先这个坑让 logo 尺寸调了三轮都对不上。 */
+  
   .clawd-welcome-hero {
-    /* #chat 本身有 transform，因此它的 position:fixed ::before 会被建立在同一个
-       containing block。ST 1.18 的 flex/scroll 结构下，伪元素可能盖住普通流里的
-       标题；文本仍可拖选却不绘制。明确建立前景层，并覆盖外部主题残留的透明填充。 */
+    
     position:relative;
     z-index:1;
     display:flex;
     align-items:center;
     justify-content:center;
-    /* 以下全部是官网实测值，别凭手感改：
-       字号 40 / 字重 300 / 行高 60px(1.5) / 字距 normal / 间距 12px(=.3em) */
+    
     gap:.3em;
-    /* 官网实测标题到输入框 53px；结合 #chat 的 8px 底距，这里留 8px。 */
+    
     margin:0 auto 8px;
     padding:0 20px;
-    /* 跟对话列同宽，不用普查里的 --cw-hero-width（官网量到 860px）。
-       理由：欢迎标题和它下面的消息列是同一条视觉轴，差 40px 会看出来错位。
-       官网那 40px 是它自己的排版，不是我们要复刻的对齐关系。 */
-    /* 变量写在 min() 的第一个参数上。写成 min(100%, var(--cw-column)) 时
-       cssstyle 解析不出来，整条声明被丢掉（回归工具量到 max-width:none）。
-       同一份 CSS 里 min(var(--cw-composer),100%) 就正常，差别只有顺序。 */
+    
+    
     max-width:min(var(--cw-column), 100%);
     font-family:var(--cl-serif-hero);
     font-size:var(--cl-fs-display);
     font-weight:300;
     line-height:1.5;
     letter-spacing:normal;
-    /* 官网的问候语不是纯白：夜间 #c3c2b7、日间 #373734，实测值 */
+    
     color:var(--cw-hero);
     -webkit-text-fill-color:currentColor !important;
     opacity:1;
@@ -4360,9 +3684,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
   .clawd-welcome-hero .asterisk {
     flex:0 0 auto;
     display:inline-block;
-    /* 官网实测 32px / 40px = 0.8em，而且 transform 是 none。
-       它不需要手动补位移，是因为行高 1.5 把行盒撑开了，flex 居中自然就对。
-       之前我用 1.22 的行高把盒子压紧，才不得不手动补 —— 补的是自己造的问题。 */
+    
     width:.8em;
     height:.8em;
     background-color:var(--cw-mark);
@@ -4370,10 +3692,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     mask:var(--cl-claude-mark) center / contain no-repeat;
   }
 
-  /* ===== 欢迎页上的助手消息 =====
-     不显示头像：用户可能把自己的角色卡设成欢迎页助手，
-     露出那张脸跟官网观感差得远，也容易让人误以为是条真实回复。
-     API 引导那段整段去掉，按官网的简洁度。 */
+  
   html body.clawd-welcome #chat > .mes[type="assistant_message"] {
     background:transparent !important;
     padding:0 !important;
@@ -4395,17 +3714,14 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     min-height:0 !important;
   }
 
-  /* Recents 搬进侧栏之后，欢迎页中间那块面板就是重复的，藏掉。
-     （重写模块时漏带了这条，中间的气泡又冒出来过一次） */
+  
   html body.clawd-has-recents.clawd-welcome #chat .welcomePanel {
     display:none !important;
   }
 
-  /* ===== 输入框 =====
-     欢迎页是官网那种大气泡，对话页保持紧凑，两套分开。
-     底色比页面亮一档 —— 官网靠明度差把输入框从背景里提出来，不靠边框。 */
+  
   html body.clawd-welcome #form_sheld :is(#send_form, form) {
-    /* 官网实测：宽 672px、圆角 20px。672 现在由 --cw-composer 的下限提供。 */
+    
     max-width:min(var(--cw-composer), 100%) !important;
     margin:0 auto !important;
     padding:12px 14px 10px !important;
@@ -4414,8 +3730,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     border:1px solid transparent !important;
     box-shadow:0 4px 20px rgba(0,0,0,.035), 0 0 0 .5px var(--cw-rule-hairline) !important;
   }
-  /* 酒馆把左按钮、textarea、右按钮包在 #nonQRFormItems 里。
-     display:contents 让它们直接参与两行 grid，角色卡不再掉到发送按钮下面。 */
+  
   html body.clawd-welcome #send_form {
     box-sizing:border-box !important;
     display:grid !important;
@@ -4457,7 +3772,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     background:var(--cl-composer-chat) !important;
   }
 
-  /* 左边两个图标：加号 + Cowork 那个三横杠 */
+  
   html body #form_sheld :is(#options_button, #leftSendForm > :first-child)::before {
     content:'' !important;
     display:block !important;
@@ -4485,13 +3800,13 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     opacity:1 !important;
     color:var(--cw-text-body) !important;
   }
-  /* 官网左下角的加号接近纯白，不能跟 Cowork 图标一起降到 muted。 */
+  
   html body #form_sheld :is(#options_button, #leftSendForm > :first-child) {
     color:var(--cw-text-body) !important;
     opacity:1 !important;
   }
 
-  /* 快速角色卡切换：位置对应官网输入框右下的模型选择器。 */
+  
   html body #send_form .clawd-character-switcher {
     display:inline-flex !important;
     align-items:center !important;
@@ -4576,21 +3891,21 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     margin-left:auto !important;
   }
 
-  /* ===== 快捷按钮：搬到输入框下方 ===== */
+  
   .clawd-welcome-shortcuts {
     display:flex;
     justify-content:center;
     flex-wrap:wrap;
     gap:8px;
     margin:14px auto 0;
-    /* 快捷按钮排跟输入框同宽，两者要对齐，所以共用一个令牌。 */
+    
     max-width:min(var(--cw-composer), 100%);
     padding-left:var(--cl-rail,288px);
     box-sizing:border-box;
   }
   .clawd-welcome-shortcuts > * {
     display:flex !important;
-    justify-content:center !important;
+    justify-content:inherit !important;
     flex-wrap:wrap !important;
     gap:8px !important;
     margin:0 !important;
@@ -4599,9 +3914,62 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     border:0 !important;
   }
   body:not(.clawd-welcome) .clawd-welcome-shortcuts { display:none !important; }
+
+  
+  html body.clawd-welcome #chat > div.clawd-welcome-shortcuts{
+    display:flex !important;
+    
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:8px;
+    
+    max-width:var(--cw-column);
+    margin:16px auto 0;
+    
+    padding-left:0;
+    box-sizing:border-box;
+  }
+
+  
+  .clawd-welcome-shortcuts :is(button, a).menu_button{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:8px !important;
+    height:34px !important;
+    min-height:34px !important;
+    padding:0 14px !important;
+    margin:0 !important;
+    font-size:13px !important;
+    line-height:1 !important;
+    font-weight:500 !important;
+    text-decoration:none !important;
+    border:1px solid var(--cw-rule-hairline) !important;
+    background:transparent !important;
+    color:var(--cw-text-body) !important;
+    transition:background-color .14s linear, border-color .14s linear !important;
+  }
+  .clawd-welcome-shortcuts :is(button, a).menu_button:hover{
+    background:var(--cw-surface-hover) !important;
+    border-color:var(--cw-text-muted) !important;
+  }
+  
+  .clawd-welcome-shortcuts :is(button, a).menu_button:focus-visible{
+    outline:2px solid var(--cw-mark) !important;
+    outline-offset:2px !important;
+  }
+  .clawd-welcome-shortcuts :is(button, a).menu_button > :is(.fa-solid,.fa-regular,.fa-brands){
+    font-size:14px !important;
+    color:var(--cw-text-muted) !important;
+  }
+
+  
+  
+  
+  
 }
 
-/* 发送键使用正圆橙底 + 向上箭头。 */
+
 html body:not(.claude-generation-active) #send_but {
   border-radius:var(--cw-radius-circle) !important;
   background:#c96442 !important;
@@ -4620,10 +3988,7 @@ html body:not(.claude-generation-active) #send_but::before {
 }
 html body:not(.claude-generation-active) #send_but::after { display:none !important; }
 
-/* 回复生成时仍保留同一枚圆形橙底，只把圆内箭头换成停止方块。
-   ST 1.18 的停止键可能被包在额外容器里，不能再假设它是 #rightSendForm 的
-   直接子元素；显示/隐藏仍交给酒馆原生逻辑，主题只负责外观。若某个版本复用
-   #send_but 作为停止键，生成态选择器也会给它同样的造型。 */
+
 html body #rightSendForm #mes_stop,
 html body.claude-generation-active #rightSendForm #send_but {
   align-items:center !important;
@@ -4665,15 +4030,14 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   display:none !important;
 }
 
-/* 变量集中在这里：logo 的 data URI 只写一份，两套断点共用 —— 
-   之前日夜/宽窄各贴一份，文件大一倍，改起来还容易只改一处 */
+
 :root, html body {
   --cl-claude-mark:url("data:image/svg+xml,%3Csvg  viewBox='0 0 256 257' version='1.1' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMidYMid'%3E %3Cg%3E %3Cpath fill='%23000' d='M50.2278481,170.321013 L100.585316,142.063797 L101.427848,139.601013 L100.585316,138.24 L98.1225316,138.24 L89.6972152,137.721519 L60.921519,136.943797 L35.9696203,135.906835 L11.795443,134.610633 L5.70329114,133.31443 L0,125.796456 L0.583291139,122.037468 L5.70329114,118.602532 L13.0268354,119.250633 L29.2293671,120.352405 L53.5331646,122.037468 L71.161519,123.07443 L97.28,125.796456 L101.427848,125.796456 L102.011139,124.111392 L100.585316,123.07443 L99.4835443,122.037468 L74.3372152,104.992405 L47.116962,86.9751899 L32.8587342,76.6055696 L25.1463291,71.3559494 L21.2577215,66.4303797 L19.5726582,55.6718987 L26.5721519,47.9594937 L35.9696203,48.6075949 L38.3675949,49.2556962 L47.8946835,56.5792405 L68.2450633,72.3281013 L94.8172152,91.9007595 L98.7058228,95.1412658 L100.261266,94.0394937 L100.455696,93.2617722 L98.7058228,90.3453165 L84.2531646,64.2268354 L68.8283544,37.6546835 L61.958481,26.636962 L60.1437975,20.0263291 C59.4956962,17.3043038 59.0420253,15.0359494 59.0420253,12.2491139 L67.0136709,1.42582278 L71.4207595,-1.42108547e-14 L82.0496203,1.42582278 L86.521519,5.31443038 L93.1321519,20.4151899 L103.825823,44.2005063 L120.417215,76.5407595 L125.277975,86.1326582 L127.87038,95.0116456 L128.842532,97.7336709 L130.527595,97.7336709 L130.527595,96.1782278 L131.888608,77.9665823 L134.416203,55.6070886 L136.878987,26.8313924 L137.721519,18.7301266 L141.739747,9.00860759 L149.711392,3.75898734 L155.933165,6.74025316 L161.053165,14.0637975 L160.340253,18.7949367 L157.294177,38.5620253 L151.331646,69.5412658 L147.443038,90.2805063 L149.711392,90.2805063 L152.303797,87.6881013 L162.803038,73.7539241 L180.431392,51.718481 L188.208608,42.9691139 L197.282025,33.3124051 L203.114937,28.7108861 L214.132658,28.7108861 L222.233924,40.7655696 L218.604557,53.2091139 L207.262785,67.596962 L197.865316,79.7812658 L184.38481,97.9281013 L175.959494,112.44557 L176.737215,113.612152 L178.746329,113.417722 L209.207089,106.936709 L225.668861,103.955443 L245.306329,100.585316 L254.185316,104.733165 L255.157468,108.945823 L251.657722,117.56557 L230.659241,122.75038 L206.031392,127.675949 L169.348861,136.360506 L168.89519,136.684557 L169.413671,137.332658 L185.940253,138.888101 L193.004557,139.276962 L210.308861,139.276962 L242.519494,141.674937 L250.94481,147.248608 L256,154.053671 L255.157468,159.238481 L242.195443,165.849114 L224.696709,161.701266 L183.866329,151.979747 L169.867342,148.48 L167.923038,148.48 L167.923038,149.646582 L179.588861,161.053165 L200.976203,180.366582 L227.742785,205.253671 L229.103797,211.410633 L225.668861,216.271392 L222.039494,215.752911 L198.513418,198.059747 L189.44,190.088101 L168.89519,172.783797 L167.534177,172.783797 L167.534177,174.598481 L172.265316,181.533165 L197.282025,219.123038 L198.578228,230.659241 L196.763544,234.418228 L190.282532,236.686582 L183.153418,235.39038 L168.506329,214.84557 L153.40557,191.708354 L141.221266,170.969114 L139.730633,171.811646 L132.536709,249.259747 L129.166582,253.213165 L121.389367,256.19443 L114.908354,251.268861 L111.473418,243.297215 L114.908354,227.548354 L119.056203,207.003544 L122.426329,190.671392 L125.472405,170.385823 L127.287089,163.64557 L127.157468,163.191899 L125.666835,163.386329 L110.371646,184.38481 L87.1048101,215.817722 L68.6987342,235.52 L64.2916456,237.269873 L56.6440506,233.316456 L57.356962,226.252152 L61.6344304,219.96557 L87.1048101,187.560506 L102.46481,167.469367 L112.380759,155.868354 L112.315949,154.183291 L111.732658,154.183291 L44.0708861,198.124557 L32.0162025,199.68 L26.8313924,194.819241 L27.4794937,186.847595 L29.9422785,184.25519 L50.2926582,170.256203 L50.2278481,170.321013 Z' %3E%3C/path%3E %3C/g%3E %3C/svg%3E");
   --cl-composer-welcome:color-mix(in srgb, var(--cw-surface-page) 82%, var(--cw-text-body) 7%);
   --cl-composer-chat:color-mix(in srgb, var(--cw-surface-page) 88%, var(--cw-text-body) 5%);
 }
 
-/* 角色选择浮层用 fixed 挂 body，桌面和手机共用，不受输入框 overflow 影响。 */
+
 .clawd-character-menu {
   position:fixed;
   z-index:10020;
@@ -4748,30 +4112,10 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   html body #sheld, html body #form_sheld { transition:none !important; }
 }
 
-/* ===================== 令牌层 =====================
- *
- * 见 方案-令牌层与预设系统-20260727.md。
- *
- * 这个文件**拼在所有 CSS 的最后**，所以它对 --cl-* 的重定义会赢过
- * theme-day.css / theme-night.css 里的原始定义。自定义属性是在**使用时**
- * 从层叠里取值的，不看文本顺序，所以后面重定义一次就能全局生效。
- *
- * 分层：
- *   调色板 --cw-paper-* / --cw-ink-* / --cw-clay-*   预设只改这层
- *   语义   --cw-surface-* / --cw-text-* / --cw-rule-* 组件读这层
- *   尺寸   --cw-measure / --cw-meta-col / ...         三档密度改这层
- *   字体   --cw-font-*                                预设不给改
- *   兼容   --cl-*                                     旧 CSS 靠它继续跑
- *
- * 迁移期的做法：不动任何一行旧 CSS，只把 --cl-* 的**来源**换成 --cw-*。
- * 这样旧代码照常工作，而换预设能立刻影响整套界面 —— 不用等 4000 行迁完。
- */
+
 
 :root {
-  /* 调色板层 = 「官网」预设的解析结果，逐值对齐（2.0.43）。
-     色值来自 www.anthropic.com 的 brand token，推导值按 presets 的 derive()
-     同一套公式算出来，所以 JS 起来前后不会有一次配色跳变。
-     改这里没用 —— 预设是靠 inline style 覆盖的，要改配色去改预设。 */
+  
   --cw-paper-0: #faf9f5;
   --cw-paper-1: #ffffff;
   --cw-paper-2: #f0eee6;
@@ -4802,7 +4146,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
 }
 
 :root {
-  /* ---------- 语义层：组件只准读这一层 ---------- */
+  
   --cw-surface-page    : var(--cw-paper-0);
   --cw-surface-raised  : var(--cw-paper-1);
   --cw-surface-input   : var(--cw-paper-2);
@@ -4821,53 +4165,27 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   --cw-mark-hover      : var(--cw-clay-strong);
   --cw-mark-field      : var(--cw-clay-soft);
 
-  /* 字符网格用它配合 opacity，不要直接给它带透明度的值 ——
-     深色预设下要单独调密度和不透明度，分开更好控。 */
+  
   --cw-grid-char       : var(--cw-ink-0);
   --cw-grid-opacity    : .075;
   --cw-grid-step       : 34px;
 
-  /* ---------- 尺寸层 ----------
-     原计划做「三档密度」，看完 C-2 断点普查（docs/断点普查.md）改成流体。
+  
 
-     改主意的依据：普查在 1280 和 1920 两个宽度实测 133 条规则，
-     桌面区间内的固定尺寸**取值完全相同**。问题不是某一档定错了，而是
-     差距随宽度连续增长 —— 对话列外侧空白 59px → 377px，欢迎输入框
-     146px → 465px，侧栏占比 21.9% → 14.6%。分档切不掉这种连续的空隙，
-     只是把它切成几段，每段内部照样越拉越空。
+  
+  --cw-column      : clamp(820px, 64vw, 1120px);   
+  --cw-composer    : clamp(672px, 52.5vw, 920px);  
+  --cw-hero-width  : clamp(860px, 67vw, 1120px);   
+  
+  --cw-rail-width  : clamp(280px, 21.9vw, 340px);  
+  --cw-drawer      : 820px;  
 
-     所以桌面区间用 clamp()，并且**下限正好取现在的值**：
-     1280px 下每一项都和现状逐像素相同，往上才开始展开。
-     这样引入这套令牌本身不产生任何视觉变化，宽屏的改善是纯增量。
-
-     手机档（≤700px）仍然是断点，因为那是布局形态的切换，不是密度。 */
-
-  /* 内容岛宽度。括号里是普查的证据编号。
-
-     命名注意：宽度类一律带 -width 后缀。踩过 —— 一开始叫 --cw-hero，
-     和兼容层里表示「欢迎语颜色」的 --cw-hero 撞名，同在 :root 后者被覆盖，
-     --cl-hero 会变成一个长度值。这类冲突 test-tokens-parity 抓不到
-     （它比的是 presets.js 的文本），verify-extension 也抓不到
-     （两条构建线同样错，逐字节仍然一致），只有视觉回归能抓。 */
-  --cw-column      : clamp(820px, 64vw, 1120px);   /* E11 对话列，1280→820 */
-  --cw-composer    : clamp(672px, 52.5vw, 920px);  /* E8/E10 输入框，1280→672 */
-  --cw-hero-width  : clamp(860px, 67vw, 1120px);   /* E7 欢迎标题，1280→860 */
-  /* 【没有接进任何规则，是有意的】
-     侧栏宽度已经有更好的机制：clawd-interaction.js 里的 applyRailWidth 支持
-     拖拽调宽，把结果写进 documentElement 的 inline style 和 localStorage。
-     inline style 压过任何 :root 规则，所以只要用户拖过一次，这个 clamp 就
-     再也不起作用；没拖过的人才会用到它。
-     真接上去的结果是：默认宽度会随窗口变，但拖一下就永久锁死 —— 两套宽度
-     逻辑打架，还不如只留拖拽这一套。保留这个令牌只作为普查结论的记录。 */
-  --cw-rail-width  : clamp(280px, 21.9vw, 340px);  /* E1 侧栏，1280→280 */
-  --cw-drawer      : 820px;  /* 所有桌面设置抽屉统一尺寸；窄屏由外层 min() 收缩 */
-
-  /* 阅读密度。行宽跟着内容岛走，但有上限 —— 再宽就不好读了。 */
+  
   --cw-measure     : min(62ch, var(--cw-column));
-  --cw-body-size   : clamp(15px, 0.55vw + 8px, 16.5px);  /* E12，1280→15.04 */
+  --cw-body-size   : clamp(15px, 0.55vw + 8px, 16.5px);  
   --cw-body-lead   : 1.9;
 
-  /* 档案版式自己的尺寸，还没接进任何规则，等布局实现时再用。 */
+  
   --cw-meta-col    : 46px;
   --cw-gutter      : 26px;
   --cw-msg-gap     : 24px;
@@ -4897,15 +4215,13 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   --cw-radius-pill   : calc(999px * var(--cw-radius-scale));
   --cw-radius-circle : 50%;
 
-  /* ---------- 字体层：预设不给改 ----------
-     衬线正文 + 无衬线界面 + 等宽编号，这三条是这套设计的骨头。 */
+  
   --cw-font-voice : var(--cl-serif);
   --cw-font-ui    : var(--cl-sans);
   --cw-font-mono  : ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
-/* 手机是形态切换，不是密度调整，所以这里仍然是断点而不是 clamp。
-   700px 和 module-mobile.css 现有的主断点对齐，不另起一个。 */
+
 @media (max-width:700px) {
   :root {
     --cw-column      : 100%;
@@ -4924,14 +4240,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   }
 }
 
-/* ===================== 兼容层 =====================
- *
- * 把旧的 --cl-* 改成从 --cw-* 取值。**值必须和原来一模一样**，
- * 这一步的验收标准是视觉回归零差异（Codex C-3）。
- *
- * 迁移一个文件、就把该文件用到的 --cl-* 换成 --cw-*，
- * 然后从下面删掉对应的行。全删完这一段就消失。
- */
+
 :root {
   --cl-color-scheme    : var(--cw-color-scheme);
   --cl-canvas          : var(--cw-paper-0);
@@ -4962,9 +4271,7 @@ html body.claude-generation-active #rightSendForm #send_but::after {
   --cl-body-weight     : var(--cw-body-weight);
 }
 
-/* ===================== 2.0.1 稳定性修复 =====================
- * 编辑工具条回到酒馆原生位置。普通消息不显示；进入编辑态时只保留这一排，
- * 不再把普通按钮和绝对定位的编辑弹条同时强制显示。 */
+
 html body #chat .mes_edit_buttons {
   position:static !important;
   inset:auto !important;
@@ -4996,9 +4303,7 @@ html body #chat > .mes:has(.edit_textarea) .mes_edit_buttons {
   pointer-events:auto !important;
 }
 
-/* 2.0.2: SillyTavern keeps one edit toolbar in every message header.
-   The older Claude rule had higher specificity than the 2.0.1 hotfix,
-   so normal messages still showed it. */
+
 html:not([data-claude-archive="on"]) body #chat .mes_edit_buttons {
   display:none !important;
   opacity:0 !important;
@@ -5012,8 +4317,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   pointer-events:auto !important;
 }
 
-/* New SillyTavern uses an intrinsic open-drawer height. Explicitly fill the
-   viewport so every desktop settings drawer has the same usable height. */
+
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content {
     height:100dvh !important;
@@ -5028,8 +4332,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   }
 }
 
-/* The extensions page is the only stock drawer with two wide columns.
-   Collapse those columns before they start clipping header controls. */
+
 @media (min-width:701px) and (max-width:1120px) {
   html body #rm_extensions_block .extensions_block {
     flex-direction:column !important;
@@ -5047,24 +4350,21 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
   }
 }
 
-/* 2.0.3: stock character-message actions inherit SillyTavern's
-   drop-shadow(0 0 2px #000), which makes the glyph look duplicated.
-   User-message actions already have no filter; keep both sides equally crisp. */
+
 html body #chat > .mes[is_user="false"] .mes_buttons .mes_button,
 html body #chat > .mes[is_user="false"] .mes_buttons .extraMesButtons > div {
   filter:none !important;
   text-shadow:none !important;
 }
 
-/* 2.0.4: the edit toolbar has its own stock shadow/filter chain, separate
-   from normal message actions. Clear both levels for user and character edits. */
+
 html body #chat .mes_edit_buttons,
 html body #chat .mes_edit_buttons > .menu_button {
   filter:none !important;
   text-shadow:none !important;
 }
 
-/* User Settings still exposes SillyTavern's dark gradient section headers. */
+
 html body #user-settings-block-content h4 {
   display:flex !important;
   align-items:center !important;
@@ -5080,17 +4380,14 @@ html body #user-settings-block-content h4 {
   text-shadow:none !important;
 }
 
-/* Keep range controls readable in the light theme without losing their
-   dynamic progress sizing. */
+
 html body #user-settings-block-content input[type="range"].neo-range-slider {
   filter:none !important;
   background-color:var(--cw-rule-hairline) !important;
   box-shadow:none !important;
 }
 
-/* 2.0.6: SillyTavern still contributes a 35px top offset after Claude Web
-   takes over the shell. The composer seam was also being painted by an
-   opaque upward shadow. Both are stale outer-wrapper edges. */
+
 html body #sheld {
   top:0 !important;
 }
@@ -5116,7 +4413,7 @@ html body #user-settings-block-content input[type="range"]::-moz-range-thumb {
 }
 
 
-/* Claude Web 2.0.9 — bug report regression fixes. */
+
 #rm_print_characters_block.group_overlay_mode_select .character_select.character_selected {
   background:var(--cw-mark-field) !important;
   border-color:var(--cw-mark) !important;
@@ -5155,7 +4452,7 @@ html body.clawd-welcome #rightSendForm > * {
   margin-block:0 !important;
 }
 
-/* Claude Web 2.0.14 — reveal the full remaining workspace from behind the rail. */
+
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content {
     right:0 !important;
@@ -5194,7 +4491,7 @@ html body.clawd-welcome #rightSendForm > * {
   to { clip-path:inset(0); translate:0 0; }
 }
 
-/* Claude Web 2.0.15 - reversible drawer reveal from behind the rail. */
+
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content {
     right:0 !important;
@@ -5232,7 +4529,7 @@ html body.clawd-welcome #rightSendForm > * {
     animation:none !important;
   }
 }
-/* 2.0.19: colored rail assets render directly; never treat their background plates as masks. */
+
 html body #top-settings-holder > .drawer#ai-config-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/01-presets.svg") center/24px 24px no-repeat!important;mask:url("../icons/01-presets.svg") center/24px 24px no-repeat!important}
 html body #top-settings-holder > .drawer#sys-settings-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/02-api-connections.svg") center/24px 24px no-repeat!important;mask:url("../icons/02-api-connections.svg") center/24px 24px no-repeat!important}
 html body #top-settings-holder > .drawer#advanced-formatting-button > .drawer-toggle > .drawer-icon::before{background-color:var(--cl-rail-icon,currentColor)!important;background-image:none!important;-webkit-mask:url("../icons/03-format.svg") center/24px 24px no-repeat!important;mask:url("../icons/03-format.svg") center/24px 24px no-repeat!important}
@@ -5245,8 +4542,7 @@ html body #top-settings-holder > .drawer:is(#persona-management-button,#rightNav
 html body #top-settings-holder > .drawer > .drawer-toggle > .drawer-icon::before{width:30px!important;height:30px!important;-webkit-mask:none!important;mask:none!important;background-color:transparent!important}
 html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon::before{width:30px!important;height:30px!important}
 
-/* 2.0.24: move the whole surface behind the rail. A right-to-left shrinking
-   clip left the heading visible at the leading edge until the final frame. */
+
 @keyframes clawd-drawer-open-v2024 {
   from { clip-path:inset(0 0 0 100%); translate:-100% 0; }
   to { clip-path:inset(0); translate:0 0; }
@@ -5279,8 +4575,7 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
   }
 }
 
-/* 2.0.22: the holder border sits below drawer motion. Paint the divider on
-   the fixed resize grip instead, which already stays above every drawer. */
+
 .clawd-rail-grip::after {
   content:"";
   position:absolute;
@@ -5322,11 +4617,7 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
 }
 
 
-/* 图标选中态。
-   必须按布局分开写：PC 把图标画在 ::before 上，手机画在 .drawer-icon 本体上
-   （见上面 2.0.31 那段注释的原因）。第一版两个都设了 background-color，
-   结果在 PC 上给「没有 mask 的本体」刷了一层橙底，整块橙色方块盖住图标。
-   谁承载 mask，就只给谁上色。 */
+
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-button,#advanced-formatting-button,#WI-SP-button,#user-settings-button,#logo_block,#backgrounds-button,#extensions-settings-button,#persona-management-button,#rightNavHolder) > .drawer-toggle > .drawer-icon.openIcon::before {
     background-color:var(--cl-accent,#d97757) !important;
@@ -5338,21 +4629,7 @@ html body #top-settings-holder > .drawer:is(#ai-config-button,#sys-settings-butt
   }
 }
 
-/* ===== 站在输入框上沿的生成状态 Clawd（2.0.46）=====
-   参考 Cowork 的做法：蟹站在输入框顶边上，右对齐，不压住任何控件。
 
-   **用的是另一只蟹，跟落款蟹形状不同**，这是有意的：
-   落款蟹可以点，这只不能。两只长一样的话，用户一定会去戳这只然后发现
-   没反应。靠形状区分比靠透明度或大小区分可靠得多 —— 后者在余光里读不出来。
-   这只是官方和 Cowork 在用的那个更扁的版本（icons/clawd.png）。
-
-   它是 #send_form 的伪元素，不是真元素 —— 天生不可点、不进 tab 序、
-   不需要任何创建和清理代码。连 hover 都没有，不读作控件。
-
-   图片已经裁掉四周留白（108×72，364 字节），图形正好填满画布。
-   所以 bottom:100% 就是「脚踩在输入框上沿」，不需要靠负 margin 去猜留白
-   有多厚 —— 原图 400×400 里图形只占中间一块，不裁的话这个数只能试出来。
-   -1px 是让脚陷进边框一像素，读作站着而不是浮着。 */
 html body #form_sheld :is(#send_form, form) {
   position:relative !important;
   overflow:visible !important;
@@ -5364,7 +4641,7 @@ html body #send_form::after {
   right:18px;
   z-index:2;
   margin-bottom:-1px;
-  /* 图片是 108×72，3:2。改大小时两个数一起改，别只改一个。 */
+  
   width:36px;
   height:24px;
   background:url("../icons/clawd.png") center / contain no-repeat;
@@ -5398,29 +4675,27 @@ html[data-claude-font="follow"] {
   --cl-serif-hero : var(--cw-skin-serif, "Newsreader", Georgia, "Noto Serif SC", var(--cl-cjk));
 }
 
-/* 思源宋：正文衬线，界面仍用无衬线 —— 界面也上宋体会糊。 */
+
 html[data-claude-font="songti"] {
   --cl-serif      : "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
   --cl-serif-hero : "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
 }
 
-/* 思源黑：全站黑体，正文也不用衬线。 */
+
 html[data-claude-font="heiti"] {
   --cl-serif      : var(--cl-cjk);
   --cl-sans       : var(--cl-cjk);
   --cl-serif-hero : var(--cl-cjk);
 }
 
-/* 系统无衬线：不加载任何网络字体，最快，也最不挑设备。 */
+
 html[data-claude-font="system"] {
   --cl-serif      : -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
   --cl-sans       : -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
   --cl-serif-hero : -apple-system, "Segoe UI", Roboto, Helvetica, Arial, var(--cl-cjk);
 }
 
-/* 关掉：把五个变量全交还给酒馆自己的 --mainFontFamily。
-   ST 1.18 在 :root 上定义它；取不到时退回 sans-serif，不退回 inherit ——
-   html 上 inherit 没有父级可继承，会掉到浏览器默认的 Times。 */
+
 html[data-claude-font="native"] {
   --cl-serif      : var(--mainFontFamily, sans-serif);
   --cl-sans       : var(--mainFontFamily, sans-serif);
@@ -5429,59 +4704,20 @@ html[data-claude-font="native"] {
 }
 
 
-/* 跟随设备/系统字体（2.0.49）：用 CSS 通用族，由操作系统决定具体字体。
-   跟「关掉」的区别 —— 关掉是交还给酒馆的 --mainFontFamily（用户在酒馆里设的），
-   这个是绕过酒馆直接问系统要。两者在用户没配过酒馆字体时才碰巧一样。 */
+
 html[data-claude-font="device"] {
   --cl-serif      : system-ui, sans-serif;
   --cl-sans       : system-ui, sans-serif;
   --cl-serif-hero : system-ui, sans-serif;
   --cl-cjk        : system-ui, sans-serif;
 }
-/* 自定义：把 --cw-font-custom 填成任意 font-family 值即可（设置面板里的输入框）。
-   没填时回退到 system-ui，不会塌成 Times。 */
+
 html[data-claude-font="custom"] {
   --cl-serif      : var(--cw-font-custom, system-ui, sans-serif);
   --cl-sans       : var(--cw-font-custom, system-ui, sans-serif);
   --cl-serif-hero : var(--cw-font-custom, system-ui, sans-serif);
   --cl-cjk        : var(--cw-font-custom, system-ui, sans-serif);
 }
-
-
-
-@media (min-width:1100px){
-  
-  
-  /* 品牌行是按 280px rail 排的，收窄后会顶出去，裁掉而不是让它压住别的 */
-  
-
-  /* ---- 第二列：会话列表。position:fixed 而不是 absolute ——
-         rail 自己有 overflow:auto，absolute 会跟着滚。 ---- */
-  
-  
-  
-
-  /* ---- 对话流让位 ---- */
-  
-  
-
-  
-  
-  
-  #clawd-aside .cw-h{ padding-bottom:7px; border-bottom:1px solid var(--cl-line); }
-  #clawd-aside .cw-r{
-    display:flex; justify-content:space-between; gap:14px;
-    padding:6px 0; border-bottom:1px solid var(--cl-line);
-  }
-  #clawd-aside .cw-r b{
-    color:var(--cl-ink); font-weight:700; text-align:right;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  #clawd-aside .cw-g{ margin-bottom:26px; }
-}
-/* 窄屏一律退回侧边栏形态 —— 手机端还没有对得上的参考 */
-
-
 
 
 
@@ -5493,62 +4729,90 @@ html[data-claude-font="custom"] {
 
 html[data-claude-avatars="off"] #chat .mesAvatarWrapper .avatar{ display:none !important; }
 
-/* 时间 / swipe 序号：JS 写成 data 属性，伪元素自动成为网格项 */
 
-
-
-
-/* 右边注：token */
-
-
-/* run-in 发言人名 */
-
-
-
-
-
-
-/* ---- 输入框：去填充去圆角，只留一条上边线 ---- */
-
-
-
-
-
-/* ---- 抽屉开关：纯文字，无底色无圆角 ---- */
-
-
-
-/* ===================== Clawd 开关（独立于皮，2.0.50）=====================
- * 那只是 button.clawd-signoff-button::before 用几十个 box-shadow 点画的像素精灵。
- * 跟 --cw-shadow-* 三个令牌无关，归零阴影杀不掉它，只能单独关。 */
 html[data-claude-clawd="off"] .clawd-signoff-button,
 html[data-claude-clawd="off"] [class*="clawd-idle"],
 html[data-claude-clawd="off"] [class*="clawd-look"]{
   display:none !important; box-shadow:none !important;
 }
-
-
-
-
-
-
-
-
-
-
-
-/* 头像跟总开关走，不再由结构层写死 */
-
-
 html[data-claude-avatars="off"] .recentChat > .avatar{ display:none !important; }
 
 
+@media (min-width:1100px){
+  
+  
+  
+  
+
+  
+  
+
+  
+  #cw-drawer-head{
+    position:fixed;
+    
+    left:calc(var(--cw-c-nav) + var(--cw-c-list));
+    right:var(--cw-c-cast);
+    top:var(--cw-shell-top, 0px);
+    height:var(--cw-drawer-head-h);
+    z-index:4001;              
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    box-sizing:border-box;
+    padding:0 20px;
+    background:var(--cw-col-surface);
+    border-left:1px solid var(--cw-col-rule);
+    border-bottom:1px solid var(--cw-col-rule);
+    
+    animation:cw-settings-in 180ms cubic-bezier(.22,.8,.3,1) both;
+  }
+  
+  #cw-drawer-head .cw-drawer-title{
+    min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-family:var(--cl-sans);
+    font-size:var(--cw-fs-s, 12.5px); line-height:1.35;
+    font-weight:700;
+    text-transform:uppercase; letter-spacing:normal;
+    color:var(--cw-text-body, var(--cl-ink));
+  }
+  #cw-drawer-head .cw-drawer-close{
+    flex:0 0 auto;
+    width:28px; height:28px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0; margin:0;
+    border:0; border-radius:var(--cw-radius-8, 8px);
+    background:transparent;
+    cursor:pointer;
+    font-family:var(--cl-sans);
+    font-size:20px; line-height:1;
+    color:var(--cw-text-muted, var(--cl-muted));
+    transition:background-color .12s linear, color .12s linear;
+  }
+  #cw-drawer-head .cw-drawer-close:hover{
+    background:var(--cw-surface-hover, var(--cl-soft));
+    color:var(--cw-text-body, var(--cl-ink));
+  }
+}
+
+@media (max-width:1099px){
+  #cw-drawer-head{ display:none !important; }
+}
 
 
+@property --cw-settings-o{
+  syntax:'<number>';
+  inherits:false;
+  initial-value:1;
+}
+@keyframes cw-settings-in{
+  
+  from{ opacity:0; --cw-settings-o:0; translate:0 -6px; }
+  to  { opacity:1; --cw-settings-o:1; translate:0 0; }
+}
 
-
-
-/* Linear 下抽屉不该盖住会话列表 —— 它是常驻列，不是可被覆盖的临时面板 */
 
 
 
@@ -5561,120 +4825,60 @@ html[data-claude-avatars="off"] .recentChat > .avatar{ display:none !important; 
   --cw-fs-l:28px;    --cw-lh-l:1.25;
 
   
-  /* 三条侧栏往中间压。正文有 62ch 限宽（为了可读性，不动），所以中间那列
-     再宽也填不满 —— 加宽中间只是在正文两侧堆更多空白。要让版面不空，
-     只能加宽侧栏。这三个值是默认值，用户可以拖（见 index.js 的 pbWatchRails），
-     拖过的值存在 localStorage，由 JS 写成同名的行内变量覆盖这里。 */
-  --cw-c-nav:216px;
-  --cw-c-list:330px;
-  --cw-c-cast:280px;
+  --cw-c-nav-base:176px;
+  --cw-c-list-base:250px;
+  --cw-c-cast-base:220px;
+  --cw-c-nav:var(--cw-c-nav-base);
+  --cw-c-list:var(--cw-c-list-base);
+  --cw-c-cast:var(--cw-c-cast-base);
   --cw-gut:24px;
-  --cw-track-l:80px;      /* 左边注：头像 / 时间 / swipe 序号 */
-  --cw-track-r:100px;     /* 右边注：token 数 */
+  --cw-track-l:80px;      
+  --cw-track-r:100px;     
   --cw-track-gap:24px;
 }
 
 
-@media (min-width:1100px){
 
-  /* ---- 第一列：导航 ---- */
-  
-  /* 带 id 的直接子元素特异性压过 .clawd-rail-recents，不排除掉它会把
-     第二列拉成整屏宽。这条是踩出来的，别删。 */
-  
 
-  /* ---- 第二列：会话列表。fixed 不是 absolute —— rail 自己有 overflow:auto，
-         absolute 会跟着 rail 一起滚。 ---- */
-  
 
-  /* ---- 第三列：对话流让位 ---- */
-  
-  
 
-  
-  
 
-  /* 抽屉是临时面板，会话列表是常驻列 —— 面板不该盖住列。 */
-  
-}
 
 
-/* ---------------------------------------------------------------------------
-   导航列的长相
-   --------------------------------------------------------------------------- */
 
-/* 图标：**不要 display:none。**
-   .drawer-icon 被官网皮做成了 position:absolute;inset:0 的整行命中区
-   （见上面 "图标撑满整行当命中区" 那段）—— 酒馆把 role=button 挂在它身上，
-   .drawer-toggle 只是个壳。把它藏了，导航项就点不动了。
-   所以留着元素、只关掉它画的那个 glyph（glyph 是 ::before 用遮罩画的）。 */
 
+html[data-claude-structure="rail"] .clawd-rail-recents-count{ display:none !important; }
 
 
-/* 导航行本身。选择器必须写到 body + 子代链才够特异 ——
-   官网皮那条是 `html body #top-settings-holder > .drawer > .drawer-toggle`
-   (1,2,2)，里面有 padding:0 和 min-height:34px；
-   写成 `html[data-claude-skin] #top-settings-holder .drawer-toggle` 只有
-   (1,2,1)，压不住，行高会回到 34px、左右内边距会掉成 0。 */
 
-/* hover 不位移、不铺底色 —— 这套设计只用字色表达状态。 */
 
-/* 标签同理要写到完整子代链。官网皮那条是
-   `html body #top-settings-holder > .drawer > .drawer-toggle > .clawd-rail-label`
-   (1,3,2)，里面有 font-size:var(--cl-fs-md) 和 margin-left:33px
-   —— 33px 是留给图标 glyph 的位置，glyph 已经关掉了，这里必须收回来，
-   否则导航文字会整体右移一格，和品牌行、列表行对不齐。 */
 
 
 
-/* 导航分组头。DOM 由 index.js 插入（酒馆原生没有分组这个概念）。 */
 
 
 
 
-/* 会话行。
-   官网皮把行的长相写在一组结构选择器上（day-pc.css:3979 起）：
-     .clawd-rail-recents > :not(.clawd-rail-recents-label) > *          ← 行内的两列网格
-     .clawd-rail-recents :is(img,.avatar,...)                           ← 头像 30px 跨两行
-     .clawd-rail-recents > :not(...) > * > :not(img)...:first-of-type   ← 标题
-     .clawd-rail-recents > :not(...) > * > :not(img)...:nth-of-type(2)  ← 副行
-   特异性到 (0,5,2)。用 `html[data-claude-skin] .recentChat .chatName` 这种
-   写法只有 (1,1,0)，压不住 —— 必须**照抄它的结构选择器再加皮的属性**，
-   这样才是 (1,5,2)。下面每条都是这么来的，看着啰嗦，但换成短选择器就失效。
 
-   行本身：细线分隔，无圆角无底色。 */
 
 
 
-/* 标题行 = 名字 + 时间并排（参考稿 .lrow-top）。 */
 
-/* 时间在官网皮里是被藏起来的（L4075 那条 :is(small,.timestamp,...)），
-   参考稿要显示，这里放出来。 */
 
 
-/* 头像方形、小一档；关掉时**必须把那一列一起收掉** ——
-   只写 display:none 的话 30px 列 + 9px 间距还占着位，列表左边会留一条空槽。 */
 
 
 
 
-/* 标题：加粗、单行截断。padding-right:34px 是官网皮给行内操作按钮留的位，留着。 */
 
-/* 副行（时间）：降到 muted，字号收回三级里的最小一级。 */
 
-/* 当前对话用一条 accent 细标，不用底色 —— 这套设计不靠色块面积区分层级。 */
 
 
-/* Recents 标题行右边那个装饰图标（::after 贴的遮罩 SVG）在这套主题下不出现。 */
 
 
 
 
-/* **整套重置**，不是逐条抵消。官网皮在 .mes_block 上一次性下发了
-   border / border-radius / box-shadow / width / max-width / background /
-   margin / padding 八个属性，这里八个全部接管。 */
 
-/* 用户与 AI 的区分：正文栏整体缩进，不左右分列、不加底色。 */
 
 
 
@@ -5682,47 +4886,27 @@ html[data-claude-avatars="off"] .recentChat > .avatar{ display:none !important; 
 
 
 
-/* 藏掉原生元数据：
-   .timestamp 是 "August 4, 2026 10:33 AM" 全串，CSS 截不出 10:33；
-   .mes_timer 装的是生成耗时（88.9s），不是时刻；
-   .ch_name 是 flex 容器且内嵌一排按钮，摊平会把正文一起毁掉。 */
 
 
 
 
 
-/* 关掉头像时整列上移一行，不要在第一行留个空格子。 */
 
 
 
-/* 右边注：token 数 */
 
 
-/* run-in 发言人名。
-   注意名字**不能**从 .mes 的原生 ch_name 属性取 —— attr() 只读伪元素所在
-   元素自己的属性，而 ch_name 挂在 .mes 上、伪元素要长在 .mes_text 上。
-   所以仍然由 index.js 把名字写进 .mes_text 的 data-speaker。 */
 
 
-/* 第一段必须 inline，否则 ::before 的名字会单独占一行，run-in 就不成立。 */
 
 
 
 
-/* ---------------------------------------------------------------------------
-   幕次分隔条。DOM 由 index.js 插入 —— 酒馆没有「幕」这个概念，没有现成节点。
-   口径：幕次 = 回合 = 用户消息条数，每 8 回合一幕。
-   --------------------------------------------------------------------------- */
 
 
 
 
 
-/* ---------------------------------------------------------------------------
-   输入区：去填充去圆角，只留一条上边线。
-   #send_form 的填充和圆角由更高特异性的规则画，必须用 body #form_sheld #x
-   这种链才压得住，单写 #send_form 无效。
-   --------------------------------------------------------------------------- */
 
 
 
@@ -5735,78 +4919,39 @@ html[data-claude-avatars="off"] .recentChat > .avatar{ display:none !important; 
 
 
 
-/* ---------------------------------------------------------------------------
-   Clawd 在这套主题下永远不出现 —— 剧场的前提是台上只有演员。
-   它是 button.clawd-signoff-button::before 用几十个 box-shadow 点画的像素精灵，
-   跟 --cw-shadow-* 无关，归零阴影杀不掉，只能显式关。
-   --------------------------------------------------------------------------- */
 
 
-/* 输入框上方那只 Clawd 是 #send_form::after 贴的 icons/clawd.png，
-   跟 .clawd-signoff-button 不是同一个东西，得单独关。 */
 
-/* 输入区宽度按参考稿：居中定宽，不跟着 --cw-column 一起随视口展开。 */
 
 
 
 
 
 
-/* ===================== 2.0.55 · 照真机截图修的六处 =====================
-   都是「fixture 里能看见、但只看 CSS 想不到」的那类问题。 */
 
 
 
 
-/* 2. token：官网皮把 AI 消息的 token 藏了（`.mes[is_user="false"]
-      :is(.mes_timer,.tokenCounterDisplay){display:none}`），于是右边注只有
-      用户消息有数字。参考稿两边都显示。 */
 
 
-/* 3. 发言人名和正文**同字号**，只靠字重区分 —— 参考稿的 .speaker 就是继承
-      正文字号加粗。之前写死成 fs-s，名字比正文小一圈，run-in 看着像脚注。 */
 
 
-/* 4. 导航图标的 glyph。
-      不能靠 `content:none` —— 官网皮是按 id 逐个下发的
-      （`html body #top-settings-holder > .drawer#ai-config-button > ... ::before`，
-      两个 id，特异性 (2,2,3)），皮这边够不着。
-      改成设 display —— 没有任何别的规则给这个伪元素设 display，谁写谁赢。
-      元素本身要留着：它是 position:absolute;inset:0 的整行命中区。 */
 
 
 
-/* 5. 列表行：名字和时间要在同一行的两个格子里（参考稿 .lrow-top）。
-      官网皮把行内所有非头像子元素一律推到 grid-column:2（特异性 (0,5,2)），
-      于是名字和时间挤进同一格上下堆叠，还跟着整体右对齐。 */
-/* 这里的 :not() 要**逐个抄齐**。官网皮那条写的是
-     :not(img):not(.avatar):not(.mesAvatarWrapper):not([class*="avatar" i])
-   四个 :not() 各算一个类，特异性 (0,5,2)。少抄两个就是 (0,4,3)，
-   b 位 4 < 5，前缀里那个属性选择器补不回来 —— 名字还是会被推到第二列。 */
 
 
-/* 行内那排操作按钮（重命名/删除）在这套设计里不常显。 */
 
 
 
 
 
-/* 原生抽屉的开关收掉。**只藏 .drawer-toggle，不藏 .drawer** ——
-   面板 .drawer-content 是 .drawer 的子元素，把 .drawer 整个 display:none
-   会连面板一起藏掉，点"预设"就再也打不开了。 */
 
 
-/* 品牌行改成参考稿的两行。原文字用 font-size:0 收掉，两行由伪元素画 ——
-   这个节点是 Claude Web 自己建的，但改它的文案要动 JS，
-   而文案属于"这套皮长什么样"，放在皮里更该。 */
 
 
 
 
-/* ---------------------------------------------------------------- 导航
-   三角折叠符和圆点都用 clip-path 成形，不用 border 也不用 border-radius ——
-   这套设计全站直角（--cw-radius-scale:0），引入 border-radius 会破例；
-   用 border 拼三角则会引入第二种边框色。 */
 
 
 
@@ -5821,21 +4966,16 @@ html[data-claude-avatars="off"] .recentChat > .avatar{ display:none !important; 
 
 
 
-/* 「设置」是嵌在剧场组里的二级组，整体再缩进一格。 */
 
 
 
-/* 幕次索引展开后的那一列 */
 
 
 
 
 
-/* 「剧目」筛选：隐藏由 CSS 做，JS 只写一个 class —— \
-JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
-/* ---------------------------------------------------------------- 节目单封面 */
 
 
 
@@ -5843,16 +4983,13 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* 封面和右栏共用同一套"标签 / 值"行 */
 
 
 
 
 
-/* ---------------------------------------------------------------- 幕次条的场景提示 */
 
 
-/* ---------------------------------------------------------------- 右栏历史对话 */
 
 
 
@@ -5860,11 +4997,6 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ---------------------------------------------------------------- 输入区
-   参考稿：正文一行占满，第二行左边是功能键、右边是 Send。
-   酒馆的 #send_form 是 flex 一行，这里改成两行网格。
-   左边那两个键用酒馆原生的 #options_button / #extensionsMenuButton ——
-   不新造按钮，功能是现成的。 */
 
 
 
@@ -5877,50 +5009,32 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ---- 1. 会话列表：一行 = 头像 + 名字 + 时间，第二行才是预览 ----
-   之前是头像、时间、名字三样各占一行，行高一下子到 70 多像素，
-   六条就把第二列撑满了。参考稿那一列是密的，密才看得出这是一份"目录"。 */
 
 
 
 
-/* 关掉头像时把那一列一起收掉，否则左边留一条空槽。 */
 
 
-/* 正文预览：酒馆的 recentChat 里不一定有这个节点，有就排，没有就当没有 ——
-   不为了排版好看去伪造一段摘要。全量的预览在右栏「历史对话」里，
-   那份数据来自 /api/characters/chats，是真的。 */
 
 
-/* ---- 2. 导航：图标只给常用四个，其余项不画记号 ----
-   记号每项都有就不再是记号，只是一列噪点。圆点只留一个用途：标当前项。 */
 
 
-/* 有图标的项：glyph 用和原生抽屉同一组遮罩 SVG，颜色继续跟主题变量走。
-   这几个 data URI 和上面 #top-settings-holder 那组是同一份，
-   改图标要两处一起改 —— 导航是新建的 DOM，读不到原生元素上的 --clawd-icon。 */
 
 
 
 
 
-/* 没有记号的项要和有记号的项左对齐到同一条线上，不然会看出两条参差的边。 */
 
 
 
 
-/* ---- 3. 角色头像：一幕一张，居中放在幕次条下面 ----
-   每条消息挂一个的问题是同一张脸在一屏里重复十几次，左边注那栏变成
-   一列缩略图，时间和 swipe 序号反而看不见。一幕一张 = 每幕开场亮一次相。 */
 
 
 
 
 
-/* 没有头像时用一条渐变横条顶上，不留一个空洞。 */
 
 
-/* ---- 右栏「历史对话」照原生 Manage chat files 的信息量来 ---- */
 
 
 
@@ -5936,92 +5050,48 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ---- 1. 导航拍平：没有分组头了，直接八项 ---- */
 
 
 
-/* ---- 2. 头像回到每条消息，角色和用户各一个 ----
-   上一轮挪到幕次条下面居中是想省掉重复，但"每个人发一条消息 = 头像 + 正文"
-   本来就是对话这件事的默认读法，抽掉之后左边注那一栏只剩时间，
-   谁在说话得靠读名字。改回来。 */
 
 
-/* 有头像时：头像 row1、时间 row2、swipe row3；关掉头像时整列上移一行。 */
 
 
 
 
 
-/* ---- 3. 自定义配图 ----
-   两处共用一张图（设置里「剧场配图」）。都做底部渐变到页面底色 ——
-   不留硬边，用户传一张很花的图，紧挨着的文字那一带仍然是干净的。
-   渐变色用 --cw-surface-page，所以日夜切换会自动跟着走，不用写两份。 */
 
 
-/* 封面配图：满栏宽，压在标题上方 */
 
-/* 幕间配图：窄一点、矮一点，是个间奏不是新的封面 */
 
-/* 没配图时的兜底：一条渐变横条 */
 
 
-/* ---- 4. 会话列表的正文预览 ----
-   节点由 buildRecentRow 建（.chatPreview）。它在 .chatNameContainer 里，
-   而 .chatNameContainer 被官网皮推到 grid-column:2 —— 预览要单独拉回整行。 */
 
 
 
 
-/* ============================================================================
-   消息操作键：右边注，hover 时顶掉 token 数
-   —— 参考稿原本就是这么设计的（.note-r 里 tok 和 acts 互斥）。
-   ============================================================================ */
 
-/* .mes_buttons 装在 .ch_name 里，而 .ch_name 整个是 display:none 的
-   （它是 flex 容器，摊平会毁掉正文，见上面那条注释）。
-   这里改成 display:contents —— 盒子没了但子元素还在，再把名字和时间戳
-   单独藏掉，只留按钮。**contents 不是 inline**，前者只是让这一层不生成盒子，
-   后者会把整块正文卷进行内格式化上下文，那才是把正文塌掉的原因。
 
-   按钮不进网格第三列，而是相对 .mes 绝对定位到右轨 ——
-   grid-column 只对网格的直接子元素有效，而按钮隔了 .mes_block 一层。 */
 
 
 
 
-/* 只露编辑和「更多」两个。删除、复制、书签这些都在「更多」里 ——
-   右轨只有 100px，七个图标塞进去会挤成一条马赛克。 */
 
 
 
 
-/* token 用 visibility 收，不用 display —— display 会让那一格塌掉，
-   hover 进出时右轨的宽度会跳一下。 */
 
 
 
-/* ============================================================================
-   第五轮：封面配图铺满 / 头像回到居中 / 导航排版 / 用户信息归位
-   ============================================================================ */
 
-/* ---- 1. 封面配图铺满整块封面 ----
-   上一版做成了"标题上方一条 280px 的 band"，那是把它当插图。
-   实际要的是这一场的**封面**：图占满从对话区顶端到元信息表底部的整块，
-   文字压在图上，图跟着内容一起滚（不是 fixed —— fixed 会变成页面背景，
-   滚到第二幕还在那儿，就不是封面了）。
 
-   渐变分两段：上半段留纯图，下半段淡到页面底色。
-   这样标题和元信息表永远落在干净底色上，用户传一张再花的图也读得清。 */
 
-/* 图要顶到对话区最上沿，所以把 #chat 的上内边距在封面这一块补回来。 */
 
 
 
 
-/* 上一版那条独立的 band 不再使用 */
 
 
-/* ---- 2. 配图不插在对话中间；角色头像回到幕次条下面居中 ---- */
 
 
 
@@ -6029,112 +5099,163 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ---- 3. 导航排版：参考稿的节奏是"两块之间留 22px"，不是八项等距挤一列 ----
-   现在没有分组头了，就用留白分块：带图标的四个是常用区，
-   其余四个是次级区，中间空出一档。 */
 
 
-/* 第一个不带图标的项 = 次级区的开头，在它上面断一档。 */
 
 
-/* ---- 4. 用户信息（零 / Max plan）沉到底，带一条分隔线 ----
-   参考稿左栏底部是 spacer + border-top 的一块，不是跟在导航后面飘着的两行。
-   #top-settings-holder 是 flex column，margin-top:auto 就能把它压到底；
-   会话列表是 position:fixed 的第二列，不在这个流里，不受影响。 */
 
 
 
 
 
-/* ============================================================================
-   第六轮：每条消息一套完整的头 / 顶部固定配图 / 导航排版
-   ============================================================================ */
 
 
 
 
-/* 分隔线。换幕时线中间嵌一个 Act 标签，同一幕内后面几条只有线 ——
-   每条都写一遍 Act III 的话，一屏里同一个词出现五六次，那就不是分节标记了。 */
 
 
 
 
 
 
-/* 名字已经在头里居中显示了，正文前面不再 run-in 一次。 */
 
-/* 头占了第 1 行，下面的东西整体下移一行。 */
 
 
 
 
 
 
-/* 操作键：居中，压在这条消息最底下。用绝对定位而不是网格项 ——
-   .mes_buttons 隔着 .mes_block 一层，grid-column 只对网格的直接子元素有效。 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 #clawd-pb-banner{ display:none; }
-@media (min-width:1100px){
-  
-  /* 底端渐变：正文滚进这一带时被淡出去，不是被一条硬边切断。 */
-  
-  /* 正文从图下面开始，不然第一条消息一上来就是被挡住的。 */
-  
-}
-/* 上一版那两个内嵌配图节点不再使用 */
-
-/* 没有配图时不留 300px 空白 */
-
-
-
-/* ---- 3. 导航排版：给它一个和 RECENTS 对等的分区标题 ----
-   左栏现在只有两块内容（功能入口 / 会话列表），列表有 "RECENTS" 这个头，
-   功能入口没有，读起来就是"一坨按钮直接贴在品牌下面"。补一个同款的头，
-   两块才有同一种节奏。 */
 
 
 
 
 
-/* ============================================================================
-   第七轮：配图合成一张 / 真透明 / 操作键常显 / 导航三个一组 / 去掉底部用户块
-   ============================================================================ */
-
-/* ---- 1. 配图 ---- 见下面第 3 节，这里那版已删。 */
-/* 图钉住之后，正文要从它下面过去，所以正文的层级必须更低。 */
 
 
-/* 上一版那两个节点作废 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #clawd-pb-banner{ display:none !important; }
 
 
 
-/* ---- 2. 操作键常显、居中、压在这条消息最底下 ----
-   之前是 hover 才出现，所以你在截图里只看到一块空白。
-   常显但用 muted 色，不抢正文。 */
 
 
 
-/* ---- 3. 导航三个一组 ----
-   参考稿左栏是 3 / 3 / 3 三组，靠留白分。这里八项按 3 / 3 / 2 断，
-   规则是"每第 4、第 7 项上面断一档"。 */
 
 
-/* ---- 4. 去掉底部那块用户信息 ----
-   参考稿左栏底下没有这个东西；「偏好设置」已经在导航里了，
-   底部再钉一块用户名 + 套餐名，是 Claude 官网侧边栏的习惯，不是这套设计的。 */
 
 
 
-/* ============================================================================
-   第八轮：消息改成单列上下居中 / 自建操作键 / 配图收放 / 品牌行大小写 / 三组三项
-   ============================================================================ */
 
 
 
-/* 原生那几条边注不再参与排版 */
 
 
 
@@ -6148,41 +5269,21 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* 用户消息不再靠缩进区分 —— 头里已经有名字和头像了，缩进反而破坏居中的对称。 */
 
 
 
-/* ---- 2. 编辑 / 删除：自建，纯文字，常显，居中 ----
-   不复用酒馆那两个图标按钮：它们是 Font Awesome 字形，字体没加载时
-   渲染成空白 —— 看起来就是"按钮根本没加"。点下去仍然走酒馆自己的按钮，
-   所以删除的确认、编辑的输入框都还是它原来那套。 */
 
 
 
 
-/* ---- 3. 配图：sticky 的图 + 一块补高垫片 ----
 
-   上一版是「560px 的槽 + 槽里 sticky 的图」，钉不住。原因是 sticky 元素只能在
-   **它父元素的内容盒**里移动：父元素是那个 560px 的槽，图起始高度也是 560px，
-   可移动距离一开始是 0，随着收缩最多长到 410px（560 − 150）。滚过 410px 之后
-   图就跟着槽一起走掉了 —— 表现就是「完全不跟随」。
 
-   现在图直接是 #chat 的孩子，父元素是整条对话，可移动距离等于全文长度，一钉到底。
-   图收缩带来的流变化由紧跟其后的 .cw-cover-pad 补回来（图高 + 垫高恒等于 560），
-   所以下面的内容一格都不会跳，也就不需要那个槽了。
 
-   .cw-cover-anchor 是图前面一个 0 高度的标记，JS 拿它的 getBoundingClientRect()
-   算滚过了多少 —— 不读 scrollTop。真机和 fixture 的滚动容器不是同一个，
-   读 scrollTop 就得先猜对是谁在滚，测量位置不用猜。
 
-   flex:0 0 auto 是防的：#chat 若是 column flex 容器，默认 flex-shrink:1 会把
-   写死的高度压掉。
 
-   底端用 mask 让图本身淡成透明，不叠同色渐变（那是假透明，换个背景就露馅）。 */
 
 
 
-/* 旧结构作废。留一条兜底，万一有残留节点不至于画出一个 560px 的空洞。 */
 
 
 
@@ -6190,10 +5291,8 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ---- 5. 导航三组三项 ---- */
 
 
-/* ---- 6. 右栏：幕次表 + 历史对话的 Act 编号 ---- */
 
 
 
@@ -6201,27 +5300,15 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ============================================================================
-   第九轮：拿掉借来的图标 / 正文限宽 / 输入框置底 / Send 用文字
-   ============================================================================ */
+html[data-claude-structure="rail"] #cw-welcome{ display:none !important; }
 
-/* ---- 1. 侧栏记号只剩圆点，且只给常用四项 ----
-   参考稿左栏通篇只有两种形状：分组头前面的三角、条目前面的圆点。
-   之前从官网皮那边搬了一组遮罩 SVG 当图标 —— 那是 Claude 侧栏的语言，
-   不是这套设计的。全部作废。 */
 
 
 
-/* 圆点只有两种状态：常用项是实心 muted，当前项是实心 accent。其余透明占位 ——
-   占位是为了让所有条目的文字左边缘对齐在同一条线上。 */
 
 
 
 
-/* ---- 2. 正文限宽，只往下长不往右长 ----
-   一条消息里有五样东西（名字 / 元数据 / 正文 / 操作键 / 分隔线），
-   它们各自的间距要拉开，否则挤成一团；正文本身则要限宽，
-   不然长句会一直铺到栏的右边缘，和居中的头对不上。 */
 
 
 
@@ -6230,24 +5317,13 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-@media (min-width:1100px){
-  
-  /* 输入框是 fixed 的，最后一条消息会被它盖住，末尾补出等高的余量。 */
-  
-}
 
-/* ---- 4. 发送键用文字 Send ----
-   原生 #send_but 是 Font Awesome 字形 + 一个遮罩箭头。两个都关掉，写字。 */
 
 
 
 
-/* ---- 5. 右栏「幕次表」（= 历史存档）行 ---- */
 
 
-/* 限宽要压过 `html body #chat > .mes[is_user="false"] .mes_block{max-width:100%}`
-   —— 那条是 (1,3,2)，选择器里不写 body 就只有 (1,3,1)，压不住，
-   正文会一路铺到栏的右边缘，和居中的头对不上。 */
 
 
 
@@ -6256,34 +5332,94 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* ============================================================================
-   第八轮：列表行照参考稿重排 / 角色卡名单 / 栏宽可拖 / 导航拉开
-   ============================================================================ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 .chatMeta{ display:none; }
 
 
-/* 第一行左：存档名。.chatName 里原来是「角色名 – 存档名」三个节点，
-   角色名挪到第二行去了，这里只留存档名那一个 span。 */
-
-
-/* 第一行右：时间。参考稿是和标题同一行的最右端，不是标题下面一行。 */
-
-/* 第二行：角色 · 第 X 幕 · N 句，横跨两列。 */
-
-/* 正文预览和头像在这一版不出现。数据还在（entry.preview 照旧算），
-   哪天想加回来把这两条删掉即可。 */
-
-/* 删除键压到行右上，hover 才出现 —— 常显的话它和时间抢同一块地方。 */
-
-
-
-
-
-
-
-/* 3 / 3 / 3 分组：第 4 项和第 7 项前面各留一段空。靠留白分组，不画线。 */
 
 
 
@@ -6293,26 +5429,38 @@ JS 逐行改 style 的话，切回"全部"时容易漏掉几行。 */
 
 
 
-/* 当前角色和"当前对话"用同一个记号：一条 accent 竖标，不用底色。
-   这套设计不靠色块面积区分层级。 */
-
-/* 左栏要能把名单顶到底，自己得是一个纵向 flex 容器。 */
-
-
-/* ---- 12. 栏宽拖拽把手 ----
-   三条竖缝上各一个。平时完全看不见，鼠标压上去才出一条细线 ——
-   常显的话版面上就多了三条和内容无关的竖线，这套设计里线是有含义的。 */
 
 
 
 
 
 
-/* 拖动时别让指针在文字上刷出一片选中蓝。 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 html.cw-rail-dragging, html.cw-rail-dragging *{
   user-select:none !important; cursor:col-resize !important;
 }
-/* 窄屏退回侧边栏形态时，把手不能留在屏幕上。 */
 
 
 
@@ -6321,45 +5469,31 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
-/* 编辑 / 删除跟着正文贴左，不再居中 —— 正文左对齐之后，居中的按钮会飘在
-   一段文字的右下方，看着像属于别的东西。 */
 
 
-/* ---- 14. 消息头：四行 → 两行 ---- */
 
 
 
-/* 第二行：头像 · 名字 · 元数据。三样在一条基线上，靠 gap 分开，不靠换行。 */
 
 
 
-/* 元数据是这一行里唯一可以被压掉的东西：窗口窄的时候先截它，
-   名字和头像不动 —— 名字被截成半个字是最难认的一种失败。 */
 
 
 
 
 
 
-/* 导航：上一轮拉到 9px 是矫枉过正 —— 拉开的应该是**组与组之间**，
-   不是每一行之间。行回到 6px，组间距 16 → 14px。 */
 
 
 
 
-/* 会话列表行：两行内容，11px 的上下留白偏多。 */
 
-/* 右栏幕次表的预览行是三行里最占地方的一段，收到两行。 */
 
-/* 段间距：正文段落之间 14 → 11px。行内已经有 1.5 的行距，段距不必再拉开一倍。 */
 
 
 
 
 
-/* ---- 16. 消息头：一行的结构留着，间距还回去 ----
-   合成一行本身是对的（省掉的是「四样东西各占一行」的堆叠），
-   错的是把这一行上下的留白也一起削了。 */
 
 
 
@@ -6369,34 +5503,17 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
-/* 段距 18px：比行距（16 × 1.72 ≈ 27px）小，段与段才是「同一段话的两节」，
-   而不是两条独立的消息。比行距还大就会读成断开的两块。 */
 
 
 
-/* ---- 18. 操作键：离正文远一点 ----
-   贴着正文最后一行会读成正文的一部分。 */
 
 
 
-/* ============================================================================
-   第十一轮：对齐说死 + 再松一档
-   ----------------------------------------------------------------------------
-   对齐分两类，写死不靠继承：
-     · 左对齐 —— 封面标题、正文、编辑/删除键
-     · 居中   —— ACT 分隔条、场景标语、头像 + 名字 + 时间那一行
-   这不是随意分的：左对齐的都是**要读的**（眼睛需要一条固定的行首），
-   居中的都是**标记**（它们标的是「这里换人了」，居中才读得出对称的分界感）。
 
-   之前这两组有一半是靠继承拿到的默认值 —— 没有规则写，只是碰巧对。
-   碰巧对的东西，下次别人加一条 text-align 就会塌，所以这里全部显式写出来。
-   ============================================================================ */
 
-/* ---- 19. 左对齐：封面 / 正文 / 操作键 ---- */
 
 
 
-/* ---- 20. 居中：ACT 条 / 标语 / 头像那一行 ---- */
 
 
 
@@ -6406,41 +5523,18 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
-/* 段距 22px：仍然小于行距（16 × 1.72 ≈ 27px）。这条线不能越过 ——
-   段距一旦大于行距，段与段就读成两条独立的消息，而不是一段话的两节。 */
 
 
 
-/* 封面同步放松，不然封面显得比下面的正文挤。 */
-/* 写成 longhand，不写 padding 简写：上面 L7258 那条声明的是 padding-top 长写法，
-   两种写法混在一起时，谁压谁要连 !important 一起看，很容易看错。 */
 
 
 
 
 
-/* ============================================================================
-   第十二轮：消息头退回堆叠 —— 头像必须落在同一条竖轴上
-   ----------------------------------------------------------------------------
-   第九轮把 头像 / 名字 / 元数据 合成一行（.cw-card-line，居中的 flex）省竖向空间。
-   那是个真错误，不是取舍：
 
-     元数据每条的长短不一样 —— 用户消息是 "14:13 · 22 tok"，
-     角色消息是 "14:14 · 8.4s · 1/4 · 95 tok"。
-     [头像][名字][元数据] 作为一整组居中，组宽不一样，
-     **头像的横坐标就每条都在飘。**
 
-   一列头像左右跳，比多占一百像素严重得多：视线沿着这一列往下走时，
-   每换一条都要重新找中轴。所以退回堆叠 —— 各占一行、各自居中，
-   头像才永远在同一条竖轴上。
 
-   .cw-card-line 这个节点已经从 index.js / fixture.html 里删掉了，
-   下面那条 display:contents 只是兜底：万一还有旧的缓存 DOM 留着这个壳，
-   让它不生成盒子，里面三样直接按 .cw-card-head 的居中排。
-   ============================================================================ */
 
-/* 头像：block + 左右 auto，居中靠自己的 margin，不靠父元素的 flex ——
-   这样它的位置只和自己的宽度有关，和同行有什么东西无关。 */
 
 
 
@@ -6450,51 +5544,21 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
-/* ============================================================================
-   第十四轮：宽度只定义一次 / 头用网格锁列位 / 三个小修
-   ----------------------------------------------------------------------------
-   前四轮反复出错的根源：「正文列有多宽」这件事写在四个选择器里
-   （.cw-card-head / .mes_block / .cw-msg-acts / .cw-cover），各写一遍
-   max-width + margin:auto。改一次宽度要同步改四处，漏一处就错位。
 
-   现在宽度只写在 .mes 上 —— 一条消息的最外层盒子。里面三样宽度设成 100%，
-   跟着外层走。以后调列宽只改一个数。
-   （.cw-cover 不在 .mes 里面，仍然自己定，但用同一个令牌 --cw-pb-measure。）
 
-   **没有照搬的一点**：参考实现把分隔线改成了 .mes 的 border-top。这里不改 ——
-   现在那条线中间夹着「ACT II」，是 .cw-card-bar 用两条伪元素线加中间的字画的。
-   换成边框就没地方夹字了。线的活儿留给 .cw-card-bar。
-   ============================================================================ */
 
-/* 里面三样不再各自定宽，撑满外层即可。 */
 
-/* 封面不在 .mes 里，但用同一个令牌，两边不会漂。 */
 
 
-/* ---- 22. 消息头：居中的外观不变，实现换成网格 ----
-   居中原来靠每个子元素自己的 margin:auto / text-align。那是三套机制拼出来的
-   同一个效果，任何一处被别的规则改掉就会有一样东西偏出去。
-   网格只有一套：一列，justify-items:center，所有子元素落在同一条竖轴上。
-   .cw-card-bar 要例外 —— 它是「细线 + Act 号 + 细线」，必须撑满整行，
-   缩到内容宽两边的线就没了。 */
 
 
 
 
-/* ---- 23. 长英文串不撑破列 ----
-   中文靠标点和字符自动折行，但一串没有空格的英文或网址（贴进来的链接常常
-   两百个字符）浏览器不会拆，会一路顶到列外面，把这条消息撑得比别的宽。 */
 
 
-/* ---- 24. 编辑 / 删除：平时淡，hover 才实 ----
-   常显的话一屏五条消息就是十个灰字。.28 是「看得见但不抢」——
-   不设 0，设 0 就变成隐藏功能，新用户根本不知道有这两个键。 */
 
 
 
-/* ---- 25. 右栏幕次表：三段各占固定列位 ----
-   原来是 flex，谁长谁占地方：存档名一长，右边的「49 句」就被挤出去或者换行。
-   网格三列 auto / 1fr / auto —— Act 号和句数位置固定，要截断只截中间的名字。 */
 
 
 
@@ -6504,11 +5568,8 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
-/* ---- 26. 顶栏 ---- */
 
 
-/* 标识：两个方块，不用图标字体也不用 SVG ——
-   参考稿左栏通篇只有三角和圆点两种形状，顶栏也守同一条。 */
 
 
 
@@ -6540,43 +5601,48 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
-/* ============================================================================
-   第十六轮：配图挪到标题区下面 + 图注
-   ----------------------------------------------------------------------------
-   照参考稿的编辑页顺序排：
 
-     .cw-cover        标题行 + 四列细线表
-     .cw-cover-anchor 高 0，测量用
-     .cw-cover-art    配图（sticky，470 → 110）
-     .cw-cover-pad    补回图收缩掉的高度
-     .cw-cover-cap    图注 = 那句随机场景标语
 
-   **滚动跟随照旧生效。** sticky 只能在父元素的内容盒里移动，这四个节点仍然是
-   #chat 的直接孩子，父元素就是整条对话，可移动距离和图排在第几位无关。
-   测量用的 anchor 跟着图一起挪到标题区下面，所以「滚过了多少」从图自己的
-   流位置开始算 —— 标题区滚完图才开始收缩，正是要的。
 
-   宽度用整列宽（920），不是参考稿那个 760。参考稿的图窄一档、居中在 1040 的
-   列里，那是因为它下面全是同样窄的正文块；我们下面是 920 的对话列，图窄一档
-   就会和标题、正文三条左右边线对不齐。图钉住之后更明显 —— 一条 760 的横幅
-   浮在 920 的正文上，两侧各露出 80px。要换回窄版把下面的 width 改成
-   min(760px,100%) 即可，但左右就不齐了。
-   ============================================================================ */
 
 
 
 
-/* 标题区和图之间留一段。标题区自己的下内边距在上一轮是 38px，
-   现在它下面紧跟着图，收到 30px，图注下面再留 44px 接第一条消息。 */
 
 
-/* 标语已经不在标题区里了（挪到图注去了），旧节点如果还在就别画。 */
 
 
-/* Claude Web 2.0.62 — a closed desktop drawer must leave layout entirely.
-   Earlier reveal animations forced every drawer to display:block, keeping
-   thousands of invisible settings controls in style/layout work while a chat
-   was being rendered. The host's openDrawer class remains the single gate. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @media (min-width:701px) {
   html body #top-settings-holder > .drawer > .drawer-content.closedDrawer,
   html body #top-settings-holder > .drawer > .drawer-content:not(.openDrawer) {
@@ -6589,22 +5655,7 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 }
 
 
-/* ============================================================================
-   第十七轮：砍掉滚动跟随，图变成流里的一块
-   ----------------------------------------------------------------------------
-   参考稿的编辑页里，图就是流里的一个静态块 + 下面一行图注，什么都不钉。
-   收缩钉顶是营销页的手法，风格上对不上。而且那套一直在收成本 ——
-   测量锚点 / 补高垫片 / 滚动监听 / 每帧 rAF，这一轮最难的几个 bug 全出在它身上，
-   换来的是一条 110px 的横幅永久占住阅读列顶部。
 
-   现在只剩：标题区 → 图 → 图注。
 
-   遮罩和 55% 不透明度一起去掉了。那两样当初是为了压住「一张 680px 的巨图
-   占满首屏」的重量；现在图是一个 470px 的有界插图、下面还有图注收口，
-   本来就不重，再压反而像没加载完。
-   （想要回半透明：把下面的 opacity 打开即可，一行。）
-   ============================================================================ */
 
-/* 旧结构的三个节点已经从 JS 里删了。留一条兜底：从旧版本升上来时 DOM 里
-   可能还有残留，别让它们画出两块空白。 */
 
