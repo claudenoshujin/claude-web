@@ -3518,26 +3518,29 @@ if (CLAUDE_ENABLED) {
       const viewportTop = Math.max(0, chatBox?.top || 0);
       const viewportBottom = Math.min(hostWindow.innerHeight, chatBox?.bottom || hostWindow.innerHeight);
       const viewportMid = (viewportTop + viewportBottom) / 2;
-      const candidates = visibleSwipeMessages.size ? [ ...visibleSwipeMessages ] : [ ...observedSwipeMessages ].filter(message => {
+      const candidates = visibleSwipeMessages.size
+        ? [...visibleSwipeMessages] : [...observedSwipeMessages];
+      // Read every candidate before updating any arrow: interleaving these reads
+      // and top writes forces another layout for each visible message on scroll.
+      const updates = [];
+      for (const message of candidates) {
+        if (!message?.isConnected) continue;
         const box = message.getBoundingClientRect();
-        return box.bottom > viewportTop + 8 && box.top < viewportBottom - 8;
-      });
-      candidates.forEach(message => {
-        if (!message?.isConnected) return;
-        const box = message.getBoundingClientRect();
-        if (box.bottom <= viewportTop + 8 || box.top >= viewportBottom - 8) return;
+        if (box.bottom <= viewportTop + 8 || box.top >= viewportBottom - 8) continue;
         let next;
-        if (box.height <= .9 * (viewportBottom - viewportTop)) next = "50%"; else {
-          const edge = 40;
+        if (box.height <= (viewportBottom - viewportTop) * .9) next = '50%';
+        else {
           const target = viewportMid - box.top;
-          const clamped = Math.min(Math.max(target, edge), box.height - edge);
-          next = clamped + "px";
+          next = Math.min(Math.max(target, 40), box.height - 40) + 'px';
         }
+        updates.push({message, next});
+      }
+      for (const {message, next} of updates) {
         message.querySelectorAll(`:scope > button.${LEFT_SWIPE_PROXY_CLASS}, :scope > button.${SWIPE_PROXY_CLASS}`).forEach(button => {
-          if (button.style.getPropertyValue("top") === next) return;
-          button.style.setProperty("top", next, "important");
+          if (button.style.getPropertyValue('top') === next) return;
+          button.style.setProperty('top', next, 'important');
         });
-      });
+      }
     }
     function scheduleSwipeTrack() {
       if (destroyed || swipeTrackRaf) return;
