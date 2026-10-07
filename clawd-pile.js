@@ -478,7 +478,7 @@ html[data-claude-integrated-theme="night"] .clawd-pile{--clawd-pile-ink:#bdb7ae;
 html[data-claude-motion="off"] .clawd-pile *{animation:none!important}
 .clawd-pile[data-paused] *{animation:none!important}   /* 缩下去时呼吸停掉回原样，不冻在半截 */
 @media (prefers-reduced-motion:reduce){.clawd-pile *{animation:none!important}}
-html[data-claude-decorations="off"] .clawd-pile{display:none!important}
+/* Pile visibility follows the Clawd lifecycle, independently of decorations. */
 .clawd-pile[data-unlaid]{visibility:hidden}`;
 
   /* 2.0.235（Lulu：更新后滚动对话变卡）：滚动时先把这一层的呼吸、飘 Z、走路暂停，停下来 0.4 秒后再接着动。
