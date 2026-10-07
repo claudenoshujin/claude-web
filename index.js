@@ -128,7 +128,7 @@ try {
   }
 } catch {}
 
-const CLAUDE_ENABLED = claudeReadSetting("enabled", [ "on", "off" ], "on") !== "off";
+let CLAUDE_ENABLED = claudeReadSetting("enabled", [ "on", "off" ], "on") !== "off";
 
 const CLAUDE_MOTION_ENABLED = claudeReadSetting("motion", [ "on", "off" ], "on") !== "off";
 
@@ -379,17 +379,16 @@ officialStyle.rel = "stylesheet";
 
 officialStyle.href = new URL("styles/official-layout.css?v=2.0.121", import.meta.url).href;
 
-document.head.append(officialStyle);
-
+document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
+if (CLAUDE_ENABLED) document.head.append(officialStyle);
 const startOfficialLayout = () => {
+  if (!CLAUDE_ENABLED) return;
   document.head.append(officialStyle);
   window.__claudeOfficialLayout?.destroy();
   window.__claudeOfficialLayout = installOfficialLayout(window);
 };
-
-document.readyState === "complete" ? window.setTimeout(startOfficialLayout, 0) : window.addEventListener("load", startOfficialLayout, {
-  once: !0
-});
+if (document.readyState === 'complete') window.setTimeout(startOfficialLayout, 0);
+else window.addEventListener('load', startOfficialLayout, { once: true });
 
 console.info("[Claude Web] 扩展形态启动：" + CLAUDE_THEME_VARIANT + " / " + CLAUDE_LAYOUT + "（在酒馆「扩展」面板的 Claude Web 里可切换）");
 
@@ -2058,6 +2057,7 @@ if (CLAUDE_ENABLED) {
       return seat ? seat.name : null;
     }
     function setClawdA(value, duration = 0) {
+      if (value) clawdComposerReaction.reset();
       a2CancelSeq();
       value !== clawdTracks.A && clawdShakeRiders(value);
       value && clawdCancelTransientB();
@@ -2068,6 +2068,7 @@ if (CLAUDE_ENABLED) {
       value !== "stream" || duration || (duration = 2e4);
       clawdTracks.aUntil = value && duration ? now + duration : 0;
       renderClawdTracks();
+      if (!value && clawdTracks.B === 'idle') syncClawdBState();
     }
     function setClawdB(value, duration = 0) {
       (value || "idle") !== clawdTracks.B && clawdShakeRiders(value);
@@ -2076,12 +2077,14 @@ if (CLAUDE_ENABLED) {
       renderClawdTracks();
     }
     function setClawdC(value, duration = 0) {
+      if (value) clawdComposerReaction.reset();
       if (a2Locked() && !A2.seqOwned) return;
       value && clawdCancelTransientB();
       value !== "grab" && value !== "drag" && value !== clawdTracks.C && clawdShakeRiders(value);
       clawdTracks.C = value || null;
       clawdTracks.cUntil = value && duration ? Date.now() + duration : 0;
       renderClawdTracks();
+      if (!value && clawdTracks.B === 'idle') syncClawdBState();
     }
     function beginClawdGeneration() {
       clawdTracks.round += 1;
@@ -2095,19 +2098,79 @@ if (CLAUDE_ENABLED) {
       clawdTracks.settledRound = round;
       setClawdA(outcome, CLAWD_RIG.clips[outcome]?.dur || 1400);
     }
-    function syncClawdBState() {
-      if (!clawdEnabled()) return;
-      const box = hostDocument.querySelector("#send_textarea");
-      const focused = Boolean(box && hostDocument.activeElement === box);
-      const text = box?.value?.trim() || "";
-      const mark = (text.match(/[?？!！](?=[^?？!！]*$)/) || [ "" ])[0];
-      const next = idleAsleep || ccSleeping ? "sleep" : ccDrowsy ? "drowsy" : focused && /[?？]/.test(mark) ? "tilt" : focused && (/[!！]/.test(mark) || text.length >= 20) ? "wow" : focused && text ? "compose" : neglected ? "neglected" : "idle";
-      if (clawdTracks.bUntil > Date.now() && (next === "idle" || next === "neglected" || next === "drowsy" || next === "sleep")) {
-        renderClawdTracks();
+  function createClawdComposerReaction(duration, blocked, now = Date.now) {
+    let before = null, composition = null, reaction = null, serial = 0;
+    const snapshot = box => ({ box, value: box.value, start: box.selectionStart, end: box.selectionEnd });
+    const reset = () => { before = null; composition = null; reaction = null; };
+    const inserted = (old, box) => {
+      if (!old || old.box !== box || old.value === box.value) return '';
+      const prefix = old.value.slice(0, old.start), suffix = old.value.slice(old.end);
+      if (!box.value.startsWith(prefix) || !box.value.endsWith(suffix) || box.value.length < prefix.length + suffix.length) return '';
+      return box.value.slice(prefix.length, box.value.length - suffix.length);
+    };
+    const commit = (old, box, expected) => {
+      const addition = inserted(old, box);
+      if (expected != null && addition !== expected) return false;
+      const mark = (addition.match(/[?？!！](?=[^?？!！]*$)/) || [''])[0];
+      if (mark && !blocked()) { const state = /[!！]/.test(mark) ? 'wow' : 'tilt'; reaction = { state, until: now() + duration(state), serial: ++serial }; }
+      return true;
+    };
+    const handle = event => {
+      const box = event.target;
+      if (box?.id !== 'send_textarea') return;
+      if (!event.isTrusted) { before = null; composition = null; return; }
+      if (event.type === 'compositionstart') { composition = { ...snapshot(box), ended: false }; before = null; return; }
+      if (event.type === 'beforeinput') {
+        before = /^(insertText|insertFromPaste|insertFromDrop|insertCompositionText|insertFromComposition)$/.test(event.inputType || '') ? snapshot(box) : null;
         return;
       }
-      setClawdB(next);
+      if (event.type === 'compositionend') {
+        if (!composition) return;
+        composition.ended = true; composition.expected = event.data;
+        if (commit(composition, box, event.data)) { composition = null; before = null; }
+        return;
+      }
+      if (event.type !== 'input' || event.isComposing || (composition && !composition.ended)) return;
+      if (composition) { commit(composition, box, composition.expected); composition = null; }
+      else if (/^(insertText|insertFromPaste|insertFromDrop|insertCompositionText|insertFromComposition)$/.test(event.inputType || '')) commit(before, box);
+      before = null;
+    };
+    const current = () => { if (reaction && (blocked() || now() >= reaction.until)) reaction = null; return reaction; };
+    return { handle, current, reset };
+  }
+
+  const clawdComposerReaction = createClawdComposerReaction(state => CLAWD_RIG.clips[state].dur,
+    () => destroyed || !!(clawdTracks.A || clawdTracks.C || a2Locked() || idleAsleep || ccSleeping || ccDrowsy));
+  let clawdComposerReactionSerial = 0;
+  const handleClawdComposerEdit = event => {
+    if (!clawdEnabled()) return;
+    clawdReadingGate.reset();
+    clawdComposerReaction.handle(event);
+    if (event.type === 'compositionend') syncClawdBState();
+  };
+
+  function syncClawdBState() {
+    if (!clawdEnabled()) return;
+    const box = hostDocument.querySelector('#send_textarea');
+    const focused = Boolean(box && hostDocument.activeElement === box);
+    const text = box?.value?.trim() || '';
+    const reaction = focused ? clawdComposerReaction.current() : null;
+    if (!focused) clawdComposerReaction.reset();
+    const next = (idleAsleep || ccSleeping) ? 'sleep' : ccDrowsy ? 'drowsy'
+      : reaction ? reaction.state : focused && text ? 'compose' : neglected ? 'neglected' : 'idle';
+    if (reaction) {
+      const replay = reaction.serial !== clawdComposerReactionSerial && clawdTracks.B === next;
+      clawdComposerReactionSerial = reaction.serial;
+      setClawdB(next, Math.max(1, reaction.until - Date.now()));
+      if (replay) for (const animation of composerClawd()?.querySelector('.clawd-rig')?.getAnimations?.({ subtree: true }) || []) animation.currentTime = 0;
+      return;
     }
+    if (clawdTracks.bUntil > Date.now()
+      && (next === 'idle' || next === 'neglected' || next === 'drowsy' || next === 'sleep')) {
+      renderClawdTracks(); return;
+    }
+    setClawdB(next);
+  }
     const CLAWD_B_AMBIENT_POSES = Object.freeze([ {
       state: "around",
       duration: CLAWD_RIG.clips.around.dur
@@ -3491,10 +3554,75 @@ if (CLAUDE_ENABLED) {
       clawdScrollTilt();
       isMobileLayout() || scheduleSwipeTrack();
     }
+  function createClawdReadingGate(read, now = Date.now) {
+    const limits = { messages: 3, screens: 2, gapMs: 900, cooldownMs: 8000 };
+    let origin = null, until = 0, lastScroll = 0, fired = false, coolUntil = 0, pointer = null;
+    const reset = (clearCooldown = false) => { origin = null; until = 0; lastScroll = 0; fired = false; pointer = null; if (clearCooldown) coolUntil = 0; };
+    const begin = () => {
+      const t = now();
+      if (!origin || t - lastScroll > limits.gapMs) { origin = read(); fired = false; }
+      if (origin) { until = t + limits.gapMs; lastScroll = t; }
+    };
+    const intent = event => {
+      if (!event.isTrusted || event.defaultPrevented) return;
+      if (event.type === 'pointerup' || event.type === 'pointercancel') { pointer = null; return; }
+      if (event.type === 'pointermove') {
+        if (pointer?.id === event.pointerId && Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) >= 4) begin();
+        return;
+      }
+      const host = event.currentHost;
+      const inside = !!host?.contains(event.target);
+      if (event.target?.closest?.('textarea,input,select,button,[contenteditable="true"],dialog')) { reset(); return; }
+      if (event.type === 'pointerdown') {
+        if (!inside) { reset(); return; }
+        // Capture the reading position before native touch/scrollbar movement.
+        if (!origin || now() - lastScroll > limits.gapMs) { origin = read(); fired = false; }
+        lastScroll = now(); pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        const r = host.getBoundingClientRect();
+        if (event.clientX >= r.right - Math.max(12, host.offsetWidth - host.clientWidth)) begin();
+      } else if (event.type === 'wheel' && inside && Math.abs(event.deltaY) > 0) begin();
+      else if (event.type === 'keydown' && (inside || event.target?.tagName === 'BODY' || event.target?.tagName === 'HTML')
+        && !event.ctrlKey && !event.metaKey && !event.altKey && ['PageUp','PageDown','ArrowUp','ArrowDown','Home','End',' '].includes(event.key)) begin();
+    };
+    const check = () => {
+      const t = now();
+      if (!origin || t > until || t - lastScroll > limits.gapMs) { reset(); return 'none'; }
+      const current = read();
+      if (!current || !origin.node.isConnected || current.host !== origin.host || current.height !== origin.height || current.extent !== origin.extent) { reset(); return 'none'; }
+      lastScroll = t; until = t + limits.gapMs;
+      if (fired) return 'hold';
+      if (t < coolUntil || Math.abs(current.id - origin.id) < limits.messages
+        || Math.abs(current.top - origin.top) < limits.screens * origin.height) return 'none';
+      fired = true; coolUntil = t + limits.cooldownMs; return 'trigger';
+    };
+    return { intent, check, reset, limits };
+  }
+
+  function readClawdReadingPosition() {
+    const host = scrollHost;
+    if (!host || !host.clientHeight) return null;
+    const r = host.getBoundingClientRect();
+    const headerBottom = hostDocument.querySelector('.cw-v4-chat-head')?.getBoundingClientRect().bottom || 0;
+    const y = Math.max(0, r.top, headerBottom) + 16;
+    // A bounded local hit test, never a scan of the message history.
+    for (const fraction of [.5, .25, .75]) {
+      const node = hostDocument.elementFromPoint(r.left + r.width * fraction, y)?.closest?.('#chat > .mes');
+      const value = node?.getAttribute('mesid');
+      if (node?.parentElement === host && /^\d+$/.test(value || '')) return { host, node, id: Number(value), top: host.scrollTop, height: host.clientHeight, extent: host.scrollHeight };
+    }
+    return null;
+  }
+
+  const clawdReadingGate = createClawdReadingGate(readClawdReadingPosition);
+  const handleClawdReadingIntent = event => {
+    if (!clawdEnabled()) return;
+    if (destroyed) return;
+    clawdReadingGate.intent({ isTrusted: event.isTrusted, defaultPrevented: event.defaultPrevented, type: event.type, target: event.target,
+      currentHost: scrollHost, pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY,
+      deltaY: event.deltaY, key: event.key, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey });
+  };
+
     const CLAWD_SCROLL_REST_MS = 700;
-    let clawdScrollVel = 0;
-    let clawdScrollLastTop = 0;
-    let clawdScrollLastAt = 0;
     let clawdScrollHolding = !1;
     let clawdScrollRestTimer = 0;
     let clawdPileRestTimer = 0;
@@ -3503,43 +3631,31 @@ if (CLAUDE_ENABLED) {
       composerClawd()?.style.removeProperty("translate");
       clawdTracks.B === "peek" && setClawdB("rig:peekOut", CLAWD_RIG.clips.peekOut.dur);
     }
-    function clawdScrollTilt() {
-      if (!clawdEnabled()) return;
-      if (destroyed || isTypingActive()) return;
-      const host = scrollHost;
-      if (!host) return;
-      const now = Date.now();
-      const dt = Math.max(16, now - clawdScrollLastAt);
-      const top = host.scrollTop;
-      const raw = (top - clawdScrollLastTop) / dt * 16;
-      clawdScrollLastTop = top;
-      clawdScrollLastAt = now;
-      clawdScrollVel = clawdScrollVel * .8 + raw * .2;
-      const mag = Math.abs(clawdScrollVel);
-      if (mag < 2.2) return;
-      if (clawdTracks.A) return;
-      const bBase = String(clawdTracks.B || "").replace(/^rig:/, "").replace(/-m$/, "");
-      const button = composerClawd();
-      const bigPeeks = !!button && !(clawdTracks.C || a2Locked() || A2.held || Math.abs(A2.fy - A2.floor) > .5) && !(idleAsleep || ccSleeping || ccDrowsy || bBase === "sleep" || bBase === "drowsy");
-      clawdPile.peek(!0, bigPeeks && !A2.floor ? 12 : 0, !!A2.floor);
-      clawdPileRestTimer && cancelClawdLater(clawdPileRestTimer);
-      clawdPileRestTimer = clawdLater(() => {
-        clawdPileRestTimer = 0;
-        clawdPile.peek(!1);
-      }, CLAWD_SCROLL_REST_MS);
-      if (!bigPeeks || A2.floor) return;
-      if (!clawdScrollHolding) {
-        clawdScrollHolding = !0;
-        setClawdB("peek", 6e4);
-      }
-      scheduleClawdBAmbient(now);
-      clawdScrollRestTimer && cancelClawdLater(clawdScrollRestTimer);
-      clawdScrollRestTimer = clawdLater(() => {
-        clawdScrollRestTimer = 0;
-        clawdScrollVel = 0;
-        clawdScrollRelease();
-      }, CLAWD_SCROLL_REST_MS);
+  function clawdScrollTilt() {
+    if (!clawdEnabled()) return;
+    if (destroyed || isTypingActive() || clawdTracks.A || Date.now() < suppressManualScrollUntil) { clawdReadingGate.reset(); return; }
+    const admission = clawdReadingGate.check();
+    if (admission === 'none') return;
+    if (admission === 'hold') {
+      if (clawdPileRestTimer) armClawdScrollRest();
+      return;
     }
+    const bBase = String(clawdTracks.B || '').replace(/^rig:/, '').replace(/-m$/, '');
+    const button = composerClawd();
+    const bigPeeks = !!button && !(clawdTracks.C || a2Locked() || A2.held || Math.abs(A2.fy - A2.floor) > .5)
+      && !(idleAsleep || ccSleeping || ccDrowsy || bBase === 'sleep' || bBase === 'drowsy');
+    clawdPile.peek(true, bigPeeks && !A2.floor ? 12 : 0, !!A2.floor);
+    if (bigPeeks && !A2.floor) { clawdScrollHolding = true; setClawdB('peek', 60000); scheduleClawdBAmbient(Date.now()); }
+    armClawdScrollRest();
+  }
+
+  function armClawdScrollRest() {
+    if (clawdPileRestTimer) cancelClawdLater(clawdPileRestTimer);
+    clawdPileRestTimer = clawdLater(() => { clawdPileRestTimer = 0; if (!destroyed) clawdPile.peek(false); }, CLAWD_SCROLL_REST_MS);
+    if (!clawdScrollHolding) return;
+    if (clawdScrollRestTimer) cancelClawdLater(clawdScrollRestTimer);
+    clawdScrollRestTimer = clawdLater(() => { clawdScrollRestTimer = 0; if (!destroyed) clawdScrollRelease(); }, CLAWD_SCROLL_REST_MS);
+  }
     const WELCOME_CLASS = "clawd-welcome";
     let welcomeStage = "welcome";
     let leavingSince = 0;
@@ -3749,6 +3865,7 @@ if (CLAUDE_ENABLED) {
     }
     function handleViewportChange() {
       if (destroyed) return;
+      clawdReadingGate.reset();
       mobileViewportMetricsDirty = !0;
       scheduleMobileViewportMetrics();
       scheduleMobileComposerTranslate();
@@ -4578,6 +4695,7 @@ if (CLAUDE_ENABLED) {
       }
       const changedType = types.CHAT_CHANGED || "chatLoaded";
       const changedHandler = () => {
+      clawdReadingGate.reset(true); clawdComposerReaction.reset();
         guardMobileChatAutofocus();
         recentSignature = null;
         refreshRailRecents({
@@ -5618,6 +5736,7 @@ if (CLAUDE_ENABLED) {
     }
     const handleComposerInput = event => {
       if (event.target?.id !== "send_textarea") return;
+      clawdComposerReaction.handle(event);
       noteActivity();
       syncCcComposerState();
     };
@@ -5954,6 +6073,8 @@ if (CLAUDE_ENABLED) {
     }
     function trackDirtyMessages(records) {
       for (const record of records) {
+        if ((record.type === 'childList' && record.target === scrollHost && [...record.addedNodes, ...record.removedNodes].some(n => n.nodeType === 1 && n.matches?.('.mes')))
+          || (record.type === 'attributes' && record.attributeName === 'mesid')) clawdReadingGate.reset();
         const target = record.target instanceof hostWindow.Element ? record.target : record.target.parentElement;
         if (target instanceof hostWindow.Element) {
           const owner = target.closest("#chat > .mes");
@@ -6023,7 +6144,7 @@ if (CLAUDE_ENABLED) {
       externalModalSources.get(host).push(source);
       // Visibility may be controlled by a Teleport wrapper, not the role node.
       for (let node = source; node && node !== hostDocument.body; node = node.parentElement) externalModalObserver.observe(node, {
-        attributes: true, attributeFilter: ['class', 'style', 'hidden', 'open'],
+        attributes: true, attributeOldValue: true, attributeFilter: ['class', 'style', 'hidden', 'open'],
       });
     }
     return [...candidates];
@@ -6058,7 +6179,12 @@ if (CLAUDE_ENABLED) {
         && Number(css.opacity) !== 0 && box.width > 0 && box.height > 0
         && (!source.checkVisibility || source.checkVisibility({checkOpacity:true, checkVisibilityCSS:true}));
     });
-    return semantic || (style.position === 'fixed' && (visibleWidth * visibleHeight >= width * height * .5
+    // Host layout surfaces can cover the viewport without being an editor.
+    // Unmarked fixed overlays must contain a control; explicit dialog/backdrop
+    // semantics still allow read-only modals and their separate overlay layers.
+    const interactive = element.matches('button,input,textarea,select,a[href],iframe,canvas,[role="button"],[tabindex],[contenteditable="true"]')
+      || Boolean(element.querySelector('button,input,textarea,select,a[href],iframe,canvas,[role="button"],[tabindex],[contenteditable="true"]'));
+    return semantic || (interactive && style.position === 'fixed' && (visibleWidth * visibleHeight >= width * height * .5
       || (visibleWidth >= width * .7 && visibleHeight >= height * .7)));
   }
 
@@ -6565,6 +6691,9 @@ if (CLAUDE_ENABLED) {
       hostWindow.removeEventListener("resize", handleViewportChange);
       hostDocument.removeEventListener("mousemove", handleLook);
       hostDocument.removeEventListener("keydown", noteActivity);
+      clawdReadingGate.reset(true); clawdComposerReaction.reset();
+      for (const type of ['wheel','pointerdown','pointermove','pointerup','pointercancel','keydown']) hostDocument.removeEventListener(type, handleClawdReadingIntent, true);
+      for (const type of ['beforeinput','compositionstart','compositionend']) hostDocument.removeEventListener(type, handleClawdComposerEdit, true);
       hostDocument.removeEventListener("input", handleComposerInput, !0);
       hostDocument.removeEventListener("visibilitychange", noteCcVisibility);
       hostDocument.removeEventListener("visibilitychange", recoverStalledFrame);
@@ -6721,12 +6850,16 @@ if (CLAUDE_ENABLED) {
       setBodyClass(READY_CLASS, !0);
       hostDocument.body.classList.toggle(MOBILE_LAYOUT_CLASS, mobileEnabled);
       hostDocument.body.classList.toggle("clawd-tauritavern-host", isTauriTavernHost());
-      externalModalObserver = new hostWindow.MutationObserver(scheduleExternalSurfaceIsolation);
+      externalModalObserver = new hostWindow.MutationObserver(records => {
+      // Some hosts rewrite an unchanged style/class attribute. Do not feed
+      // those no-op writes back into another layout and sheet-yield pass.
+      if (records.some(record => record.oldValue !== record.target.getAttribute(record.attributeName))) scheduleExternalSurfaceIsolation();
+    });
       hostDocument.addEventListener("transitionend", onExternalModalAnimationEnd);
       hostDocument.addEventListener("animationend", onExternalModalAnimationEnd);
       externalModalObserver.observe(hostDocument.documentElement, {
         attributes: !0,
-        attributeFilter: [ "data-cw-v4-settings" ]
+        attributeOldValue: true, attributeFilter: ['data-cw-v4-settings']
       });
       syncExternalSurfaceIsolation();
       syncExternalModalRailLayer();
@@ -6773,6 +6906,8 @@ if (CLAUDE_ENABLED) {
       hostDocument.addEventListener("keydown", noteActivity, {
         passive: !0
       });
+      for (const type of ['wheel','pointerdown','pointermove','pointerup','pointercancel','keydown']) hostDocument.addEventListener(type, handleClawdReadingIntent, { capture: true, passive: true });
+      for (const type of ['beforeinput','compositionstart','compositionend']) hostDocument.addEventListener(type, handleClawdComposerEdit, true);
       hostDocument.addEventListener("input", handleComposerInput, !0);
       hostDocument.addEventListener("visibilitychange", noteCcVisibility, {
         passive: !0
@@ -7190,6 +7325,12 @@ if (CLAUDE_ENABLED) {
   }
   function teardownLive() {
     try {
+      CLAUDE_ENABLED = false;
+      document.documentElement.dataset.claudeEnabled = 'off';
+      window.removeEventListener('load', startOfficialLayout);
+      window.__claudeOfficialLayout?.destroy();
+      delete window.__claudeOfficialLayout;
+      officialStyle.remove();
       const sheet = document.getElementById("claude-integrated-theme-live-style");
       sheet && (sheet.disabled = !0);
       const root = document.documentElement;

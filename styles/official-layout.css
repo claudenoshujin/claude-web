@@ -3566,6 +3566,17 @@ html[data-cw-v4][data-claude-integrated-theme="night"] body>.cw-desk-win,html[da
 
 .clr-p-shadow,.clawd-pile-shadow{display:none!important}
 
+/* Keep the navigation silhouette on WebViews that only support prefixed masks. */
+html[data-cw-v4] body #top-settings-holder#top-settings-holder>.drawer>.drawer-toggle>.drawer-icon{
+  -webkit-mask:var(--cw-v4-nav-icon) center/contain no-repeat!important;
+  mask:var(--cw-v4-nav-icon) center/contain no-repeat!important;
+}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder>.drawer>.drawer-toggle>.drawer-icon::before,
+html[data-cw-v4] body #top-settings-holder#top-settings-holder>.drawer>.drawer-toggle>.drawer-icon::after{
+  content:none!important;
+  display:none!important;
+}
+
 /* Long option names must leave room for the setting title in either layout. */
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-row:is(.cw-v4-stack,.cw-v4-stackm):has(>.cw-v4-row-controls>select:only-child)>.cw-v4-row-info{min-width:6em!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-row:is(.cw-v4-stack,.cw-v4-stackm):has(>.cw-v4-row-controls>select:only-child)>.cw-v4-row-controls{min-width:0!important;max-width:55%!important}
