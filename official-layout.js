@@ -1,6 +1,6 @@
-import { officialIcons } from './official-icons.js?v=2.0.121';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.121';
-import { tr } from './official-i18n.js?v=2.0.121';
+import { officialIcons } from './official-icons.js?v=2.0.122';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.122';
+import { tr } from './official-i18n.js?v=2.0.122';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
