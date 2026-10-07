@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.120. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.121. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,13 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.120";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.121";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.120";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.121";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.120";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.121";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.120";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.121";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -361,7 +361,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.120-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.121-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -377,7 +377,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.120", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.121", import.meta.url).href;
 
 document.head.append(officialStyle);
 
@@ -5994,54 +5994,74 @@ if (CLAUDE_ENABLED) {
       style.setAttribute("media", "not all");
       hostDocument.documentElement.dataset.claudeExternalSurface = "character-manager";
     }
-    const extraExternalModalCandidates = new Set;
-    function externalModalHost(element) {
-      if (!(element instanceof hostWindow.HTMLElement) || element.closest("dialog,[data-cw-lifted],.cw-v4-shell,.cw-pm-host,#top-settings-holder,#sheld")) return null;
-      if (element.matches('#bg1,#bg_custom,#bg_animation,#top-bar,[class*="clawd-"],[class*="cw-"]')) return null;
-      const semantic = element.matches('[role="dialog"],[aria-modal="true"]');
-      for (let node = element; node && node !== hostDocument.body; node = node.parentElement) {
-        const position = hostWindow.getComputedStyle(node).position;
-        if (position === "fixed" || semantic && position === "absolute") return node;
-      }
-      return null;
+  const extraExternalModalCandidates = new Set();
+  const externalModalSources = new Map();
+  const externalNotificationSelector = '#toast-container,[class^="toast"],[class*=" toast"],[role="status"],[role="alert"]';
+  function externalModalHost(element) {
+    if (!(element instanceof hostWindow.HTMLElement) || element.closest('dialog,[data-cw-lifted],.cw-v4-shell,.cw-pm-host,#top-settings-holder,#sheld')) return null;
+    if (element.closest(externalNotificationSelector)) return null;
+    if (element.matches('#bg1,#bg_custom,#bg_animation,#top-bar,[class*="clawd-"],[class*="cw-"]')) return null;
+    const semantic = element.matches('[role="dialog"],[aria-modal="true"]');
+    // Some extensions put the modal role inside a positioned Teleport wrapper.
+    for (let node = element; node && node !== hostDocument.body; node = node.parentElement) {
+      const position = hostWindow.getComputedStyle(node).position;
+      if (position === 'fixed' || (semantic && position === 'absolute')) return node;
     }
-    function observeExternalModalCandidates() {
-      if (!externalModalObserver) return [];
-      for (const candidate of extraExternalModalCandidates) candidate.isConnected || extraExternalModalCandidates.delete(candidate);
-      const sources = [ ...hostDocument.querySelectorAll(EXTERNAL_MODAL_SELECTOR), ...extraExternalModalCandidates ];
-      const candidates = new Set;
-      for (const source of sources) {
-        const host = externalModalHost(source);
-        if (!host) continue;
-        candidates.add(host);
-        for (let node = source; node && node !== hostDocument.body; node = node.parentElement) externalModalObserver.observe(node, {
-          attributes: !0,
-          attributeFilter: [ "class", "style", "hidden", "open" ]
-        });
-      }
-      return [ ...candidates ];
+    return null;
+  }
+  function observeExternalModalCandidates() {
+    if (!externalModalObserver) return [];
+    externalModalSources.clear();
+    for (const candidate of extraExternalModalCandidates) if (!candidate.isConnected) extraExternalModalCandidates.delete(candidate);
+    const sources = [...hostDocument.querySelectorAll(EXTERNAL_MODAL_SELECTOR), ...extraExternalModalCandidates];
+    const candidates = new Set();
+    for (const source of sources) {
+      const host = externalModalHost(source);
+      if (!host) continue;
+      candidates.add(host);
+      if (!externalModalSources.has(host)) externalModalSources.set(host, []);
+      externalModalSources.get(host).push(source);
+      // Visibility may be controlled by a Teleport wrapper, not the role node.
+      for (let node = source; node && node !== hostDocument.body; node = node.parentElement) externalModalObserver.observe(node, {
+        attributes: true, attributeFilter: ['class', 'style', 'hidden', 'open'],
+      });
     }
-    function isVisibleExternalModal(element) {
-      if (!(element instanceof hostWindow.HTMLElement)) return !1;
-      if (element.id === "cw-v4-settings") return !1;
-      try {
-        if (element.matches("dialog:modal")) return !1;
-      } catch {}
-      try {
-        if (element.matches(":popover-open,[data-cw-lifted]")) return !1;
-      } catch {}
-      const rail = hostDocument.querySelector("#top-settings-holder");
-      if (rail && (rail === element || rail.contains(element) || element.contains(rail))) return !1;
-      const style = hostWindow.getComputedStyle(element);
-      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return !1;
-      if (![ "fixed", "absolute" ].includes(style.position)) return !1;
-      if (element.checkVisibility && !element.checkVisibility({
-        checkOpacity: !0,
-        checkVisibilityCSS: !0
-      })) return !1;
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    }
+    return [...candidates];
+  }
+
+  function isVisibleExternalModal(element) {
+    if (!(element instanceof hostWindow.HTMLElement)) return false;
+    // Our settings frame shares the native drawer layer; it is not an external modal.
+    if (element.id === 'cw-v4-settings') return false;
+    /* 2.0.211：showModal() 打开的 <dialog> 在顶层，本来就盖在所有东西上面，不用把侧栏降下去。
+       手机上酒馆的宽 / 大弹窗改成铺满的弹出页后会被当成「外部全屏弹窗」，侧栏容器降到 1，
+       连带里面打开的设置页沉到聊天页下面——弹窗收起时露出欢迎页，再跳回设置页。 */
+    try { if (element.matches('dialog:modal')) return false; } catch {}
+    /* 2.0.218：手机弹出页改用 show() + showPopover() 进最上层（不是 :modal），也不算。 */
+    try { if (element.matches(':popover-open,[data-cw-lifted]')) return false; } catch {}
+    const rail = hostDocument.querySelector('#top-settings-holder');
+    if (rail && (rail === element || rail.contains(element) || element.contains(rail))) return false;
+    const style = hostWindow.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none' || Number(style.opacity) === 0) return false;
+    if (!['fixed', 'absolute'].includes(style.position)) return false;
+    if (element.checkVisibility && !element.checkVisibility({checkOpacity:true, checkVisibilityCSS:true})) return false;
+    const rect = element.getBoundingClientRect();
+    const width = hostWindow.innerWidth, height = hostWindow.innerHeight;
+    const visibleWidth = Math.max(0, Math.min(rect.right, width) - Math.max(rect.left, 0));
+    const visibleHeight = Math.max(0, Math.min(rect.bottom, height) - Math.max(rect.top, 0));
+    if (!visibleWidth || !visibleHeight) return false;
+    // A small dialog is valid when explicitly marked; a bare fixed float is not.
+    const semantic = (externalModalSources.get(element) || []).some(source => {
+      if (!source.matches(EXTERNAL_MODAL_SELECTOR) || source.closest(externalNotificationSelector)) return false;
+      const css = hostWindow.getComputedStyle(source), box = source.getBoundingClientRect();
+      return css.display !== 'none' && css.visibility !== 'hidden' && css.pointerEvents !== 'none'
+        && Number(css.opacity) !== 0 && box.width > 0 && box.height > 0
+        && (!source.checkVisibility || source.checkVisibility({checkOpacity:true, checkVisibilityCSS:true}));
+    });
+    return semantic || (style.position === 'fixed' && (visibleWidth * visibleHeight >= width * height * .5
+      || (visibleWidth >= width * .7 && visibleHeight >= height * .7)));
+  }
+
     const liftedExternalModals = new Map;
     function liftExternalModals(modals) {
       for (const modal of modals) {
@@ -6452,6 +6472,7 @@ if (CLAUDE_ENABLED) {
       hostDocument.removeEventListener("transitionend", onExternalModalAnimationEnd);
       hostDocument.removeEventListener("animationend", onExternalModalAnimationEnd);
       extraExternalModalCandidates.clear();
+    externalModalSources.clear();
       hostDocument.body.classList.remove("clawd-external-modal-open");
       restoreExternalModalRailLayer();
       liftExternalModals([]);

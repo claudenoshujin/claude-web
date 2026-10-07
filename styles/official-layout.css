@@ -1643,7 +1643,7 @@ html[data-cw-v4] body>.cw-sheet-shield{position:fixed;inset:0;width:100vw;height
 html[data-cw-v4] body>.cw-sheet-shield::backdrop{background:transparent}
 
 html[data-cw-v4][data-cw-sheet-yield] body{scale:none!important;border-radius:0!important;transition:none!important}
-html[data-cw-v4][data-cw-sheet-yield] body :is(dialog[data-cw-sheet-yielded],.cw-pm-host[data-cw-sheet-yielded]){z-index:4098!important;pointer-events:none!important}
+html[data-cw-v4][data-cw-sheet-yield] body :is(dialog[data-cw-sheet-yielded],.cw-pm-host[data-cw-sheet-yielded]){z-index:4098!important;pointer-events:auto!important}
 html[data-cw-v4][data-cw-sheet-yield] body dialog[data-cw-sheet-yielded]{display:flex!important}
 html[data-cw-v4][data-cw-sheet-yield] body .cw-pm-host[data-cw-sheet-yielded]{display:block!important}
 html[data-cw-v4][data-cw-sheet-yield] body>:is(.cw-sheet-shield,.cw-sheet-dim){display:none!important;pointer-events:none!important}

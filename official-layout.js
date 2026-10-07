@@ -1,6 +1,6 @@
-import { officialIcons } from './official-icons.js?v=2.0.120';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.120';
-import { tr } from './official-i18n.js?v=2.0.120';
+import { officialIcons } from './official-icons.js?v=2.0.121';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.121';
+import { tr } from './official-i18n.js?v=2.0.121';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1626,6 +1626,28 @@ export function installOfficialLayout(win = window) {
     }, 1200));
   }
   const yieldedSheets = new Set();
+  let externalSheetModals = [], yieldCheckRaf = 0;
+  const ignoredSheetModals = new Set();
+  function resumeYieldedSheets() {
+    for (const modal of externalSheetModals) ignoredSheetModals.add(modal);
+    externalSheetModals = []; externalModalOpen = false;
+    syncExternalSheetYield();
+  }
+  function checkYieldHitTargets() {
+    yieldCheckRaf = 0;
+    if (!externalModalOpen || !yieldedSheets.size || destroyed) return;
+    // Check once after lowering our layers. CSS visibility alone cannot tell
+    // whether an extension's wrapper actually receives pointer input.
+    const blocksInput = externalSheetModals.some(modal => {
+      const r = modal.getBoundingClientRect();
+      const left = Math.max(0, r.left), right = Math.min(win.innerWidth, r.right);
+      const top = Math.max(0, r.top), bottom = Math.min(win.innerHeight, r.bottom);
+      if (left >= right || top >= bottom) return false;
+      return [[.5,.5],[.2,.2],[.8,.2],[.2,.8],[.8,.8]].some(([x,y]) =>
+        modal.contains(doc.elementFromPoint(left + (right-left)*x, top + (bottom-top)*y)));
+    });
+    if (!blocksInput) resumeYieldedSheets();
+  }
   function openSheetLayers() {
     const open = [...doc.querySelectorAll('dialog[data-cw-lifted][open]')];
     const ordered = sheetStack.map(d => d === pmEl() ? pmHost : d).filter(d => d && (d === pmHost || open.includes(d)));
@@ -1635,19 +1657,23 @@ export function installOfficialLayout(win = window) {
   }
   function setExternalModals(modals) {
     if (destroyed) return;
-    externalModalOpen = modals.length > 0;
+    for (const modal of ignoredSheetModals) if (!modals.includes(modal)) ignoredSheetModals.delete(modal);
+    externalSheetModals = modals.filter(modal => !ignoredSheetModals.has(modal));
+    externalModalOpen = externalSheetModals.length > 0;
     syncExternalSheetYield();
   }
   function syncExternalSheetYield() {
     if (!canPopover || destroyed) return;
     const ordered = openSheetLayers();
     if (externalModalOpen && enabled() && ordered.length) {
+      const entering = !yieldedSheets.size;
       root.setAttribute('data-cw-sheet-yield', '');
       for (const d of ordered) {
         yieldedSheets.add(d); d.setAttribute('data-cw-sheet-yielded', '');
         try { if (d.matches(':popover-open')) d.hidePopover(); } catch {}
       }
       try { if (shield?.matches(':popover-open')) shield.hidePopover(); } catch {}
+      if (entering && !yieldCheckRaf) yieldCheckRaf = win.requestAnimationFrame(checkYieldHitTargets);
       return;
     }
     if (!yieldedSheets.size) return;
@@ -1736,6 +1762,19 @@ export function installOfficialLayout(win = window) {
     win.HTMLDialogElement.prototype.showModal = function () { tagDanger(this); if (liftable(this)) return liftDialog(this); return nativeShowModal.call(this); };
     disposers.push(() => { win.HTMLDialogElement.prototype.showModal = nativeShowModal; shield?.remove(); shield = null; });
     if (!canPopover) return;
+    on(doc, 'click', e => {
+      if (!externalModalOpen || !yieldedSheets.size || !e.isTrusted) return;
+      if (externalSheetModals.some(modal => modal.contains(e.target))) return;
+      const layer = [...yieldedSheets].reverse().find(layer => {
+        const r = layer.getBoundingClientRect();
+        return layer.contains(e.target) || (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom);
+      });
+      if (!layer) return;
+      // Consume a click that slipped through to the chat; never activate it.
+      if (!layer.contains(e.target)) { e.preventDefault(); e.stopImmediatePropagation(); }
+      resumeYieldedSheets();
+    }, true);
+    disposers.push(() => { if (yieldCheckRaf) win.cancelAnimationFrame(yieldCheckRaf); yieldCheckRaf = 0; externalSheetModals = []; ignoredSheetModals.clear(); });
     on(doc, 'keydown', onSheetEscape, true);
     // Popovers do not provide the native modal's Tab boundary.
     on(doc, 'keydown', e => {
