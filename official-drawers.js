@@ -3,7 +3,7 @@
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings } from './official-extension-settings.js?v=2.0.118';
+import { createExtensionSettings } from './official-extension-settings.js?v=2.0.119';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);

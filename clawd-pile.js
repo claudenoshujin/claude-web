@@ -600,6 +600,10 @@ html[data-claude-decorations="off"] .clawd-pile{display:none!important}
   function destroy() {
     destroyed = true; win.clearInterval(zTimer); zTimer = 0; win.clearTimeout(resumeTimer);
     ro?.disconnect(); ro = null;
+    for (const n of NAMES) if (K[n]) {
+      K[n].kick?.cancel();
+      K[n].legAnims?.forEach(animation => animation.cancel());
+    }
     for (const n of NAMES) if (K[n]?.walk) win.clearTimeout(K[n].walk.t);
     for (const t of timers) win.clearTimeout(t); timers.clear();
     form?.classList.remove('clawd-has-pile');

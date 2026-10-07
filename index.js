@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.118. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.119. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,13 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.118";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.119";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.118";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.119";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.118";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.119";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.118";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.119";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -361,7 +361,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.118-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.119-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -377,7 +377,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.118", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.119", import.meta.url).href;
 
 document.head.append(officialStyle);
 
@@ -1272,7 +1272,7 @@ if (CLAUDE_ENABLED) {
     };
     const MOBILE_LAYOUT_CLASS = "clawd-mobile-layout";
     const STYLE_ID = "claude-clawd-interaction-style";
-    const EXTERNAL_MODAL_SELECTOR = [ '[role="dialog"]', "dialog[open]", '[class*="modal-backdrop" i]', '[class*="modal_backdrop" i]', '[class*="modal-overlay" i]', '[class*="modal_overlay" i]', '[class*="popup-backdrop" i]', '[class*="popup_backdrop" i]' ].join(",");
+    const EXTERNAL_MODAL_SELECTOR = [ '[role="dialog"]', '[aria-modal="true"]', "dialog[open]", '[class*="modal-backdrop" i]', '[class*="modal_backdrop" i]', '[class*="modal-overlay" i]', '[class*="modal_overlay" i]', '[class*="popup-backdrop" i]', '[class*="popup_backdrop" i]' ].join(",");
     const EMBED_STYLE_ID = "claude-embedded-surface-style";
     const REGEX_SURFACE_CLASS = "claude-transparent-regex-surface";
     const CLAWD_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAABf0lEQVR4nO3cwUkDURRG4enHEtzEvfshHQgWcLcpJfbhIl3crZ1EAoIgeTEBzfzR78DZ5TF33plFmJA3TQAAAAAAAAAAAAAAAAAAAAAAAAAAALg9uuZV17zhfI6rawQ5XGjP+Rw3glSUgnSWgnSWgnSWgnSWgnSWgnSWgnSWgnSWgnSWgnSWmUGmaTrqy/ph6Q3bf/Uw02heQUoQQdaCRPkiyPIRWhBBfgxBZkFaEEEmQTIUJCBCCyLIokGe7++O+vr0uHiA/uJhptG8fybIP3YjSEUpSGcpSGcpSN96kI+/F1ziNuBG9zfi9tL9nQKGZn0qSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGUpSGXp5WKFvVz0+n3+Tf0e0lkK0lkK0lkK0v8wyOhEuVPfvkYnrr0NPr+7wmlvu8G1306sGd3fdrET5b4JdXTgE2t2Sz1ZPd7g3Yk1oyDLbfwIQcIQJAxBwhAkDEHCECQMQcIQJAxBwhAkDEGmH+EdPR0/XvA9afUAAAAASUVORK5CYII=";
@@ -1285,7 +1285,9 @@ if (CLAUDE_ENABLED) {
     let lastManualScrollAt = 0;
     let frameId = 0;
     let destroyed = !1;
-    const clawdPile = createClawdPile({
+    const clawdEnabled = () => !destroyed && hostDocument.documentElement.dataset.claudeClawd !== "off";
+    let clawdPileInstance = null;
+    const makeClawdPile = () => createClawdPile({
       doc: hostDocument,
       win: hostWindow,
       big: {
@@ -1296,6 +1298,91 @@ if (CLAUDE_ENABLED) {
         lower: () => clawdBigLower()
       }
     });
+    const clawdPile = Object.fromEntries([ "ensure", "left", "destroy", "hush", "peek", "seats", "trackSeats", "seatLive", "bigSat", "blocks", "riderCount", "unloadBig", "follow", "followEnd", "restack" ].map(key => [ key, (...args) => {
+      if (key === "destroy") {
+        clawdPileInstance?.destroy();
+        clawdPileInstance = null;
+        return;
+      }
+      clawdEnabled() && key === "ensure" && !clawdPileInstance && (clawdPileInstance = makeClawdPile());
+      if (clawdEnabled() && clawdPileInstance) return clawdPileInstance[key](...args);
+      if (key === "trackSeats") return () => [];
+      return [ "seats", "blocks" ].includes(key) ? [] : key === "riderCount" ? 0 : null;
+    } ]));
+    const clawdFrames = new Set, clawdTimers = new Set;
+    function requestClawdFrame(fn) {
+      if (!clawdEnabled()) return 0;
+      const id = hostWindow.requestAnimationFrame(now => {
+        clawdFrames.delete(id);
+        clawdEnabled() && fn(now);
+      });
+      clawdFrames.add(id);
+      return id;
+    }
+    function clawdLater(fn, ms) {
+      if (!clawdEnabled()) return 0;
+      const id = hostWindow.setTimeout(() => {
+        clawdTimers.delete(id);
+        clawdEnabled() && fn();
+      }, ms);
+      clawdTimers.add(id);
+      return id;
+    }
+    function cancelClawdLater(id) {
+      clawdTimers.delete(id);
+      hostWindow.clearTimeout(id);
+    }
+    let clawdWasEnabled = null;
+    function syncClawdRuntime() {
+      const on = clawdEnabled();
+      if (on === clawdWasEnabled) return;
+      clawdWasEnabled = on;
+      if (on) {
+        clawdLastIdleTickAt = Date.now();
+        clawdRuntimeTimer = hostWindow.setInterval(clawdRuntimeTick, 200);
+        ensureComposerClawd();
+        return;
+      }
+      hostWindow.clearInterval(clawdRuntimeTimer);
+      clawdRuntimeTimer = 0;
+      for (const id of clawdFrames) hostWindow.cancelAnimationFrame(id);
+      for (const id of clawdTimers) hostWindow.clearTimeout(id);
+      clawdFrames.clear();
+      clawdTimers.clear();
+      clawdPile.destroy();
+      cleanupClawdRigEffects();
+      A2.flying++;
+      A2.seqRun++;
+      A2.lockUntil = 0;
+      A2.lockName = "";
+      const button = composerClawd();
+      if (A2.pointerId != null) try {
+        button?.releasePointerCapture(A2.pointerId);
+      } catch {}
+      A2.held = A2.dragging = A2.petting = !1;
+      A2.pointerId = null;
+      A2.x = A2.fy = A2.floor = A2.homeX = A2.rot = 0;
+      A2.sqx = A2.sqy = 1;
+      A2.bndRaf = A2.petTimer = A2.squashTimer = 0;
+      A2.bndReady = !1;
+      lookRaf = dozeTimer = clawdScrollRestTimer = clawdPileRestTimer = 0;
+      clawdWalkNudge = null;
+      clawdScrollHolding = !1;
+      clawdTracks.B = "idle";
+      clawdTracks.C = null;
+      clawdTracks.bUntil = clawdTracks.cUntil = 0;
+      if (typeof clawdReadingGate !== 'undefined') clawdReadingGate.reset(true);
+      if (typeof clawdComposerReaction !== 'undefined') clawdComposerReaction.reset();
+      clawdFormRO?.disconnect();
+      clawdFormRO = null;
+      clawdFormObserved = null;
+      hostDocument.querySelectorAll("button." + BUTTON_CLASS).forEach(node => {
+        node.getAnimations?.({
+          subtree: !0
+        }).forEach(animation => animation.cancel());
+        node.remove();
+      });
+    }
     let streamFollow = null;
     let previousTypingActive = !1;
     let generationEventActive = !1;
@@ -1439,6 +1526,8 @@ if (CLAUDE_ENABLED) {
     let clawdLetterPending = !1;
     const A2_TIER = [ "t1", "t2", "t3", "t4", "t5" ];
     const A2_TMS = [ 600, 700, 700, 1100, 0 ];
+    const A2_RICH_TIER = 1;
+    const A2_DRAG_THRESHOLD = 5;
     const A2_EDGE = 6;
     const A2_FORM_INSET = 8;
     const A2_FALLBACK_CEILING = 240;
@@ -1567,9 +1656,10 @@ if (CLAUDE_ENABLED) {
       return clawdTracks.C || clawdTracks.A || clawdTracks.B || "idle";
     }
     function renderClawdTracks() {
+      if (!clawdEnabled()) return;
       const visible = clawdVisibleState();
       const owner = clawdTracks.C ? "C" : clawdTracks.A ? "A" : "B";
-      const clawdEnabled = hostDocument.documentElement.dataset.claudeClawd !== "off";
+      const showClawd = clawdEnabled();
       const generationInFlight = clawdTracks.A === "think" || clawdTracks.A === "stream" || clawdTracks.A === "sit";
       clawdVisualNodes().forEach(button => {
         const isComposer = button.classList.contains("clawd-composer-clawd");
@@ -1582,7 +1672,7 @@ if (CLAUDE_ENABLED) {
           clawdRole: isComposer ? "composer" : "signoff"
         };
         for (const [key, value] of Object.entries(state)) button.dataset[key] !== value && (button.dataset[key] = value);
-        const display = !clawdEnabled || !isComposer && generationInFlight ? "none" : "block";
+        const display = !showClawd || !isComposer && generationInFlight ? "none" : "block";
         button.style.getPropertyValue("display") === display && button.style.getPropertyPriority("display") === "important" || button.style.setProperty("display", display, "important");
         isComposer && syncClawdRig(button, owner);
       });
@@ -1601,10 +1691,11 @@ if (CLAUDE_ENABLED) {
     let clawdRigPrewarmTimer = 0;
     let clawdRigPrewarmIsIdle = !1;
     function clawdRigSchedulePrewarm() {
+      if (!clawdEnabled()) return;
       if (clawdRigPrewarmTimer) return;
       const run = () => {
         clawdRigPrewarmTimer = 0;
-        if (destroyed) return;
+        if (!clawdEnabled()) return;
         const style = hostDocument.getElementById(CLAWD_RIG_STYLE_ID);
         if (!style) return;
         const composer = hostDocument.querySelector(`#send_form > button.${BUTTON_CLASS}.clawd-composer-clawd`);
@@ -1617,7 +1708,7 @@ if (CLAUDE_ENABLED) {
       clawdRigPrewarmIsIdle = typeof hostWindow.requestIdleCallback === "function";
       clawdRigPrewarmTimer = clawdRigPrewarmIsIdle ? hostWindow.requestIdleCallback(run, {
         timeout: 4e3
-      }) : hostWindow.setTimeout(run, 1500);
+      }) : clawdLater(run, 1500);
     }
     function ensureClawdRigClipCss(id) {
       if (clawdRigInjected.has(id)) return;
@@ -1690,7 +1781,7 @@ if (CLAUDE_ENABLED) {
     function removeClawdRigGhost(layer) {
       const job = clawdRigGhostJobs.get(layer);
       if (job) {
-        hostWindow.clearTimeout(job.timer);
+        cancelClawdLater(job.timer);
         job.animations.forEach(animation => animation.cancel());
         clawdRigGhostJobs.delete(layer);
       }
@@ -1698,7 +1789,7 @@ if (CLAUDE_ENABLED) {
     }
     function cleanupClawdRigEffects() {
       if (clawdRigPrewarmTimer) {
-        clawdRigPrewarmIsIdle ? hostWindow.cancelIdleCallback?.(clawdRigPrewarmTimer) : hostWindow.clearTimeout(clawdRigPrewarmTimer);
+        clawdRigPrewarmIsIdle ? hostWindow.cancelIdleCallback?.(clawdRigPrewarmTimer) : cancelClawdLater(clawdRigPrewarmTimer);
         clawdRigPrewarmTimer = 0;
       }
       for (const layer of clawdRigGhostJobs.keys()) removeClawdRigGhost(layer);
@@ -1844,7 +1935,7 @@ if (CLAUDE_ENABLED) {
       });
       host.append(layer);
       const job = {
-        timer: hostWindow.setTimeout(() => removeClawdRigGhost(layer), 1200),
+        timer: clawdLater(() => removeClawdRigGhost(layer), 1200),
         animations: []
       };
       clawdRigGhostJobs.set(layer, job);
@@ -1869,7 +1960,7 @@ if (CLAUDE_ENABLED) {
         const now = Date.now();
         if (curBase === "tilt") {
           clawdRigUntiltUntil = now + CLAWD_RIG.clips.untilt.dur;
-          hostWindow.setTimeout(() => {
+          clawdLater(() => {
             destroyed || renderClawdTracks();
           }, CLAWD_RIG.clips.untilt.dur + 20);
           clip = "untilt";
@@ -1948,7 +2039,7 @@ if (CLAUDE_ENABLED) {
       if (!button) return null;
       if (A2.held) {
         A2.petting = !1;
-        hostWindow.clearTimeout(A2.petTimer);
+        cancelClawdLater(A2.petTimer);
         return null;
       }
       button.style.setProperty("transition", "transform .4s cubic-bezier(.4,0,.2,1)", "important");
@@ -1958,7 +2049,7 @@ if (CLAUDE_ENABLED) {
         A2.homeX = A2.x;
       }
       a2Place(button);
-      hostWindow.setTimeout(() => {
+      clawdLater(() => {
         if (!A2.held) {
           button.style.removeProperty("transition");
           scheduleA2BoundsWarm(button);
@@ -2005,6 +2096,7 @@ if (CLAUDE_ENABLED) {
       setClawdA(outcome, CLAWD_RIG.clips[outcome]?.dur || 1400);
     }
     function syncClawdBState() {
+      if (!clawdEnabled()) return;
       const box = hostDocument.querySelector("#send_textarea");
       const focused = Boolean(box && hostDocument.activeElement === box);
       const text = box?.value?.trim() || "";
@@ -2174,9 +2266,9 @@ if (CLAUDE_ENABLED) {
         const k = Math.min(1, Math.max(0, (Date.now() - t0) / walkMs));
         A2.x = from + (to - from) * k;
         a2Place(button);
-        k < 1 ? hostWindow.requestAnimationFrame(step) : end();
+        k < 1 ? requestClawdFrame(step) : end();
       };
-      hostWindow.requestAnimationFrame(step);
+      requestClawdFrame(step);
       return intro + walkMs + 50;
     }
     let clawdFormRO = null, clawdFormObserved = null, clawdFormW = 0;
@@ -2205,12 +2297,13 @@ if (CLAUDE_ENABLED) {
       walking || button.style.setProperty("transition", "none", "important");
       a2Place(button);
       clawdPile.restack();
-      walking || hostWindow.requestAnimationFrame(() => {
+      walking || requestClawdFrame(() => {
         clawdWalkNudge || A2.held || button.style.removeProperty("transition");
       });
       scheduleA2BoundsWarm(button);
     }
     function ensureComposerClawd() {
+      if (!clawdEnabled()) return null;
       const form = hostDocument.querySelector("#send_form");
       if (!form) return null;
       let button = composerClawd();
@@ -2224,12 +2317,13 @@ if (CLAUDE_ENABLED) {
       syncClawdBState();
       return button;
     }
+    const CLAWD_TIRED_SIT_MS = 12e3;
+    const CLAWD_GEN_MAX_MS = 3e5;
     function clawdRuntimeTick() {
-      if (destroyed) return;
+      if (!clawdEnabled()) return;
       const now = Date.now();
-      genTimerStartedAt && tickGenTimer();
       const inGeneration = clawdTracks.A === "think" || clawdTracks.A === "stream" || clawdTracks.A === "sit";
-      if (inGeneration && generationEventActive && now - clawdTracks.genStartedAt >= 3e5) settleClawdGeneration("stopped"); else if (clawdTracks.A === "think" && generationEventActive && now - clawdTracks.aStartedAt >= 900) setClawdA("stream"); else if (clawdTracks.A === "stream" && generationEventActive && now - clawdTracks.aStartedAt >= 12e3) {
+      if (inGeneration && generationEventActive && now - clawdTracks.genStartedAt >= CLAWD_GEN_MAX_MS) settleClawdGeneration("stopped"); else if (clawdTracks.A === "think" && generationEventActive && now - clawdTracks.aStartedAt >= 900) setClawdA("stream"); else if (clawdTracks.A === "stream" && generationEventActive && now - clawdTracks.aStartedAt >= CLAWD_TIRED_SIT_MS) {
         clawdTracks.A = "sit";
         renderClawdTracks();
       } else clawdTracks.aUntil && now >= clawdTracks.aUntil && (clawdTracks.A === "think" || clawdTracks.A === "stream" || clawdTracks.A === "sit" ? generationEventActive || settleClawdGeneration("done") : setClawdA(null));
@@ -2255,6 +2349,7 @@ if (CLAUDE_ENABLED) {
     }
     let genTimerEl = null;
     let genTimerStartedAt = 0;
+    let genTimerTickTimer = 0;
     let genTimerLingerTimer = 0;
     function genTimerEnabled() {
       return hostDocument.documentElement.dataset.claudeGenTimer !== "off";
@@ -2284,8 +2379,11 @@ if (CLAUDE_ENABLED) {
       el.classList.remove("clawd-gen-timer-done");
       el.classList.add("clawd-gen-timer-visible");
       tickGenTimer();
+      genTimerTickTimer || (genTimerTickTimer = hostWindow.setInterval(tickGenTimer, 200));
     }
     function stopGenTimer() {
+      hostWindow.clearInterval(genTimerTickTimer);
+      genTimerTickTimer = 0;
       if (!genTimerStartedAt || !genTimerEl) return;
       const elapsed = (hostWindow.performance.now() - genTimerStartedAt) / 1e3;
       genTimerEl.textContent = (ccPrefersChinese() ? "用时 " : "took ") + elapsed.toFixed(1) + "s";
@@ -2801,7 +2899,7 @@ if (CLAUDE_ENABLED) {
         A2.seqOwned = !0;
         setClawdC(steps[index][0], 0);
         A2.seqOwned = !1;
-        hostWindow.setTimeout(() => run(index + 1), steps[index][1]);
+        clawdLater(() => run(index + 1), steps[index][1]);
       };
       run(0);
     }
@@ -2866,7 +2964,7 @@ if (CLAUDE_ENABLED) {
     function scheduleA2BoundsWarm(button = composerClawd()) {
       A2.bndReady = !1;
       if (A2.bndRaf || !button) return;
-      A2.bndRaf = hostWindow.requestAnimationFrame(() => {
+      A2.bndRaf = requestClawdFrame(() => {
         A2.bndRaf = 0;
         if (destroyed || A2.held || !button.isConnected) return;
         A2.bnd = a2Walls(button);
@@ -2931,9 +3029,9 @@ if (CLAUDE_ENABLED) {
         button.setPointerCapture(event.pointerId);
       } catch (error) {}
       A2.wokeOnDown || setClawdC(A2.fy < A2.floor - .5 ? "grab" : "press", 0);
-      hostWindow.clearTimeout(A2.petTimer);
+      cancelClawdLater(A2.petTimer);
       A2.petting = !1;
-      A2.petTimer = hostWindow.setTimeout(() => {
+      A2.petTimer = clawdLater(() => {
         A2.petTimer = 0;
         if (!A2.held || A2.moved || A2.fy < A2.floor - .5) return;
         A2.petting = clawdPet();
@@ -2944,11 +3042,11 @@ if (CLAUDE_ENABLED) {
       const dx = event.clientX - A2.sx;
       const dy = event.clientY - A2.sy;
       let dragStarted = !1;
-      if (!A2.moved && Math.abs(dx) + Math.abs(dy) > 5) {
+      if (!A2.moved && Math.abs(dx) + Math.abs(dy) > A2_DRAG_THRESHOLD) {
         A2.moved = !0;
         A2.dragging = !0;
         dragStarted = !0;
-        hostWindow.clearTimeout(A2.petTimer);
+        cancelClawdLater(A2.petTimer);
         A2.petting = !1;
         clawdPile.unloadBig("lower");
         if (A2.floor) {
@@ -2956,7 +3054,7 @@ if (CLAUDE_ENABLED) {
           clawdPile.bigSat(null);
         }
         setClawdC("grab", 0);
-        hostWindow.setTimeout(() => {
+        clawdLater(() => {
           if (A2.dragging) {
             clawdRigPickVariant("drag");
             setClawdC("drag", 0);
@@ -2980,7 +3078,7 @@ if (CLAUDE_ENABLED) {
       if (!A2.held || event && event.pointerId !== A2.pointerId) return;
       A2.held = !1;
       A2.tookPointer = !0;
-      hostWindow.clearTimeout(A2.petTimer);
+      cancelClawdLater(A2.petTimer);
       if (A2.petting && !A2.moved) {
         A2.petting = !1;
         A2.rot = 0;
@@ -3081,16 +3179,16 @@ if (CLAUDE_ENABLED) {
                 break;
               }
             }
-            (seat ? A2.x !== A2.homeX : A2.x > A2.bnd.maxxHome || A2.x < A2.bnd.minxHome || A2.x !== A2.homeX) && hostWindow.requestAnimationFrame(() => {
+            (seat ? A2.x !== A2.homeX : A2.x > A2.bnd.maxxHome || A2.x < A2.bnd.minxHome || A2.x !== A2.homeX) && requestClawdFrame(() => {
               if (my !== A2.flying) return;
               A2.x = Math.max(A2.bnd.minxHome, Math.min(A2.bnd.maxxHome, A2.x));
               A2.homeX = A2.x;
               a2Place(button);
-              hostWindow.setTimeout(() => clawdRigPixelSnap(button), 300);
+              clawdLater(() => clawdRigPixelSnap(button), 300);
             });
             scheduleA2BoundsWarm(button);
             if (drop) return;
-            hostWindow.setTimeout(() => {
+            clawdLater(() => {
               if (my !== A2.flying) return;
               A2.throws >= 5 ? a2SulkSeq() : A2.throws >= 3 ? setClawdC("stomp", CLAWD_RIG.clips[clawdRigPickVariant("stomp")].dur) : setClawdC(null);
             }, 840);
@@ -3103,8 +3201,8 @@ if (CLAUDE_ENABLED) {
             const q = P.sq * Math.min(1, Math.abs(by) / 7);
             A2.sqx = 1 + q;
             A2.sqy = 1 - q;
-            A2.squashTimer && hostWindow.clearTimeout(A2.squashTimer);
-            A2.squashTimer = hostWindow.setTimeout(() => {
+            A2.squashTimer && cancelClawdLater(A2.squashTimer);
+            A2.squashTimer = clawdLater(() => {
               A2.squashTimer = 0;
               if (my !== A2.flying) return;
               A2.sqx = 1;
@@ -3115,9 +3213,9 @@ if (CLAUDE_ENABLED) {
         }
         A2.rot = Math.max(-P.maxRot, Math.min(P.maxRot, -bx * P.spin));
         a2Place(button);
-        hostWindow.requestAnimationFrame(step);
+        requestClawdFrame(step);
       };
-      hostWindow.requestAnimationFrame(step);
+      requestClawdFrame(step);
     }
     const CLAWD_PET_HOLD_MS = 600;
     let clawdPetUntil = 0;
@@ -3149,7 +3247,7 @@ if (CLAUDE_ENABLED) {
       }
       A2.irr = Math.min(5, A2.irr + 1);
       const tier = A2.irr;
-      if (tier <= 1) {
+      if (tier <= A2_RICH_TIER) {
         a2RandomPoke(tier);
         clawdPokeReaction();
         return;
@@ -3197,7 +3295,7 @@ if (CLAUDE_ENABLED) {
     }
     function a2Cancel(button, event) {
       if (!A2.held || event && event.pointerId !== A2.pointerId) return;
-      hostWindow.clearTimeout(A2.petTimer);
+      cancelClawdLater(A2.petTimer);
       A2.petting = !1;
       A2.held = !1;
       A2.tookPointer = !0;
@@ -3247,7 +3345,7 @@ if (CLAUDE_ENABLED) {
       if (hostDocument.visibilityState !== "visible") return;
       if (clawdLetterPending) {
         clawdLetterPending = !1;
-        hostWindow.setTimeout(() => {
+        clawdLater(() => {
           if (destroyed || clawdTracks.A || clawdTracks.C || clawdTracks.B !== "idle") return;
           setClawdB("rig:letter", CLAWD_RIG.clips.letter.dur);
         }, 800);
@@ -3281,6 +3379,7 @@ if (CLAUDE_ENABLED) {
     const DOZE_OFF_MS = 1900;
     let dozeTimer = 0;
     function refreshIdleSleep() {
+      if (!clawdEnabled()) return;
       if (ccSleeping || !hasChatActivity) {
         neglected && setNeglected(!1);
         return;
@@ -3297,7 +3396,7 @@ if (CLAUDE_ENABLED) {
       } else setNeglected(!1);
       if (!idle) {
         if (dozeTimer) {
-          hostWindow.clearTimeout(dozeTimer);
+          cancelClawdLater(dozeTimer);
           dozeTimer = 0;
         }
         ccDrowsy && setDrowsy(!1);
@@ -3314,7 +3413,7 @@ if (CLAUDE_ENABLED) {
       if (dozeTimer) return;
       setNeglected(!1);
       setDrowsy(!0);
-      dozeTimer = hostWindow.setTimeout(() => {
+      dozeTimer = clawdLater(() => {
         dozeTimer = 0;
         if (Date.now() - lastActivityAt <= IDLE_SLEEP_MS) return;
         ccDrowsy = !1;
@@ -3323,10 +3422,11 @@ if (CLAUDE_ENABLED) {
       }, DOZE_OFF_MS);
     }
     function noteActivity() {
+      if (!clawdEnabled()) return;
       hasChatActivity = !0;
       lastActivityAt = Date.now();
       if (dozeTimer) {
-        hostWindow.clearTimeout(dozeTimer);
+        cancelClawdLater(dozeTimer);
         dozeTimer = 0;
       }
       setDrowsy(!1);
@@ -3404,6 +3504,7 @@ if (CLAUDE_ENABLED) {
       clawdTracks.B === "peek" && setClawdB("rig:peekOut", CLAWD_RIG.clips.peekOut.dur);
     }
     function clawdScrollTilt() {
+      if (!clawdEnabled()) return;
       if (destroyed || isTypingActive()) return;
       const host = scrollHost;
       if (!host) return;
@@ -3421,8 +3522,8 @@ if (CLAUDE_ENABLED) {
       const button = composerClawd();
       const bigPeeks = !!button && !(clawdTracks.C || a2Locked() || A2.held || Math.abs(A2.fy - A2.floor) > .5) && !(idleAsleep || ccSleeping || ccDrowsy || bBase === "sleep" || bBase === "drowsy");
       clawdPile.peek(!0, bigPeeks && !A2.floor ? 12 : 0, !!A2.floor);
-      clawdPileRestTimer && hostWindow.clearTimeout(clawdPileRestTimer);
-      clawdPileRestTimer = hostWindow.setTimeout(() => {
+      clawdPileRestTimer && cancelClawdLater(clawdPileRestTimer);
+      clawdPileRestTimer = clawdLater(() => {
         clawdPileRestTimer = 0;
         clawdPile.peek(!1);
       }, CLAWD_SCROLL_REST_MS);
@@ -3432,8 +3533,8 @@ if (CLAUDE_ENABLED) {
         setClawdB("peek", 6e4);
       }
       scheduleClawdBAmbient(now);
-      clawdScrollRestTimer && hostWindow.clearTimeout(clawdScrollRestTimer);
-      clawdScrollRestTimer = hostWindow.setTimeout(() => {
+      clawdScrollRestTimer && cancelClawdLater(clawdScrollRestTimer);
+      clawdScrollRestTimer = clawdLater(() => {
         clawdScrollRestTimer = 0;
         clawdScrollVel = 0;
         clawdScrollRelease();
@@ -5504,12 +5605,13 @@ if (CLAUDE_ENABLED) {
     }
     let lastMouseMoveAt = Date.now();
     function handleLook(event) {
+      if (!clawdEnabled()) return;
       if (event.buttons) return;
       lookX = event.clientX;
       lookY = event.clientY;
       lastMouseMoveAt = Date.now();
       if (lookRaf) return;
-      lookRaf = hostWindow.requestAnimationFrame(applyLook);
+      lookRaf = requestClawdFrame(applyLook);
     }
     function syncCcComposerState(focusedOverride) {
       syncClawdBState();
@@ -5892,19 +5994,34 @@ if (CLAUDE_ENABLED) {
       style.setAttribute("media", "not all");
       hostDocument.documentElement.dataset.claudeExternalSurface = "character-manager";
     }
+    const extraExternalModalCandidates = new Set;
+    function externalModalHost(element) {
+      if (!(element instanceof hostWindow.HTMLElement) || element.closest("dialog,[data-cw-lifted],.cw-v4-shell,.cw-pm-host,#top-settings-holder,#sheld")) return null;
+      if (element.matches('#bg1,#bg_custom,#bg_animation,#top-bar,[class*="clawd-"],[class*="cw-"]')) return null;
+      const semantic = element.matches('[role="dialog"],[aria-modal="true"]');
+      for (let node = element; node && node !== hostDocument.body; node = node.parentElement) {
+        const position = hostWindow.getComputedStyle(node).position;
+        if (position === "fixed" || semantic && position === "absolute") return node;
+      }
+      return null;
+    }
     function observeExternalModalCandidates() {
       if (!externalModalObserver) return [];
-      const candidates = [ ...hostDocument.querySelectorAll(EXTERNAL_MODAL_SELECTOR) ];
-      for (const candidate of candidates) {
-        if (candidate === hostDocument.body || candidate === hostDocument.documentElement) continue;
-        externalModalObserver.observe(candidate, {
+      for (const candidate of extraExternalModalCandidates) candidate.isConnected || extraExternalModalCandidates.delete(candidate);
+      const sources = [ ...hostDocument.querySelectorAll(EXTERNAL_MODAL_SELECTOR), ...extraExternalModalCandidates ];
+      const candidates = new Set;
+      for (const source of sources) {
+        const host = externalModalHost(source);
+        if (!host) continue;
+        candidates.add(host);
+        for (let node = source; node && node !== hostDocument.body; node = node.parentElement) externalModalObserver.observe(node, {
           attributes: !0,
           attributeFilter: [ "class", "style", "hidden", "open" ]
         });
       }
-      return candidates;
+      return [ ...candidates ];
     }
-    function isVisibleFullScreenExternalModal(element) {
+    function isVisibleExternalModal(element) {
       if (!(element instanceof hostWindow.HTMLElement)) return !1;
       if (element.id === "cw-v4-settings") return !1;
       try {
@@ -5917,11 +6034,13 @@ if (CLAUDE_ENABLED) {
       if (rail && (rail === element || rail.contains(element) || element.contains(rail))) return !1;
       const style = hostWindow.getComputedStyle(element);
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return !1;
-      if (style.position !== "fixed") return !1;
+      if (![ "fixed", "absolute" ].includes(style.position)) return !1;
+      if (element.checkVisibility && !element.checkVisibility({
+        checkOpacity: !0,
+        checkVisibilityCSS: !0
+      })) return !1;
       const rect = element.getBoundingClientRect();
-      const viewportWidth = Math.max(1, hostWindow.innerWidth || hostDocument.documentElement.clientWidth || 1);
-      const viewportHeight = Math.max(1, hostWindow.innerHeight || hostDocument.documentElement.clientHeight || 1);
-      return rect.width >= viewportWidth * .7 && rect.height >= viewportHeight * .7;
+      return rect.width > 0 && rect.height > 0;
     }
     const liftedExternalModals = new Map;
     function liftExternalModals(modals) {
@@ -5942,11 +6061,15 @@ if (CLAUDE_ENABLED) {
       }
     }
     function syncExternalModalRailLayer() {
-      const modals = observeExternalModalCandidates().filter(isVisibleFullScreenExternalModal);
+      const modals = observeExternalModalCandidates().filter(isVisibleExternalModal);
       const modalOpen = modals.length > 0;
       setBodyClass("clawd-external-modal-open", modalOpen);
       restoreExternalModalRailLayer();
       liftExternalModals(modalOpen ? modals : []);
+      hostWindow.__claudeOfficialLayout?.setExternalModals(modals);
+    }
+    function onExternalModalAnimationEnd(event) {
+      externalModalHost(event.target) && scheduleExternalSurfaceIsolation();
     }
     function restoreExternalModalRailLayer() {
       const states = externalModalRailState;
@@ -6010,6 +6133,7 @@ if (CLAUDE_ENABLED) {
       return !!drawer && drawer !== node;
     }
     function handleObservedMutations(records) {
+      if (hostDocument.documentElement.hasAttribute("data-cw-sheet") || hostDocument.querySelector("dialog.cw-v4-editor[open]")) for (const record of records) if (record.type === "childList" && record.target === hostDocument.body) for (const node of record.addedNodes) node instanceof hostWindow.HTMLElement && extraExternalModalCandidates.add(node);
       if (records.some(inClawdPile)) {
         records = records.filter(r => !inClawdPile(r));
         if (!records.length) return;
@@ -6071,6 +6195,7 @@ if (CLAUDE_ENABLED) {
       frameId = 0;
       lastRefreshAt = Date.now();
       if (destroyed) return;
+      syncClawdRuntime();
       watchGenerationEvents();
       setBodyClass(READY_CLASS, !0);
       const typingActive = isTypingActive();
@@ -6306,6 +6431,8 @@ if (CLAUDE_ENABLED) {
       }
     }
     function destroy() {
+      hostWindow.clearInterval(genTimerTickTimer);
+      genTimerTickTimer = 0;
       clawdRuntimeTimer && hostWindow.clearInterval(clawdRuntimeTimer);
       clawdRuntimeTimer = 0;
       genTimerLingerTimer && hostWindow.clearTimeout(genTimerLingerTimer);
@@ -6315,12 +6442,16 @@ if (CLAUDE_ENABLED) {
       reconcileTimer = 0;
       if (destroyed) return;
       destroyed = !0;
+      syncClawdRuntime();
       clawdPile.destroy();
       hostWindow.clearTimeout(pushLiveTimer);
       hostDocument.documentElement.removeAttribute("data-cw-push");
       cleanupClawdRigEffects();
       externalModalObserver?.disconnect();
       externalModalObserver = null;
+      hostDocument.removeEventListener("transitionend", onExternalModalAnimationEnd);
+      hostDocument.removeEventListener("animationend", onExternalModalAnimationEnd);
+      extraExternalModalCandidates.clear();
       hostDocument.body.classList.remove("clawd-external-modal-open");
       restoreExternalModalRailLayer();
       liftExternalModals([]);
@@ -6488,7 +6619,11 @@ if (CLAUDE_ENABLED) {
     }
     const api = {
       destroy: destroy,
-      refresh: scheduleRefresh,
+      refresh: () => {
+        syncClawdRuntime();
+        scheduleRefresh();
+      },
+
       clawdState: () => ({
         A: clawdTracks.A,
         B: clawdTracks.B,
@@ -6566,6 +6701,8 @@ if (CLAUDE_ENABLED) {
       hostDocument.body.classList.toggle(MOBILE_LAYOUT_CLASS, mobileEnabled);
       hostDocument.body.classList.toggle("clawd-tauritavern-host", isTauriTavernHost());
       externalModalObserver = new hostWindow.MutationObserver(scheduleExternalSurfaceIsolation);
+      hostDocument.addEventListener("transitionend", onExternalModalAnimationEnd);
+      hostDocument.addEventListener("animationend", onExternalModalAnimationEnd);
       externalModalObserver.observe(hostDocument.documentElement, {
         attributes: !0,
         attributeFilter: [ "data-cw-v4-settings" ]
@@ -6574,10 +6711,7 @@ if (CLAUDE_ENABLED) {
       syncExternalModalRailLayer();
       installVirtualKeyboardOverlay();
       watchGenerationEvents();
-      if (!clawdRuntimeTimer) {
-        clawdLastIdleTickAt = Date.now();
-        clawdRuntimeTimer = hostWindow.setInterval(clawdRuntimeTick, 200);
-      }
+      syncClawdRuntime();
       observer = new hostWindow.MutationObserver(handleObservedMutations);
       chatAttributeObserver = new hostWindow.MutationObserver(handleObservedMutations);
       observer.observe(hostDocument.body, BODY_OBSERVER_INIT);
