@@ -316,20 +316,20 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-mapped-setting[hidden]{display
 .cw-v4-segment-option:has(input:checked){background:var(--cw-v4-bg);box-shadow:0 1px 3px #0001}
 .cw-v4-segment-option input[type=radio]{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
 .cw-v4-segment-option:has(input:focus-visible){outline:2px solid #2a78d6}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row{display:flex;align-items:center;gap:12px;min-height:60px;border:0!important;border-bottom:1px solid var(--cw-v4-line)!important;background:none!important;padding:12px 0!important;box-shadow:none!important}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-toggle-action{order:0;position:relative;flex:0 0 36px;height:21px;border-radius:12px;background:#2a78d6!important;cursor:pointer}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-toggle-action::before{display:none!important}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-toggle-action::after{content:'';position:absolute;width:17px;height:17px;top:2px;left:17px;border-radius:50%;background:white}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-toggle-action.fa-toggle-off{background:#d9d9d9!important}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-toggle-action.fa-toggle-off::after{left:2px}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.completion_prompt_manager_prompt_name{order:1;flex:1;min-width:0;font:400 15px/1.5 var(--cw-v4-font)!important}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.completion_prompt_manager_prompt_name>.fa-fw{display:none}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt_manager_prompt_tokens{order:2;font:400 13px/1.5 var(--cw-v4-font);color:var(--cw-v4-muted)}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-edit-action{order:3;border:1px solid var(--cw-v4-line);padding:8px 12px;border-radius:8px;cursor:pointer;flex:none}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.prompt-manager-edit-action::before{display:none!important}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.cw-v4-more{order:4}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>.drag-handle{order:5;opacity:.35;width:12px;cursor:grab}
-html[data-cw-v4] body #top-settings-holder .cw-v4-prompt-row>span:has(>.prompt_manager_prompt_controls){display:none}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]){display:flex;align-items:center;gap:12px;min-height:60px;border:0!important;border-bottom:1px solid var(--cw-v4-line)!important;background:none!important;padding:12px 0!important;box-shadow:none!important}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action{order:0;position:relative;flex:0 0 36px;height:21px;border-radius:12px;background:#2a78d6!important;cursor:pointer}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action::before{display:none!important}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action::after{content:'';position:absolute;width:17px;height:17px;top:2px;left:17px;border-radius:50%;background:white}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action.fa-toggle-off{background:#d9d9d9!important}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action.fa-toggle-off::after{left:2px}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.completion_prompt_manager_prompt_name{order:1;flex:1;min-width:0;font:400 15px/1.5 var(--cw-v4-font)!important}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.completion_prompt_manager_prompt_name>.fa-fw{display:none}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt_manager_prompt_tokens{order:2;font:400 13px/1.5 var(--cw-v4-font);color:var(--cw-v4-muted)}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action{order:3;border:1px solid var(--cw-v4-line);padding:8px 12px;border-radius:8px;cursor:pointer;flex:none}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action::before{display:none!important}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.cw-v4-more{order:4}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.drag-handle{order:5;opacity:.35;width:12px;cursor:grab}
+html[data-cw-v4] body #top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>span:has(>.prompt_manager_prompt_controls){display:none}
 @media(max-width:700px){html[data-cw-v4] .cw-v4-shell::before{content:'';position:absolute;top:58px;left:0;right:0;height:54px;background:var(--cw-v4-bg)}.cw-v4-segment{flex-wrap:wrap}.cw-v4-character-actions{gap:4px}}
 .cw-v4-character-actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
 html[data-cw-v4] body #top-settings-holder #rm_print_characters_block:not(.gridView) .character_select{flex-wrap:nowrap!important;gap:14px!important;align-items:center!important}
@@ -803,24 +803,24 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-pm-footer>.cw-v4-more{order:4;
 html[data-cw-v4] body #top-settings-holder .cw-v4-pm-footer>select~.cw-v4-more{margin-left:0}
 html[data-cw-v4] body #top-settings-holder .cw-v4-pm-footer.cw-v4-pm-no-insert>:is(select,.fa-chain,.fa-link){display:none!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-pm-footer.cw-v4-pm-no-insert>.cw-v4-more{margin-left:auto!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto auto auto;align-items:center;gap:14px!important;padding:11px 2px!important;margin:0!important;border:0!important;border-bottom:1px solid var(--v4-row-line)!important;border-radius:0!important;background:none!important;min-height:0!important;font-size:14px!important;box-shadow:none!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.drag-handle,
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>span:not([class]):not(:has(*:not(.prompt_manager_prompt_controls:empty))),
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row .completion_prompt_manager_prompt_name>:is(.fa-solid,.fa-fw,.fa-regular){display:none!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-toggle-action{grid-column:1;order:0;position:relative;display:inline-block!important;width:39px!important;height:22px!important;border-radius:999px;background:var(--v4-toggle-off)!important;font-size:0!important;cursor:pointer;margin:0!important;padding:0!important;color:transparent!important;flex:none;transition:background .15s}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-toggle-action::before{content:""!important;position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s;font-size:0}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-toggle-action.fa-toggle-on{background:var(--v4-toggle-on)!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-toggle-action.fa-toggle-on::before{transform:translateX(17px)}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row .completion_prompt_manager_prompt_name{grid-column:2;display:flex!important;flex-direction:column;align-items:flex-start;min-width:0;overflow:hidden;gap:0;margin:0!important;padding:0!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row .completion_prompt_manager_prompt_name>a{font:400 15px/1.35 var(--cw-v4-font)!important;color:var(--v4-text)!important;text-decoration:none!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row .cw-v4-pm-meta{font-size:13.5px;color:var(--v4-desc);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row .prompt_manager_prompt_tokens{grid-column:3;font-size:13.5px;color:var(--v4-desc);font-variant-numeric:tabular-nums;white-space:nowrap}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row .prompt_manager_prompt_tokens:not(:has(span:not(:empty))){display:none!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-edit-action{grid-column:4;display:inline-flex!important;align-items:center;justify-content:center;height:34px;padding:0 13px!important;border:1px solid var(--v4-ctl-line)!important;border-radius:8px!important;background:var(--v4-ctl)!important;color:var(--v4-text)!important;font-size:0!important;cursor:pointer;width:auto!important;margin:0!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-edit-action::before{display:none!important;content:none!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.prompt-manager-edit-action>.cw-v4-action-label{font:400 14px/1 var(--cw-v4-font)!important}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row>.cw-v4-more{grid-column:5}
-html[data-cw-v4] body #top-settings-holder li.cw-v4-prompt-row:is(.completion_prompt_manager_prompt_disabled,:has(.fa-toggle-off)) :is(.completion_prompt_manager_prompt_name,.prompt_manager_prompt_tokens){opacity:.45}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]){display:grid!important;grid-template-columns:auto minmax(0,1fr) auto auto auto;align-items:center;gap:14px!important;padding:11px 2px!important;margin:0!important;border:0!important;border-bottom:1px solid var(--v4-row-line)!important;border-radius:0!important;background:none!important;min-height:0!important;font-size:14px!important;box-shadow:none!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.drag-handle,
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>span:not([class]):not(:has(*:not(.prompt_manager_prompt_controls:empty))),
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .completion_prompt_manager_prompt_name>:is(.fa-solid,.fa-fw,.fa-regular){display:none!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action{grid-column:1;order:0;position:relative;display:inline-block!important;width:39px!important;height:22px!important;border-radius:999px;background:var(--v4-toggle-off)!important;font-size:0!important;cursor:pointer;margin:0!important;padding:0!important;color:transparent!important;flex:none;transition:background .15s}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action::before{content:""!important;position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s;font-size:0}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action.fa-toggle-on{background:var(--v4-toggle-on)!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action.fa-toggle-on::before{transform:translateX(17px)}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .completion_prompt_manager_prompt_name{grid-column:2;display:flex!important;flex-direction:column;align-items:flex-start;min-width:0;overflow:hidden;gap:0;margin:0!important;padding:0!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .completion_prompt_manager_prompt_name>a{font:400 15px/1.35 var(--cw-v4-font)!important;color:var(--v4-text)!important;text-decoration:none!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .cw-v4-pm-meta{font-size:13.5px;color:var(--v4-desc);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .prompt_manager_prompt_tokens{grid-column:3;font-size:13.5px;color:var(--v4-desc);font-variant-numeric:tabular-nums;white-space:nowrap}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .prompt_manager_prompt_tokens:not(:has(span:not(:empty))){display:none!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action{grid-column:4;display:inline-flex!important;align-items:center;justify-content:center;height:34px;padding:0 13px!important;border:1px solid var(--v4-ctl-line)!important;border-radius:8px!important;background:var(--v4-ctl)!important;color:var(--v4-text)!important;font-size:0!important;cursor:pointer;width:auto!important;margin:0!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action::before{display:none!important;content:none!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action>.cw-v4-action-label{font:400 14px/1 var(--cw-v4-font)!important}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.cw-v4-more{grid-column:5}
+html[data-cw-v4] body #top-settings-holder li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.completion_prompt_manager_prompt_disabled,:has(.fa-toggle-off)) :is(.completion_prompt_manager_prompt_name,.prompt_manager_prompt_tokens){opacity:.45}
 
 html[data-cw-v4] body #top-settings-holder #rm_print_characters_block{border-top:1px solid var(--v4-row-line)!important}
 html[data-cw-v4] body #top-settings-holder #rm_print_characters_block .character_select{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px!important;padding:11px 2px!important;margin:0!important;border:0!important;border-bottom:1px solid var(--v4-row-line)!important;border-radius:0!important;background:none!important;min-height:0!important}
@@ -867,21 +867,21 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-row-controls>tool
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-row-controls>toolcool-color-picker::part(button){width:34px;height:34px;border:0;border-radius:8px;padding:0;overflow:hidden}
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-row-controls>toolcool-color-picker::part(button-color){width:34px;height:34px;border-radius:0}
 
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row{grid-template-columns:auto minmax(0,1fr) auto auto auto!important;grid-auto-rows:auto!important;column-gap:14px!important;min-height:0!important;margin:0!important;padding:11px 2px!important;background:none!important;border:0!important;border-bottom:1px solid var(--v4-row-line)!important;border-radius:0!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row>.drag-handle,
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row>span:has(>.prompt_manager_prompt_controls){display:none!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row>.prompt-manager-toggle-action{grid-column:1!important;grid-row:1!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list .cw-v4-prompt-row .completion_prompt_manager_prompt_name{grid-column:2!important;grid-row:1!important;text-align:left!important;justify-self:stretch!important;align-items:flex-start!important;display:flex!important;flex-direction:column!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list .cw-v4-prompt-row .completion_prompt_manager_prompt_name>a{font:400 15px/1.35 var(--cw-v4-font)!important;color:var(--v4-text)!important;text-align:left!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list .cw-v4-prompt-row .completion_prompt_manager_prompt_name>.cw-v4-pm-meta{display:block!important;font:400 13.5px/1.3 var(--cw-v4-font)!important;color:var(--v4-desc)!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list .cw-v4-prompt-row .prompt_manager_prompt_tokens{grid-column:3!important;grid-row:1!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row>.prompt-manager-edit-action{grid-column:4!important;grid-row:1!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row>.cw-v4-more{grid-column:5!important;grid-row:1!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]){grid-template-columns:auto minmax(0,1fr) auto auto auto!important;grid-auto-rows:auto!important;column-gap:14px!important;min-height:0!important;margin:0!important;padding:11px 2px!important;background:none!important;border:0!important;border-bottom:1px solid var(--v4-row-line)!important;border-radius:0!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.drag-handle,
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>span:has(>.prompt_manager_prompt_controls){display:none!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action{grid-column:1!important;grid-row:1!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .completion_prompt_manager_prompt_name{grid-column:2!important;grid-row:1!important;text-align:left!important;justify-self:stretch!important;align-items:flex-start!important;display:flex!important;flex-direction:column!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .completion_prompt_manager_prompt_name>a{font:400 15px/1.35 var(--cw-v4-font)!important;color:var(--v4-text)!important;text-align:left!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .completion_prompt_manager_prompt_name>.cw-v4-pm-meta{display:block!important;font:400 13.5px/1.3 var(--cw-v4-font)!important;color:var(--v4-desc)!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]) .prompt_manager_prompt_tokens{grid-column:3!important;grid-row:1!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action{grid-column:4!important;grid-row:1!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.cw-v4-more{grid-column:5!important;grid-row:1!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-prompts .spreset-button-container{display:none!important}
 html[data-cw-v4] body #top-settings-holder #completion_prompt_manager .cw-v4-pm-footer{border:0!important;background:none!important;padding:6px 0 12px!important;margin:0!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row.cw-v4-pm-no-tokens .prompt_manager_prompt_tokens{display:none!important}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row:has(>.fa-toggle-off) :is(.completion_prompt_manager_prompt_name,.completion_prompt_manager_prompt_name *,.prompt_manager_prompt_tokens){opacity:.45}
-html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li.cw-v4-prompt-row:has(>.fa-toggle-off) .completion_prompt_manager_prompt_name *{opacity:1}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]).cw-v4-pm-no-tokens .prompt_manager_prompt_tokens{display:none!important}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):has(>.fa-toggle-off) :is(.completion_prompt_manager_prompt_name,.completion_prompt_manager_prompt_name *,.prompt_manager_prompt_tokens){opacity:.45}
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager #completion_prompt_manager_list>li:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):has(>.fa-toggle-off) .completion_prompt_manager_prompt_name *{opacity:1}
 html[data-cw-v4] body #top-settings-holder #completion_prompt_manager .cw-v4-pm-footer>.cw-v4-as-btn{display:inline-flex!important;align-items:center;justify-content:center;height:34px!important;min-height:34px!important;flex:0 0 auto!important;width:auto!important;min-width:0!important;padding:0 13px!important;margin:0!important;border:1px solid var(--v4-ctl-line)!important;border-radius:8px!important;background:var(--v4-ctl)!important;color:var(--v4-text)!important;font-size:0!important;box-shadow:none!important;position:static!important;transform:none!important}
 html[data-cw-v4] body #top-settings-holder #completion_prompt_manager .cw-v4-pm-footer>.cw-v4-as-btn::before{display:none!important;content:none!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel.cw-v4-panel .cw-v4-as-btn.cw-v4-as-btn{font-size:0!important;letter-spacing:0!important}
@@ -1179,7 +1179,7 @@ html[data-cw-v4][data-cw-v4-settings][data-claude-layout] body #top-settings-hol
 
 @media(max-width:700px){
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-section{content-visibility:auto;contain-intrinsic-size:auto 480px}
-html[data-cw-v4] body #top-settings-holder .cw-v4-panel :is(.cw-v4-row,.cw-v4-setting-row,.cw-v4-prompt-row,.cw-v4-world-row,.cw-v4-extension-item,.character_select,.avatar-container){content-visibility:auto;contain-intrinsic-size:auto 64px}
+html[data-cw-v4] body #top-settings-holder .cw-v4-panel :is(.cw-v4-row,.cw-v4-setting-row,:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]),.cw-v4-world-row,.cw-v4-extension-item,.character_select,.avatar-container){content-visibility:auto;contain-intrinsic-size:auto 64px}
 }
 
 
@@ -1363,19 +1363,19 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel [dat
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel [data-cw-kind=actions] :is(.cw-v4-action-label,.cw-v4-as-btn>span){font-size:17px!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel.cw-v4-panel.cw-v4-panel.cw-v4-panel [data-cw-kind=actions] :is([id*=delete],[title^="删除"],[title^="Delete"]){color:var(--v4-danger)!important}
 
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row{grid-template-columns:24px minmax(0,1fr) auto auto!important;column-gap:12px!important;align-items:center!important;padding:12px 16px!important;background:transparent!important;border:0!important;border-radius:0!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row+.cw-v4-prompt-row{border-top:1px solid var(--m-hair)!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-edit-action{grid-column:1!important;grid-row:1!important;order:0!important;justify-self:center;background:none!important;border:0!important;padding:0!important;width:24px!important;height:24px!important;min-width:0!important;color:var(--v4-text)!important;opacity:.8;font-size:18px!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row>.prompt-manager-edit-action .cw-v4-action-label{display:none!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row>.completion_prompt_manager_prompt_name{grid-column:2!important;grid-row:1!important;order:0!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row>details.cw-v4-more{grid-column:3!important;grid-row:1!important;order:0!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action{grid-column:4!important;grid-row:1!important;order:0!important;justify-self:end}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-edit-action::before{width:18px!important;height:18px!important;display:inline-block!important;content:""!important;background:currentColor!important;-webkit-mask:var(--cw-v4-icon-pencil) center/contain no-repeat!important;mask:var(--cw-v4-icon-pencil) center/contain no-repeat!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action{width:51px!important;height:31px!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action::before{width:27px!important;height:27px!important;box-shadow:0 2px 5px rgba(0,0,0,.18)!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action::before{top:2px!important;left:2px!important;transform:none!important;transition:left .15s!important;background:#fff!important;border-radius:50%!important;content:""!important;position:absolute!important;display:block!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action.fa-toggle-on::before{left:22px!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action::after{display:none!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]){grid-template-columns:24px minmax(0,1fr) auto auto!important;column-gap:12px!important;align-items:center!important;padding:12px 16px!important;background:transparent!important;border:0!important;border-radius:0!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])+:is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]){border-top:1px solid var(--m-hair)!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action{grid-column:1!important;grid-row:1!important;order:0!important;justify-self:center;background:none!important;border:0!important;padding:0!important;width:24px!important;height:24px!important;min-width:0!important;color:var(--v4-text)!important;opacity:.8;font-size:18px!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action .cw-v4-action-label{display:none!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.completion_prompt_manager_prompt_name{grid-column:2!important;grid-row:1!important;order:0!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>details.cw-v4-more{grid-column:3!important;grid-row:1!important;order:0!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action{grid-column:4!important;grid-row:1!important;order:0!important;justify-self:end}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-edit-action::before{width:18px!important;height:18px!important;display:inline-block!important;content:""!important;background:currentColor!important;-webkit-mask:var(--cw-v4-icon-pencil) center/contain no-repeat!important;mask:var(--cw-v4-icon-pencil) center/contain no-repeat!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action{width:51px!important;height:31px!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action::before{width:27px!important;height:27px!important;box-shadow:0 2px 5px rgba(0,0,0,.18)!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action::before{top:2px!important;left:2px!important;transform:none!important;transition:left .15s!important;background:#fff!important;border-radius:50%!important;content:""!important;position:absolute!important;display:block!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action.fa-toggle-on::before{left:22px!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action::after{display:none!important}
 }
 
 @media(max-width:700px){
@@ -1423,10 +1423,10 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel [dat
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel [data-cw-kind=actions][data-cw-many]:not(:has(>.cw-v4-row-info .cw-v4-row-title))>:is(.cw-v4-row-controls,.cw-v4-api-controls){margin-top:0!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel.cw-v4-panel.cw-v4-panel.cw-v4-panel.cw-v4-panel [data-cw-kind=actions][data-cw-many]:not(:has(>.cw-v4-row-info .cw-v4-row-title))>:is(.cw-v4-row-controls,.cw-v4-api-controls)>:first-child{border-top:0!important}
 
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row{grid-template-columns:24px minmax(0,1fr) auto auto auto!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel #completion_prompt_manager_list .cw-v4-prompt-row>.prompt_manager_prompt_tokens{grid-column:3!important;grid-row:1!important;order:0!important;justify-self:end!important;min-width:0!important;font-size:13px!important;color:var(--v4-muted)!important;font-variant-numeric:tabular-nums}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row>details.cw-v4-more{grid-column:4!important}
-html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .cw-v4-prompt-row.cw-v4-prompt-row>.prompt-manager-toggle-action{grid-column:5!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]){grid-template-columns:24px minmax(0,1fr) auto auto auto!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel #completion_prompt_manager_list :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt_manager_prompt_tokens{grid-column:3!important;grid-row:1!important;order:0!important;justify-self:end!important;min-width:0!important;font-size:13px!important;color:var(--v4-muted)!important;font-variant-numeric:tabular-nums}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>details.cw-v4-more{grid-column:4!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row]):is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action{grid-column:5!important}
 }
 
 
@@ -2687,7 +2687,7 @@ html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder
 @media(max-width:700px){
   html[data-cw-v4] .cw-menu.cw-recent-menu-list.cw-recent-menu-list{width:190px!important}
 }
-html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder #PersonaManagement :is(#lock_persona_default,#lock_persona_to_char,#lock_user_name):not(.locked):not(#zz1):not(#zz2):not(#zz3){background:#4a4945!important}html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .cw-v4-prompt-row>.prompt-manager-toggle-action.fa-toggle-off{background:#4a4945!important}
+html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder #PersonaManagement :is(#lock_persona_default,#lock_persona_to_char,#lock_user_name):not(.locked):not(#zz1):not(#zz2):not(#zz3){background:#4a4945!important}html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder :is(.cw-v4-prompt-row,[data-cw-v4-prompt-row])>.prompt-manager-toggle-action.fa-toggle-off{background:#4a4945!important}
 html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-segsel.cw-v4-segsel{background:transparent!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)!important}html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-segsel>button.cw-v4-segsel-item.cw-v4-segsel-item{color:#a3a19b!important}html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-segsel>button.cw-v4-segsel-item.cw-v4-segsel-item[aria-pressed=true]{background:#3d3c39!important;color:#ece9e2!important;border-color:transparent!important;box-shadow:none!important}html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .cw-v4-seg.cw-v4-seg{background:transparent!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)!important}
 @media(min-width:701px){html[data-cw-v4][data-claude-integrated-theme="night"] body #top-settings-holder#top-settings-holder .cw-v4-panel :is(.menu_button,.cw-v4-button,select):not(.cw-v4-segsel-item):not(.cw-v4-primary):not(#lock_persona_default):not(#lock_persona_to_char):not(#lock_user_name):not(.prompt-manager-toggle-action):not(#zz1):not(#zz2){background-color:#30302e!important;border-color:rgba(255,255,255,.1)!important}}
 
@@ -3586,3 +3586,11 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-
 
 /* API action labels replace the native text visually; preserve its node and handler. */
 html[data-cw-v4] body #top-settings-holder#top-settings-holder #rm_api_block .cw-v4-as-btn:has(>.cw-v4-action-label){font-size:0!important}
+
+/* A third-party renderer may give native prompt switches menu_button styles.
+   Keep the CW track only inside the adapted native prompt list. */
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #completion_prompt_manager_list li[data-cw-v4-prompt-row]>.prompt-manager-toggle-action{background:var(--v4-toggle-off)!important}
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #completion_prompt_manager_list li[data-cw-v4-prompt-row]>.prompt-manager-toggle-action.fa-toggle-on{background:var(--v4-toggle-on)!important}
+
+/* BaiBai groups contain a header and a nested prompt list, not prompt columns. */
+html[data-cw-v4] body #top-settings-holder #completion_prompt_manager_list>li.bai-bai-preset-group{display:flex!important;flex-direction:column!important;align-items:stretch!important}

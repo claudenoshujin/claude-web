@@ -434,7 +434,10 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     // Insert only lists prompts that are not in the list yet; hide it when empty.
     if(footer){const pick=footer.querySelector('select');footer.classList.toggle('cw-v4-pm-no-insert',!pick?.options.length);}
     panel.querySelectorAll('#completion_prompt_manager_list .completion_prompt_manager_prompt').forEach(item=>{
-      if(item.classList.contains('cw-v4-prompt-row'))return;item.classList.add('cw-v4-prompt-row');const s=state(item);s.cleanup=()=>item.classList.remove('cw-v4-prompt-row');
+      // Vue may replace the row's class attribute while retaining its DOM node.
+      // Keep CW ownership outside the renderer-owned class so controls and menus
+      // are not adapted twice after a native toggle update.
+      if(item.hasAttribute('data-cw-v4-prompt-row'))return;item.setAttribute('data-cw-v4-prompt-row','');item.classList.add('cw-v4-prompt-row');const s=state(item);s.cleanup=()=>{item.classList.remove('cw-v4-prompt-row');item.removeAttribute('data-cw-v4-prompt-row');};
       const toggle=item.querySelector('.prompt-manager-toggle-action'),edit=item.querySelector('.prompt-manager-edit-action'),name=item.querySelector('.completion_prompt_manager_prompt_name');
       // Grid cells: switch · name · tokens · Edit · ⋯ (the native icons live in a nested span).
       if(toggle){move(s,toggle,item,item.firstChild);toggle.setAttribute('role','switch');toggle.setAttribute('aria-label',t('切换提示词启用状态','Toggle prompt'));}
