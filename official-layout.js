@@ -1,5 +1,5 @@
 import { officialIcons } from './official-icons.js?v=2.0.122';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.127';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.128';
 import { tr } from './official-i18n.js?v=2.0.122';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
@@ -720,12 +720,13 @@ export function installOfficialLayout(win = window) {
       }, 'cw-v4-temporary');
       temp.setAttribute('aria-label',t('临时聊天','Temporary chat'));temp.title=t('临时聊天','Temporary chat');
       temp.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d=\"M3.6 20.3V12.05a8.45 8.45 0 0 1 16.9 0V20.3Q17.64 16.1 14.83 20.3 12.02 16.1 9.22 20.3 6.41 16.1 3.6 20.3Z\"/><circle cx=\"8.15\" cy=\"11.9\" r=\"1.25\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15.9\" cy=\"11.9\" r=\"1.25\" fill=\"currentColor\" stroke=\"none\"/></svg>';
-      /* 2.0.286（design-flavor-v3，Lulu 定）：照 Claude App，对话页右上角换成「新建对话」气泡 + ⋯（⋯ 纯装饰）；欢迎页仍是幽灵。
+      /* 2.0.286（design-flavor-v3，Lulu 定）：照 Claude App，对话页右上角换成「新建对话」气泡 + ⋯；欢迎页仍是幽灵。
          显隐交给 CSS 看 body.clawd-welcome。气泡点了等于侧栏底部「+ 新对话」。 */
-      const fresh = button('', () => doc.querySelector('.clawd-mobile-new-chat')?.click(), 'cw-v4-newchat-top');
+      const fresh = button('', () => (doc.getElementById('option_start_new_chat') || doc.querySelector('.clawd-mobile-new-chat'))?.click(), 'cw-v4-newchat-top');
       fresh.setAttribute('aria-label',t('新对话','New chat'));fresh.title=t('新对话','New chat');
       fresh.innerHTML='<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.6c-4.75 0-8.6 3.35-8.6 7.5 0 2.15 1.03 4.08 2.7 5.45l-.75 3.85 4.05-2.05c.83.2 1.7.3 2.6.3 4.75 0 8.6-3.35 8.6-7.55S16.75 3.6 12 3.6Z" fill="currentColor"/><path d="M12 7.9v6.4M8.8 11.1h6.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>';
-      const more = make('span', 'cw-v4-more-top'); more.setAttribute('aria-hidden','true');
+      const more = make('button', 'cw-v4-more-top'); more.type = 'button';
+      more.setAttribute('aria-label',t('当前对话操作','Current chat actions')); more.title = t('当前对话操作','Current chat actions');
       more.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
       chrome.append(fresh, more);
       chrome.append(temp);
@@ -1115,6 +1116,59 @@ export function installOfficialLayout(win = window) {
     // 有 sub 的一项：电脑上鼠标移上去 / 点一下，在右边贴着这一行展开；手机上点了把菜单换成下一级。
     let cwMenu = null;
     const closeCwMenu = () => { if (cwMenu?.classList.contains('cw-sd')) doc.getElementById('sd_gen')?.classList.remove('cw-on'); cwMenu?.remove(); cwMenu = null; };
+    let chatActionBusy = false;
+    async function currentChatAction(kind) {
+      if (chatActionBusy) return;
+      chatActionBusy = true;
+      try {
+        const st = await import(new URL('/script.js', win.location.href).href);
+        const ctx = win.SillyTavern?.getContext?.();
+        const target = { id: st.getCurrentChatId(), character: ctx?.characterId, group: ctx?.groupId };
+        if (!target.id) { win.toastr?.info?.(t('请先打开一个角色或群组对话','Open a character or group chat first')); return; }
+        if (st.isGenerating()) { win.toastr?.info?.(t('请先停止生成','Please stop generation first')); return; }
+        const stillCurrent = () => {
+          const live = win.SillyTavern?.getContext?.();
+          return st.getCurrentChatId() === target.id && live?.characterId === target.character && live?.groupId === target.group;
+        };
+        if (kind === 'rename') {
+          const [popup, templates] = await Promise.all([
+            import(new URL('/scripts/popup.js', win.location.href).href),
+            import(new URL('/scripts/templates.js', win.location.href).href),
+          ]);
+          const name = await popup.callGenericPopup(await templates.renderTemplateAsync('chatRename'), popup.POPUP_TYPE.INPUT, target.id);
+          if (!name || typeof name !== 'string' || name === target.id) return;
+          if (!stillCurrent() || st.isGenerating()) { win.toastr?.info?.(t('当前对话已改变，请重新操作','The current chat changed. Please try again.')); return; }
+          await st.saveChatConditional();
+          if (!stillCurrent() || st.isGenerating()) { win.toastr?.info?.(t('当前对话已改变，请重新操作','The current chat changed. Please try again.')); return; }
+          await st.renameChat(target.id, name);
+        } else {
+          await st.saveChatConditional();
+          if (!stillCurrent() || st.isGenerating()) { win.toastr?.info?.(t('当前对话已改变，请重新操作','The current chat changed. Please try again.')); return; }
+          const filename = target.id + '.jsonl';
+          const response = await win.fetch('/api/chats/export', {
+            method: 'POST', headers: st.getRequestHeaders(),
+            body: JSON.stringify({is_group: !!target.group, avatar_url: ctx.characters?.[target.character]?.avatar, file: filename, exportfilename: filename, format: 'jsonl'}),
+          });
+          const data = await response.json();
+          if (!response.ok || typeof data.result !== 'string') throw new Error(data.message || t('导出失败','Export failed'));
+          const utils = await import(new URL('/scripts/utils.js', win.location.href).href);
+          await utils.download(data.result, filename, 'application/octet-stream', {throwOnFailure: true});
+        }
+      } catch (error) {
+        console.warn('[Claude Web] current chat action', error);
+        win.toastr?.error?.(t('对话操作失败：','Chat action failed: ') + error.message);
+      } finally { chatActionBusy = false; }
+    }
+    on(doc, 'click', e => {
+      const anchor = e.target.closest?.('.cw-v4-more-top');
+      if (!enabled() || !anchor) return;
+      e.preventDefault(); e.stopPropagation();
+      if (cwMenu?.classList.contains('cw-chat-actions')) { closeCwMenu(); return; }
+      popMenu(anchor, [
+        {label:t('重命名当前对话','Rename current chat'),run:()=>currentChatAction('rename')},
+        {label:t('导出当前对话','Export current chat'),run:()=>currentChatAction('export')},
+      ], {cls:'cw-chat-actions'});
+    });
     function popMenu(anchor, items, {up = false, cls = ''} = {}) {
       closeCwMenu();
       const wrap = make('div', 'cw-menu-wrap' + (cls ? ' ' + cls : ''));
