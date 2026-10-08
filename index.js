@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.123. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.124. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,13 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.123";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.124";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.123";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.124";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.123";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.124";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.123";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.124";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -370,7 +370,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.123-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.124-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -386,7 +386,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.123", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.124", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -796,6 +796,7 @@ if (CLAUDE_ENABLED) {
     let destroyed = !1;
     let restoreResult = null;
     let hostPageUnloading = !1;
+    let hostPageHideConfirmed = !1, hostUnloadResetTimer = 0;
     let retryTimer = 0;
     let runnerRemovalTimer = 0;
     let runnerPresenceObserver = null;
@@ -1121,7 +1122,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.123", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.124", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -1149,6 +1150,7 @@ if (CLAUDE_ENABLED) {
       destroyed = !0;
       retryTimer && hostWindow.clearTimeout(retryTimer);
       runnerRemovalTimer && hostWindow.clearTimeout(runnerRemovalTimer);
+      hostUnloadResetTimer && hostWindow.clearTimeout(hostUnloadResetTimer);
       runnerPresenceObserver?.disconnect();
       runnerPresenceObserver = null;
       const watchdog = hostWindow[WATCHDOG_KEY];
@@ -1169,18 +1171,33 @@ if (CLAUDE_ENABLED) {
       });
       return restoreResult;
     }
-    function markHostPageUnloading() {
+    function markHostPageUnloading(event) {
       hostPageUnloading = !0;
+      hostUnloadResetTimer && hostWindow.clearTimeout(hostUnloadResetTimer);
+      if (event?.type === "pagehide") {
+        hostPageHideConfirmed = !0;
+        hostUnloadResetTimer = 0;
+      } else {
+        // beforeunload can be cancelled. A surviving page must not retain the
+        // navigation guard and suppress a later runner-removal recovery.
+        hostUnloadResetTimer = hostWindow.setTimeout(() => {
+          hostUnloadResetTimer = 0;
+          if (!hostPageHideConfirmed) hostPageUnloading = !1;
+        }, 0);
+      }
     }
     function handleRunnerPageHide(event) {
       if (event?.persisted || event?.originalEvent?.persisted) return;
+      // Host navigation keeps the user's enable preference. Only removal of a
+      // separate runner may restore the host's previous theme.
       destroy({
-        restore: !0
+        restore: !hostPageUnloading
       });
     }
     function handleRunnerPageShow(event) {
       if (!event?.persisted || destroyed) return;
       hostPageUnloading = !1;
+      hostPageHideConfirmed = !1;
       window.addEventListener("pagehide", handleRunnerPageHide, {
         once: !0
       });

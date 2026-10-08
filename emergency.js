@@ -2,7 +2,7 @@
 const RESTORE_KEY = 'claude-integrated-theme-restore:v2';
 const FILE_NAME = 'claude-web-safety-state-v1.json';
 const FILE_URL = '/user/files/' + FILE_NAME;
-const VERSION = '2.0.123';
+const VERSION = '2.0.124';
 const OWNED_THEME_CSS = new Set([":root {\n  --cl-color-scheme:light;\n  --cl-canvas:#f8f8f6;\n  --cl-surface:#ffffff;\n  --cl-soft:#f4f4f1;\n  --cl-soft-hover:#efeeeb;\n  --cl-line:rgba(31,31,30,.15);\n  --cl-line-strong:rgba(31,31,30,.25);\n  --cl-hero:#373734;\n  --cl-ink:#121212;\n  --cl-muted:#7b7974;\n  --cl-control-muted:#686660;\n  --cl-icon:#0b0b0b;\n  --cl-rail-ink:#0b0b0b;\n  --cl-accent:#d97757;\n  --cl-accent-soft:#f3e0d8;\n  --cl-code:#f0eee6;\n  --cl-em-color:#6c6b66;\n  --cl-code-ink:#633a2e;\n  --cl-send-hover:#c6613f;\n  --cl-selection:#efcfc2;\n  --cl-scrollbar:#c9c5bc;\n  --cl-scrollbar-hover:#aaa59b;\n  --cl-dialog-shadow:0 12px 36px rgba(50,45,35,.12);\n  --cl-composer-shadow:0 10px 30px rgba(43,40,34,.10);\n  --cl-floating-shadow:0 14px 38px rgba(43,40,34,.11);\n  --cl-topbar-surface:rgba(248,248,246,.98);\n  --cl-body-weight:430;\n  --cl-clawd-eye:#000000;\n  --cl-clawd-eye-row-a:#000000;\n  --cl-clawd-eye-row-b:#d97757;\n  --cl-greeting-particle-shadow:39px 0 0 var(--cl-ink),42px 0 0 var(--cl-ink),45px 0 0 var(--cl-ink),45px 3px 0 var(--cl-ink),42px 6px 0 var(--cl-ink),21px 12px 0 var(--cl-ink),27px 12px 0 var(--cl-ink),33px 12px 0 var(--cl-ink),42px 12px 0 var(--cl-ink);\n  --cl-typing-float-animation:clawd-question-float 2.36s cubic-bezier(.37,0,.22,1) infinite;\n  --cl-greeting-particle-animation:clawd-question-float 2.83s cubic-bezier(.37,0,.22,1) .41s infinite;\n}",":root {\n  --cl-color-scheme:dark;\n  --cl-canvas:#1f1f1e;\n  --cl-surface:#2c2c2a;\n  --cl-soft:#2c2c2a;\n  --cl-soft-hover:#373734;\n  --cl-line:rgba(226,225,218,.15);\n  --cl-line-strong:rgba(226,225,218,.25);\n  --cl-hero:#c3c2b7;\n  --cl-ink:#f8f8f6;\n  --cl-muted:#97958c;\n  --cl-control-muted:#b8b6ae;\n  --cl-icon:#ffffff;\n  --cl-rail-ink:#ffffff;\n  --cl-accent:#d97757;\n  --cl-accent-soft:#3a2a22;\n  --cl-code:#131211;\n  --cl-em-color:#c3c2b7;\n  --cl-code-ink:#e6a58c;\n  --cl-send-hover:#c6613f;\n  --cl-selection:#5a3a2c;\n  --cl-scrollbar:#44423d;\n  --cl-scrollbar-hover:#55534c;\n  --cl-dialog-shadow:0 12px 36px rgba(0,0,0,.55);\n  --cl-composer-shadow:0 12px 34px rgba(0,0,0,.38);\n  --cl-floating-shadow:0 16px 42px rgba(0,0,0,.44);\n  --cl-topbar-surface:rgba(31,31,30,.98);\n  --cl-body-weight:400;\n  --cl-clawd-eye:#000000;\n  --cl-clawd-eye-row-a:#d97757;\n  --cl-clawd-eye-row-b:#000000;\n  --cl-greeting-particle-shadow:18px 0 0 #ef6a73,24px 0 0 #ef6a73,36px 0 0 #ef6a73,42px 0 0 #ef6a73,21px 3px 0 #ef6a73,33px 3px 0 #ef6a73,36px 3px 0 #ef6a73,39px 3px 0 #ef6a73,42px 3px 0 #ef6a73,45px 3px 0 #ef6a73,36px 6px 0 #ef6a73,39px 6px 0 #ef6a73,42px 6px 0 #ef6a73,39px 9px 0 #ef6a73,27px 12px 0 #ef6a73;\n  --cl-typing-float-animation:clawd-heart-float 2.36s cubic-bezier(.37,0,.22,1) infinite;\n  --cl-greeting-particle-animation:clawd-heart-float 2.57s cubic-bezier(.37,0,.22,1) .33s infinite;\n}"]);
 const THEME_FIELDS = ["theme","blur_strength","shadow_color","shadow_width","font_scale","fast_ui_mode","waifuMode","avatar_style","chat_display","toastr_position","noShadows","chat_width","timer_enabled","timestamps_enabled","timestamp_model_icon","mesIDDisplay_enabled","hideChatAvatars_enabled","message_token_count_enabled","expand_message_actions","enableZenSliders","enableLabMode","hotswap_enabled","bogus_folders","zoomed_avatar_magnification","reduced_motion","compact_input_area","show_swipe_num_all_messages","click_to_edit","media_display","reasoning_auto_expand","main_text_color","italics_text_color","underline_text_color","quote_text_color","blur_tint_color","chat_tint_color","user_mes_blur_tint_color","bot_mes_blur_tint_color","border_color","custom_css"];
 
@@ -58,11 +58,11 @@ export async function installSafety() {
     const data = response.ok ? await response.json() : {};
     return {'Content-Type':'application/json', ...(data.token ? {'X-CSRF-Token':data.token} : {})};
   }
-  async function persist(enabled, restore = state?.restore || null) {
+  async function persist(enabled, restore = state?.restore || null, removed = null) {
     if (!enabled) markOff();
     if (writePending) throw new Error('安全状态正在保存，请稍后重试');
     writePending = true;
-    const next = {schema:1, id:crypto.randomUUID(), enabled, restore};
+    const next = {schema:1, id:crypto.randomUUID(), enabled, restore, ...(removed ? {removed} : {})};
     let expired=false,timer;
     const controller = new AbortController();
     const work=Promise.resolve().then(async()=>{
@@ -199,14 +199,20 @@ export async function installSafety() {
       }
       }
       current(token);
+      // Only record this after native discovery confirmed this exact install is
+      // gone. If cleanup fails, loading the same name again proves a reinstall.
+      if (state?.removed?.fullName !== removal.fullName) await persist(false, null, {fullName:removal.fullName});
+      current(token);
       const remove = await boundedFetch('/api/files/delete',{method:'POST',headers:await headers(),body:JSON.stringify({path:FILE_URL})});
       if (!remove.ok && remove.status!==404) throw new Error('扩展已卸载，但安全记录清理失败');
+      current(token);
+      if (await readState()) throw new Error('安全记录仍存在，清理尚未确认');
       current(token);
       for (const key of Object.keys(localStorage)) if(key.startsWith('claude-web:') || ['claude-web-clawd-pile-v3',RESTORE_KEY].includes(key)) localStorage.removeItem(key);
       try { sessionStorage.removeItem('claude-web:soft-off'); } catch {}
       notify('Claude Web 已卸载，主题和设置残留已清理。');
       location.reload();
-    } catch(error) { notify(removal?.confirmed ? '扩展已卸载，剩余清理未完成：'+error.message+'。请保持本页，点击“重试剩余清理”；若已刷新，请重新安装同一 CW，再执行卸载清理。' : '卸载／清理未全部完成：'+error.message+(state?.enabled===false?'。CW 已停用，可稍后重试。':'。本页已停止，跨重启停用未确认，请通过原生扩展管理停用 CW。')); }
+    } catch(error) { notify(removal?.confirmed ? '扩展已卸载，剩余清理未完成：'+error.message+'。请保持本页，点击“重试剩余清理”；若已刷新，可重新安装同一 CW。' : '卸载／清理未全部完成：'+error.message+(state?.enabled===false?'。CW 已停用，可稍后重试。':'。本页已停止，跨重启停用未确认，请通过原生扩展管理停用 CW。')); }
   }
   function mount() {
     if (!document.body || host) return;
@@ -240,6 +246,17 @@ export async function installSafety() {
       try {
         state = await readState();
         if (state) { if(state.restore)local(RESTORE_KEY,JSON.stringify(state.restore)); else local(RESTORE_KEY); }
+        const installedPath = decodeURIComponent(new URL(import.meta.url).pathname);
+        const installedMatch = installedPath.match(/\/scripts\/extensions\/third-party\/([^/]+)\/emergency\.js$/);
+        const fullName = installedMatch && 'third-party/' + installedMatch[1];
+        if (fullName && state?.removed?.fullName === fullName) {
+          const discovered = await boundedFetch('/api/extensions/discover',{cache:'no-store'});
+          if (!discovered.ok) throw new Error('无法确认重新安装状态');
+          if (!(await discovered.json()).some(entry=>entry.name===fullName)) throw new Error('尚未确认 CW 重新安装');
+          const target=captureTarget();
+          if (!target) throw new Error('原生主题设置尚未就绪');
+          await persist(true, target);
+        }
         const url = new URL(location.href), wanted=url.searchParams.get('claude');
         const layout=url.searchParams.get('claudelayout');
         let consumed=false;
@@ -254,9 +271,9 @@ export async function installSafety() {
           await persist(true,target);
         }
         local('claude-web:enabled',enabled?'on':'off');
-        if (!enabled) {document.documentElement.dataset.claudeEnabled='off'; notify('CW 安全模式：主界面未加载。'); if(state?.restore || readLocal(RESTORE_KEY)) void api.recover();}
+        if (!enabled) {document.documentElement.dataset.claudeEnabled='off'; notify('Claude Web 内部开关已关闭。扩展列表的勾选不代表主题已启用，可点击“重新启用 CW”恢复正常菜单。'); if(state?.restore || readLocal(RESTORE_KEY)) void api.recover();}
         return enabled;
-      } catch(error) {local('claude-web:enabled','off');document.documentElement.dataset.claudeEnabled='off';notify('安全状态读取失败，已暂停加载 CW：'+error.message+'。可重试或通过原生管理停用 CW。');return false;}
+      } catch(error) {document.documentElement.dataset.claudeEnabled='off';notify('安全状态读取失败，本次已暂停加载 CW：'+error.message+'。刷新可重试，或通过原生管理停用 CW。');return false;}
     }
   };
   window.__claudeSafety=api;
