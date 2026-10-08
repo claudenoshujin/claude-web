@@ -2671,7 +2671,7 @@ html body #chat > .mes[type="assistant_message"] {
 
 html body #chat > .mes[type="assistant_message"] {
   position:relative !important;
-  display:flex !important;
+  display:flex;
   align-items:flex-start !important;
   gap:10px !important;
 }
@@ -4731,7 +4731,7 @@ html body #user-settings-block-content input[type="range"].neo-range-slider {
 
 @media (max-width:700px) {
   html body:not(.clawd-welcome) #chat > .mes[is_user="false"] {
-    display:block !important;
+    display:block;
   }
   html body:not(.clawd-welcome) #chat > .mes[is_user="false"] > .mesAvatarWrapper {
     position:absolute !important;

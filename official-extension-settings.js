@@ -659,8 +659,11 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
   }
   function open(root,title){
     // 自己画整套界面的扩展（酒馆助手这种）原样放进白卡片。
-    if(root.id==='claude-web-settings'||root.querySelector('#claude-web-settings,[data-v-app]')||/酒馆助手|Tavern Helper|st-chatu8/i.test(title)){openEditor(root,title);return;}
-    const s=session(root,planFor(root,title));
+    // 酒馆自带、我们有专门排法的（正则……）不算：柏宝箱会往 #regex_container 里挂一个藏着的 Vue 根（data-v-app），
+    // 再把仿原生的行渲染进 #saved_regex_scripts；按「自画界面」原样放，藏着的勾选框全被画成大开关（2.0.314）。
+    const plan=planFor(root,title);
+    if(root.id==='claude-web-settings'||root.querySelector('#claude-web-settings')||(plan===PLANS.generic&&root.querySelector('[data-v-app]'))||/酒馆助手|Tavern Helper|st-chatu8/i.test(title)){openEditor(root,title);return;}
+    const s=session(root,plan);
     try{build(s);}catch(e){console.error('[Claude Web] extension settings',e);teardown(s);sessions.delete(s);openEditor(root,title);return;}
     watchRoot(s);
     watch.observe(doc.body,{childList:true,subtree:true});

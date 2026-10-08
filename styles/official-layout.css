@@ -346,7 +346,7 @@ html[data-cw-v4] body #top-settings-holder #PersonaManagement :is(#lock_persona_
 html[data-cw-v4] body #top-settings-holder #PersonaManagement :is(#lock_persona_default,#lock_persona_to_char,#lock_user_name).locked{background:#2a78d6!important}
 html[data-cw-v4] body #top-settings-holder #PersonaManagement :is(#lock_persona_default,#lock_persona_to_char,#lock_user_name).locked::after{left:19px}
 html[data-cw-v4] body #top-settings-holder #openai_api>h4{display:none!important}
-html[data-cw-v4] body #top-settings-holder #rm_api_block #api_button_openai{background:var(--cw-v4-text)!important;color:var(--cw-v4-bg)!important}
+/* Connection actions use the shared primary-button and mobile action-row styles. */
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-pref-native{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,42%);gap:20px;align-items:center;width:100%!important;text-align:left!important;padding:16px 0!important;margin:0!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-pref-native>.cw-v4-row-controls{max-width:100%;width:100%;flex-wrap:nowrap}
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-pref-native .cw-v4-row-title{font:400 15px/1.5 var(--cw-v4-font)!important;color:var(--cw-v4-text)}
@@ -413,7 +413,7 @@ html[data-cw-v4] body #chat .cw-v4-swipes>button:disabled{opacity:.3!important;c
 html[data-cw-v4] .cw-v4-swipe-count{font:400 12px/1 var(--cw-v4-font);color:var(--cw-v4-muted);min-width:32px;text-align:center}
 html:not([data-cw-v4]) .cw-v4-swipes{display:none!important}
 
-html[data-cw-v4] body:not(.clawd-welcome) #chat>.mes[is_user="true"] {display:flex!important;flex-direction:row-reverse!important;align-items:flex-start!important;gap:10px;background:none!important;border:0!important}
+html[data-cw-v4] body:not(.clawd-welcome) #chat>.mes[is_user="true"] {display:flex;flex-direction:row-reverse!important;align-items:flex-start!important;gap:10px;background:none!important;border:0!important}
 html[data-cw-v4] body #chat>.mes[is_user="true"] .mes_block{display:flex;flex-direction:column;align-items:flex-end;max-width:85%;min-width:0;padding:0!important;margin:0!important;background:none!important;border:0!important;box-shadow:none!important;border-radius:0!important}
 html[data-cw-v4] body #chat>.mes[is_user="true"] .mes_text{background:#efeee9!important;border-radius:18px!important;padding:10px 16px!important;font-family:var(--cw-font-ui,"Noto Sans SC",sans-serif)!important}
 html[data-cw-v4][data-claude-integrated-theme="night"] body #chat>.mes[is_user="true"] .mes_text{background:#393937!important}
@@ -1381,6 +1381,8 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel .
 @media(max-width:700px){
 html[data-cw-v4]{--cw-sheet-gap:52px}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor{position:fixed!important;inset:var(--cw-sheet-gap) 0 0 0!important;width:100vw!important;max-width:none!important;height:auto!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:12px 12px 0 0!important;background:var(--cw-v4-bg)!important;box-shadow:none!important;overflow:visible!important;transform:none!important;animation:cw-sheet-up var(--cw-sheet-dur) var(--cw-sheet-curve);transition:translate var(--cw-sheet-dur) var(--cw-sheet-curve),scale var(--cw-sheet-dur) var(--cw-sheet-curve),filter var(--cw-sheet-dur) var(--cw-sheet-curve),inset var(--cw-sheet-dur) var(--cw-sheet-curve)}
+/* The native popup content minimum must not push CW's safety menu off-screen. */
+html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor:has(#claude-web-settings){min-height:0!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor[data-cw-closing]{animation:cw-sheet-down var(--cw-sheet-dur) var(--cw-sheet-curve) forwards}
 
 html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor::backdrop{background:transparent}
@@ -3581,3 +3583,6 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder>.drawer>.drawer-t
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-row:is(.cw-v4-stack,.cw-v4-stackm):has(>.cw-v4-row-controls>select:only-child)>.cw-v4-row-info{min-width:6em!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-row:is(.cw-v4-stack,.cw-v4-stackm):has(>.cw-v4-row-controls>select:only-child)>.cw-v4-row-controls{min-width:0!important;max-width:55%!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw-v4-row:is(.cw-v4-stack,.cw-v4-stackm):has(>.cw-v4-row-controls>select:only-child)>.cw-v4-row-controls>select{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+
+/* API action labels replace the native text visually; preserve its node and handler. */
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #rm_api_block .cw-v4-as-btn:has(>.cw-v4-action-label){font-size:0!important}

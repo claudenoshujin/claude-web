@@ -2575,7 +2575,7 @@ html body #chat > .mes[type="assistant_message"] {
 
 html body #chat > .mes[type="assistant_message"] {
   position:relative !important;
-  display:flex !important;
+  display:flex;
   align-items:flex-start !important;
   gap:10px !important;
 }
