@@ -1381,8 +1381,8 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder #left-nav-panel :
 @media(max-width:700px){
 html[data-cw-v4]{--cw-sheet-gap:52px}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor{position:fixed!important;inset:var(--cw-sheet-gap) 0 0 0!important;width:100vw!important;max-width:none!important;height:auto!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:12px 12px 0 0!important;background:var(--cw-v4-bg)!important;box-shadow:none!important;overflow:visible!important;transform:none!important;animation:cw-sheet-up var(--cw-sheet-dur) var(--cw-sheet-curve);transition:translate var(--cw-sheet-dur) var(--cw-sheet-curve),scale var(--cw-sheet-dur) var(--cw-sheet-curve),filter var(--cw-sheet-dur) var(--cw-sheet-curve),inset var(--cw-sheet-dur) var(--cw-sheet-curve)}
-/* The native popup content minimum must not push CW's safety menu off-screen. */
-html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor:has(#claude-web-settings){min-height:0!important}
+/* Keep the safety menu and nested QR assistant settings within the mobile sheet. */
+html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor:has(#claude-web-settings,#qr-assistant-settings){min-height:0!important}
 html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor[data-cw-closing]{animation:cw-sheet-down var(--cw-sheet-dur) var(--cw-sheet-curve) forwards}
 
 html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor.cw-v4-editor::backdrop{background:transparent}
