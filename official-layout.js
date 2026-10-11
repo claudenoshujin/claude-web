@@ -982,7 +982,7 @@ export function installOfficialLayout(win = window) {
     const moreAnchor = !!win.CSS?.supports?.('anchor-name: --cw-more');
     const moreClear = menu => {
       moreOpen.delete(menu);
-      for (const v of ['--cw-more-x','--cw-more-y','--cw-more-max','--cw-more-maxh','--cw-more-dx']) menu.style.removeProperty(v);
+      for (const v of ['--cw-more-x','--cw-more-y','--cw-more-max','--cw-more-maxh','--cw-more-dx','--cw-more-shift']) menu.style.removeProperty(v);
       delete menu.dataset.cwMore; delete menu.dataset.cwMoreAnchor;
       const hint = menu.parentElement?.querySelector(':scope > .extraMesButtonsHint'); if (hint) delete hint.dataset.cwMoreAnchor;
     };
@@ -1026,10 +1026,16 @@ export function installOfficialLayout(win = window) {
         const roomUp = h.top - 6 - minY, roomDown = maxY - (h.bottom + 6);
         const full = menu.scrollHeight;
         let up = phone ? (roomUp >= full || roomUp >= roomDown) : !(roomDown >= full || roomDown >= roomUp);
-        const cap = Math.max(120, Math.floor(up ? roomUp : roomDown));
-        const capPx = Math.min(full, cap) + 'px'; if (menu.style.getPropertyValue('--cw-more-maxh') !== capPx) menu.style.setProperty('--cw-more-maxh', capPx);
-        const mh = Math.min(full, cap);
-        let y = up ? h.top - 6 - mh : h.bottom + 6;
+        // 2.0.131（Lulu：「…」靠近顶上时菜单上半截被标题栏挡住）：以前最少撑到 120px，选中那边放不下也照样撑，
+        // 菜单就伸进标题栏后面。现在高度绝不超过 minY..maxY 之间的空间；选中那边不够 120 时，菜单往「…」方向挪（shift），
+        // 宁可盖住一点按钮也要整块看得见，剩下的在菜单里滚。
+        const room = Math.max(0, Math.floor(up ? roomUp : roomDown));
+        const avail = Math.max(0, Math.floor(maxY - minY));
+        const mh = Math.min(full, avail, Math.max(room, 120));
+        const shift = Math.max(0, Math.ceil(mh - room));
+        const capPx = mh + 'px'; if (menu.style.getPropertyValue('--cw-more-maxh') !== capPx) menu.style.setProperty('--cw-more-maxh', capPx);
+        const shiftPx = shift + 'px'; if (menu.style.getPropertyValue('--cw-more-shift') !== shiftPx) menu.style.setProperty('--cw-more-shift', shiftPx);
+        let y = up ? h.top - 6 - mh + shift : h.bottom + 6 - shift;
         if (moreAnchor) {
           const dir = up ? 'up' : 'down', dx = Math.round(x - h.left) + 'px';
           if (menu.dataset.cwMoreAnchor !== dir) menu.dataset.cwMoreAnchor = dir;
