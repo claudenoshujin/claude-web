@@ -2,13 +2,13 @@
 const RESTORE_KEY = 'claude-integrated-theme-restore:v2';
 const FILE_NAME = 'claude-web-safety-state-v1.json';
 const FILE_URL = '/user/files/' + FILE_NAME;
-const VERSION = '2.0.130';
+const VERSION = '2.0.131';
 const OWNED_THEME_CSS = new Set([":root {\n  --cl-color-scheme:light;\n  --cl-canvas:#f8f8f6;\n  --cl-surface:#ffffff;\n  --cl-soft:#f4f4f1;\n  --cl-soft-hover:#efeeeb;\n  --cl-line:rgba(31,31,30,.15);\n  --cl-line-strong:rgba(31,31,30,.25);\n  --cl-hero:#373734;\n  --cl-ink:#121212;\n  --cl-muted:#7b7974;\n  --cl-control-muted:#686660;\n  --cl-icon:#0b0b0b;\n  --cl-rail-ink:#0b0b0b;\n  --cl-accent:#d97757;\n  --cl-accent-soft:#f3e0d8;\n  --cl-code:#f0eee6;\n  --cl-em-color:#6c6b66;\n  --cl-code-ink:#633a2e;\n  --cl-send-hover:#c6613f;\n  --cl-selection:#efcfc2;\n  --cl-scrollbar:#c9c5bc;\n  --cl-scrollbar-hover:#aaa59b;\n  --cl-dialog-shadow:0 12px 36px rgba(50,45,35,.12);\n  --cl-composer-shadow:0 10px 30px rgba(43,40,34,.10);\n  --cl-floating-shadow:0 14px 38px rgba(43,40,34,.11);\n  --cl-topbar-surface:rgba(248,248,246,.98);\n  --cl-body-weight:430;\n  --cl-clawd-eye:#000000;\n  --cl-clawd-eye-row-a:#000000;\n  --cl-clawd-eye-row-b:#d97757;\n  --cl-greeting-particle-shadow:39px 0 0 var(--cl-ink),42px 0 0 var(--cl-ink),45px 0 0 var(--cl-ink),45px 3px 0 var(--cl-ink),42px 6px 0 var(--cl-ink),21px 12px 0 var(--cl-ink),27px 12px 0 var(--cl-ink),33px 12px 0 var(--cl-ink),42px 12px 0 var(--cl-ink);\n  --cl-typing-float-animation:clawd-question-float 2.36s cubic-bezier(.37,0,.22,1) infinite;\n  --cl-greeting-particle-animation:clawd-question-float 2.83s cubic-bezier(.37,0,.22,1) .41s infinite;\n}",":root {\n  --cl-color-scheme:dark;\n  --cl-canvas:#1f1f1e;\n  --cl-surface:#2c2c2a;\n  --cl-soft:#2c2c2a;\n  --cl-soft-hover:#373734;\n  --cl-line:rgba(226,225,218,.15);\n  --cl-line-strong:rgba(226,225,218,.25);\n  --cl-hero:#c3c2b7;\n  --cl-ink:#f8f8f6;\n  --cl-muted:#97958c;\n  --cl-control-muted:#b8b6ae;\n  --cl-icon:#ffffff;\n  --cl-rail-ink:#ffffff;\n  --cl-accent:#d97757;\n  --cl-accent-soft:#3a2a22;\n  --cl-code:#131211;\n  --cl-em-color:#c3c2b7;\n  --cl-code-ink:#e6a58c;\n  --cl-send-hover:#c6613f;\n  --cl-selection:#5a3a2c;\n  --cl-scrollbar:#44423d;\n  --cl-scrollbar-hover:#55534c;\n  --cl-dialog-shadow:0 12px 36px rgba(0,0,0,.55);\n  --cl-composer-shadow:0 12px 34px rgba(0,0,0,.38);\n  --cl-floating-shadow:0 16px 42px rgba(0,0,0,.44);\n  --cl-topbar-surface:rgba(31,31,30,.98);\n  --cl-body-weight:400;\n  --cl-clawd-eye:#000000;\n  --cl-clawd-eye-row-a:#d97757;\n  --cl-clawd-eye-row-b:#000000;\n  --cl-greeting-particle-shadow:18px 0 0 #ef6a73,24px 0 0 #ef6a73,36px 0 0 #ef6a73,42px 0 0 #ef6a73,21px 3px 0 #ef6a73,33px 3px 0 #ef6a73,36px 3px 0 #ef6a73,39px 3px 0 #ef6a73,42px 3px 0 #ef6a73,45px 3px 0 #ef6a73,36px 6px 0 #ef6a73,39px 6px 0 #ef6a73,42px 6px 0 #ef6a73,39px 9px 0 #ef6a73,27px 12px 0 #ef6a73;\n  --cl-typing-float-animation:clawd-heart-float 2.36s cubic-bezier(.37,0,.22,1) infinite;\n  --cl-greeting-particle-animation:clawd-heart-float 2.57s cubic-bezier(.37,0,.22,1) .33s infinite;\n}"]);
 const THEME_FIELDS = ["theme","blur_strength","shadow_color","shadow_width","font_scale","fast_ui_mode","waifuMode","avatar_style","chat_display","toastr_position","noShadows","chat_width","timer_enabled","timestamps_enabled","timestamp_model_icon","mesIDDisplay_enabled","hideChatAvatars_enabled","message_token_count_enabled","expand_message_actions","enableZenSliders","enableLabMode","hotswap_enabled","bogus_folders","zoomed_avatar_magnification","reduced_motion","compact_input_area","show_swipe_num_all_messages","click_to_edit","media_display","reasoning_auto_expand","main_text_color","italics_text_color","underline_text_color","quote_text_color","blur_tint_color","chat_tint_color","user_mes_blur_tint_color","bot_mes_blur_tint_color","border_color","custom_css"];
 
 export async function installSafety() {
   if (window.__claudeSafety) return window.__claudeSafety;
-  let state = null, writePending = false, operation = 0, message = '';
+  let state = null, writePending = false, operation = 0, message = '', nativeThemePending = false, nativeThemeRestore = null;
   let panel, status, host, busy = '', removal = null;
   function syncBusy() {
     for (const button of host?.shadowRoot?.querySelectorAll('button') || []) {
@@ -66,7 +66,7 @@ export async function installSafety() {
     if (!enabled) markOff();
     if (writePending) throw new Error('安全状态正在保存，请稍后重试');
     writePending = true;
-    const next = {schema:1, id:crypto.randomUUID(), enabled, restore, ...(removed ? {removed} : {})};
+    const next = {schema:1, id:crypto.randomUUID(), enabled, restore, ...(removed ? {removed} : {}), ...(nativeThemePending ? {nativeThemePending:true} : {})};
     let expired=false,timer;
     const controller = new AbortController();
     const work=Promise.resolve().then(async()=>{
@@ -91,6 +91,7 @@ export async function installSafety() {
     try{return await Promise.race([work,timeout]);}finally{clearTimeout(timer);}
   }
   function captureTarget() {
+    if (nativeThemeRestore) return nativeThemeRestore;
     const cleanFallback = target => {
       // Earlier safety builds used exactly these two fields for a missing-snapshot
       // fallback. Never rewrite a complete original theme snapshot.
@@ -161,8 +162,25 @@ export async function installSafety() {
   async function enable() {
     if (window.__claudeThemeSavePending) { notify('原生保存仍在进行，请等待结束后再启用 CW。'); return; }
     const token = operation;
-    try { await persist(true, captureTarget()); current(token); location.reload(); }
+    try {
+      if (nativeThemePending && !await checkNativeTheme(true)) return;
+      await persist(true, captureTarget()); current(token); location.reload();
+    }
     catch (error) { notify('启用未保存：' + error.message); }
+  }
+  async function checkNativeTheme(allowManual = false) {
+    const helper = await import('./native-theme.js?v=' + VERSION);
+    const result = await helper.prepareNativeTheme(window, {allowManual, restoreFields:THEME_FIELDS});
+    if (!result.ready) {
+      nativeThemePending = true;
+      await persist(false, state?.restore || null);
+      document.documentElement.dataset.claudeEnabled = 'off';
+      notify(result.message);
+      return false;
+    }
+    nativeThemeRestore = result.restore;
+    nativeThemePending = false;
+    return true;
   }
   async function uninstall() {
     if (!removal?.confirmed && !window.confirm('卸载 Claude Web 并清理它的设置和主题残留？聊天、其他插件和原有自定义 CSS 会保留。主题恢复保存未确认时不会删除扩展。')) return;
@@ -258,6 +276,7 @@ export async function installSafety() {
     async shouldStart() {
       try {
         state = await readState();
+        nativeThemePending = state?.nativeThemePending === true;
         if (state) { if(state.restore)local(RESTORE_KEY,JSON.stringify(state.restore)); else local(RESTORE_KEY); }
         const installedPath = decodeURIComponent(new URL(import.meta.url).pathname);
         const installedMatch = installedPath.match(/\/scripts\/extensions\/third-party\/([^/]+)\/emergency\.js$/);
@@ -266,6 +285,8 @@ export async function installSafety() {
           const discovered = await boundedFetch('/api/extensions/discover',{cache:'no-store'});
           if (!discovered.ok) throw new Error('无法确认重新安装状态');
           if (!(await discovered.json()).some(entry=>entry.name===fullName)) throw new Error('尚未确认 CW 重新安装');
+          nativeThemePending = true;
+          if (!await checkNativeTheme()) return false;
           const target=captureTarget();
           if (!target) throw new Error('原生主题设置尚未就绪');
           await persist(true, target);
@@ -279,6 +300,12 @@ export async function installSafety() {
         let softOff = false; try { softOff=sessionStorage.getItem('claude-web:soft-off')==='1'; } catch {}
         const enabled = state ? state.enabled && !softOff : readLocal('claude-web:enabled') !== 'off';
         if(enabled && !state) {
+          // A legacy restore snapshot belongs to an existing installation.
+          // Preserve it rather than silently migrating the user's old theme.
+          if (!readLocal(RESTORE_KEY)) {
+            nativeThemePending = true;
+            if (!await checkNativeTheme()) return false;
+          }
           const target=captureTarget();
           if(!target)throw new Error('原生主题设置尚未就绪');
           await persist(true,target);
