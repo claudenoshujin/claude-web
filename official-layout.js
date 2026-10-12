@@ -1613,7 +1613,8 @@ export function installOfficialLayout(win = window) {
     });
     for (const el of doc.querySelectorAll('[data-cw-sheet-under]')) if (!sheetStack.includes(el)) el.removeAttribute('data-cw-sheet-under');
     syncExternalSheetYield();
-    if (canPopover && !externalModalOpen) recoverDroppedSheets();
+    syncMovedDialogWatch();
+    if (enabled()) recoverDroppedSheets();
     const open = sheetStack.length > 0, deep = sheetStack.length > 1;
     if (open === root.hasAttribute('data-cw-sheet') && deep === root.hasAttribute('data-cw-sheet-deep')) return;
     animWindow();
@@ -1694,9 +1695,10 @@ export function installOfficialLayout(win = window) {
   const nativeShowModal = win.HTMLDialogElement.prototype.showModal;
   let shield = null;
   let movedDialogMo = null, movedDialogWatching = false;
+  const MOVED_SHEETS = 'dialog[data-cw-lifted][open],dialog.cw-v4-editor[open],dialog.cw-st-sheet[open]';
   function syncMovedDialogWatch() {
     if (!movedDialogMo) return;
-    const watch = !destroyed && enabled() && !!doc.querySelector('dialog[data-cw-lifted][open]');
+    const watch = !destroyed && enabled() && !!doc.querySelector(MOVED_SHEETS);
     if (watch === movedDialogWatching) return;
     movedDialogWatching = watch;
     if (watch) movedDialogMo.observe(doc.body, {childList:true,subtree:true});
@@ -1802,6 +1804,20 @@ export function installOfficialLayout(win = window) {
     try { shield.hidePopover(); } catch {}
   }
   function recoverDroppedSheets() {
+    // A native modal also leaves the top layer when its ancestor is moved.
+    // Recover it before checking external modals: an existing transparent
+    // modal is precisely what made this sheet use the native path.
+    let recoveredNative = false;
+    for (const d of doc.querySelectorAll('dialog.cw-v4-editor[open]:not([data-cw-lifted]),dialog.cw-st-sheet[open]:not([data-cw-lifted])')) {
+      if (d.matches(':modal') || d.hasAttribute('closing') || d.hasAttribute('data-cw-closing')) continue;
+      try { d.removeAttribute('open'); nativeShowModal.call(d); recoveredNative = true; }
+      catch (error) {
+        console.warn('[Claude Web] native sheet recovery failed', error);
+        // Removing open above does not emit close. Restore the native lifecycle
+        // before closing so owners can return their content and clear flags.
+        d.setAttribute('open', ''); d.close();
+      }
+    }
     if (externalModalOpen) return false;
     const open = [...doc.querySelectorAll('dialog[data-cw-lifted][open]')];
     const dropped = open.filter(d => !d.matches(':popover-open'));
@@ -1810,7 +1826,7 @@ export function installOfficialLayout(win = window) {
       const r = top.getBoundingClientRect(), x = r.left + r.width * fx, y = r.top + r.height * fy;
       return x >= 0 && x < win.innerWidth && y >= 0 && y < win.innerHeight && doc.elementFromPoint(x,y) === shield;
     });
-    if (!dropped.length && !covered) { shieldMaybeDown(); return false; }
+    if (!dropped.length && !covered) { shieldMaybeDown(); return recoveredNative; }
     for (const d of dropped) console.warn('[Claude Web] sheet dropped from top layer', d.parentNode, new Date().toISOString());
     // Rebuild the order, including pages that are still in the top layer.
     return restoreSheetLayers(ordered);
@@ -1951,7 +1967,7 @@ export function installOfficialLayout(win = window) {
     // Moving an open dialog (or its parent) removes its popover from the top layer.
     movedDialogMo = new win.MutationObserver(records => {
       if (records.some(r => [...r.removedNodes].some(n => n.nodeType === 1 &&
-        (n.matches?.('dialog[data-cw-lifted][open]') || n.querySelector?.('dialog[data-cw-lifted][open]'))))) syncSheet();
+        (n.matches?.(MOVED_SHEETS) || n.querySelector?.(MOVED_SHEETS))))) syncSheet();
     });
     observers.push(movedDialogMo);
     const hook = () => { for (const d of doc.querySelectorAll('body>dialog.popup')) if (!watched.has(d)) { watched.add(d); dialogMo.observe(d, {attributes:true, attributeFilter:['open','closing','opening']}); } syncSheet(); };

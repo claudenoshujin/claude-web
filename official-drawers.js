@@ -435,18 +435,25 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     // Insert only lists prompts that are not in the list yet; hide it when empty.
     if(footer){const pick=footer.querySelector('select');footer.classList.toggle('cw-v4-pm-no-insert',!pick?.options.length);}
     panel.querySelectorAll('#completion_prompt_manager_list .completion_prompt_manager_prompt').forEach(item=>{
+      const adaptEdit=s=>{
+        const edit=item.querySelector('.prompt-manager-edit-action,[data-preset-prompt-action="edit"]');
+        if(!edit)return;
+        if(edit.parentElement!==item)move(s,edit,item);
+        if(!edit.querySelector('.cw-v4-action-label')){const label=make('span','cw-v4-action-label',L('编辑'));edit.append(label);s.created.push(label);}
+        if(edit.getAttribute('role')!=='button')edit.setAttribute('role','button');
+      };
       // Vue may replace the row's class attribute while retaining its DOM node.
       // Keep CW ownership outside the renderer-owned class so controls and menus
       // are not adapted twice after a native toggle update.
-      if(item.hasAttribute('data-cw-v4-prompt-row'))return;item.setAttribute('data-cw-v4-prompt-row','');item.classList.add('cw-v4-prompt-row');const s=state(item);s.cleanup=()=>{item.classList.remove('cw-v4-prompt-row');item.removeAttribute('data-cw-v4-prompt-row');};
-      const toggle=item.querySelector('.prompt-manager-toggle-action'),edit=item.querySelector('.prompt-manager-edit-action'),name=item.querySelector('.completion_prompt_manager_prompt_name');
+      if(item.hasAttribute('data-cw-v4-prompt-row')){adaptEdit(state(item));return;}item.setAttribute('data-cw-v4-prompt-row','');item.classList.add('cw-v4-prompt-row');const s=state(item);s.cleanup=()=>{item.classList.remove('cw-v4-prompt-row');item.removeAttribute('data-cw-v4-prompt-row');};
+      const toggle=item.querySelector('.prompt-manager-toggle-action'),name=item.querySelector('.completion_prompt_manager_prompt_name');
       // Grid cells: switch · name · tokens · Edit · ⋯ (the native icons live in a nested span).
       if(toggle){move(s,toggle,item,item.firstChild);toggle.setAttribute('role','switch');toggle.setAttribute('aria-label',t('切换提示词启用状态','Toggle prompt'));}
       // Tokens are shown only once counted (the design leaves the column out otherwise).
       const tok=item.querySelector('.prompt_manager_prompt_tokens');if(tok&&!/\d/.test(tok.textContent))item.classList.add('cw-v4-pm-no-tokens');
       const marker=item.querySelector('.fa-thumb-tack,.fa-thumbtack');
       if(name){const meta=make('span','cw-v4-pm-meta',L(marker?'占位（由酒馆按位置填入内容）':'自定义提示词'));name.append(meta);s.created.push(meta);}
-      if(edit){move(s,edit,item);const label=make('span','cw-v4-action-label',L('编辑'));edit.append(label);s.created.push(label);edit.setAttribute('role','button');}
+      adaptEdit(s);
       const inspect=item.querySelector('.prompt-manager-inspect-action');
       const more=menu(s,[inspect?['查看实际内容',null,false,()=>inspect.click()]:null,['从列表移除',item.querySelector('.prompt-manager-detach-action'),true]]);
       item.append(more);s.created.push(more);
