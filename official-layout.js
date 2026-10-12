@@ -1818,7 +1818,7 @@ export function installOfficialLayout(win = window) {
         d.setAttribute('open', ''); d.close();
       }
     }
-    if (externalModalOpen) return false;
+    if (!canPopover || externalModalOpen) return recoveredNative;
     const open = [...doc.querySelectorAll('dialog[data-cw-lifted][open]')];
     const dropped = open.filter(d => !d.matches(':popover-open'));
     const ordered = openSheetLayers(), top = ordered.at(-1);
