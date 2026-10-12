@@ -1,6 +1,6 @@
-import { officialIcons } from './official-icons.js?v=2.0.122';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.131';
-import { tr } from './official-i18n.js?v=2.0.122';
+import { officialIcons } from './official-icons.js?v=2.0.132';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.132';
+import { tr } from './official-i18n.js?v=2.0.132';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -685,12 +685,15 @@ export function installOfficialLayout(win = window) {
   const setBodyClass = (name, on) => { if (doc.body.classList.contains(name) !== Boolean(on)) doc.body.classList.toggle(name, Boolean(on)); };
   function syncChat() {
     const chat = doc.querySelector('#chat'); if (!chat) return;
-    if (enabled()) syncModelNames(chat, win.SillyTavern?.getContext?.());
+    const ctx = win.SillyTavern?.getContext?.();
+    if (enabled()) syncModelNames(chat, ctx);
     if(enabled())chat.querySelectorAll('.mes[is_user="false"] .mes_buttons').forEach(bar=>{
       for(const selector of ['.mes_copy','.mes_narrate']){const n=bar.querySelector(selector);if(n&&n.parentElement!==bar){const mark=doc.createComment('cw-v4-chat-return');n.before(mark);chatMoves.push([n,mark]);bar.append(n);}}
       const message=bar.closest('.mes'),source=message.querySelector('.swipes-counter');
+      const data=ctx?.chat?.[Number(message.getAttribute('mesid'))];
+      const total=data?.swipes?.length || Number(source?.textContent.trim().split('/').at(-1)) || 1;
       let swipes=bar.querySelector('.cw-v4-swipes');
-      if(source&&message.querySelector(':scope>.claude-swipe-right-proxy')){
+      if(total>1&&message.querySelector(':scope>.claude-swipe-right-proxy')){
         if(!swipes){
           swipes=make('div','cw-v4-swipes');const count=make('span','cw-v4-swipe-count');
           for(const [direction,glyph,cn,en] of [['left','‹','上一条回复','Previous reply'],['right','›','下一条回复','Next reply']]){
@@ -698,11 +701,10 @@ export function installOfficialLayout(win = window) {
             arrow.setAttribute('aria-label',t(cn,en));swipes.append(arrow);if(direction==='left')swipes.append(count);
           }bar.prepend(swipes);
         }
-        const count=swipes.querySelector('.cw-v4-swipe-count'),value=source.textContent.trim();if(count.textContent!==value)count.textContent=value;
+        const count=swipes.querySelector('.cw-v4-swipe-count'),value=source?.textContent.trim() || `${(data?.swipe_id ?? 0)+1}/${total}`;if(count.textContent!==value)count.textContent=value;
         for(const direction of ['left','right']){const original=message.querySelector(`:scope>.claude-swipe-${direction}-proxy`),arrow=swipes.querySelector(`.cw-v4-swipe-${direction}`);if(arrow.disabled!==Boolean(original?.disabled))arrow.disabled=Boolean(original?.disabled);}
       }else swipes?.remove();
     });
-    const ctx = win.SillyTavern?.getContext?.();
     const group = ctx?.groupId != null && ctx.groupId !== '';
     setBodyClass('cw-v4-group-chat', group);
     const input = doc.querySelector('#send_textarea');
@@ -1026,7 +1028,7 @@ export function installOfficialLayout(win = window) {
         const roomUp = h.top - 6 - minY, roomDown = maxY - (h.bottom + 6);
         const full = menu.scrollHeight;
         let up = phone ? (roomUp >= full || roomUp >= roomDown) : !(roomDown >= full || roomDown >= roomUp);
-        // 2.0.131（Lulu：「…」靠近顶上时菜单上半截被标题栏挡住）：以前最少撑到 120px，选中那边放不下也照样撑，
+        // 2.0.132（Lulu：「…」靠近顶上时菜单上半截被标题栏挡住）：以前最少撑到 120px，选中那边放不下也照样撑，
         // 菜单就伸进标题栏后面。现在高度绝不超过 minY..maxY 之间的空间；选中那边不够 120 时，菜单往「…」方向挪（shift），
         // 宁可盖住一点按钮也要整块看得见，剩下的在菜单里滚。
         const room = Math.max(0, Math.floor(up ? roomUp : roomDown));
@@ -1378,6 +1380,9 @@ export function installOfficialLayout(win = window) {
       if (doc.getElementById('persona-management-button')?.querySelector('.drawer-content.openDrawer')) return; // 已经开着：照原样（关上）
       e.stopPropagation(); e.preventDefault();
       if (cwMenu?.classList.contains('cw-acct')) { closeCwMenu(); return; }
+      // Account clicks are intercepted before ST's outside-click handlers.
+      win.jQuery?.(root).triggerHandler('click');
+      win.jQuery?.(doc).triggerHandler('click');
       const ctx = win.SillyTavern?.getContext?.(), pu = ctx?.powerUserSettings || {}, personas = pu.personas || {};
       const me = ctx?.name1 || '', cur = (win.user_avatar || doc.querySelector('#user_avatar_block .avatar-container.selected .avatar')?.getAttribute('imgfile') || '');
       const pick = (file, name) => {
@@ -1573,6 +1578,7 @@ export function installOfficialLayout(win = window) {
   }
   function syncSheet() {
     if (destroyed) return;
+    syncMovedDialogWatch();
     const pm = pmEl();
     // 提示词编辑页：酒馆摘掉 openDrawer 后 200ms 就 display:none，比我们的下滑短；收起期间挂 data-cw-closing，CSS 让它多显示一会儿播完。
     const pmOpen = Boolean(pm?.classList.contains('openDrawer'));
@@ -1605,6 +1611,7 @@ export function installOfficialLayout(win = window) {
     });
     for (const el of doc.querySelectorAll('[data-cw-sheet-under]')) if (!sheetStack.includes(el)) el.removeAttribute('data-cw-sheet-under');
     syncExternalSheetYield();
+    if (canPopover && !externalModalOpen) recoverDroppedSheets();
     const open = sheetStack.length > 0, deep = sheetStack.length > 1;
     if (open === root.hasAttribute('data-cw-sheet') && deep === root.hasAttribute('data-cw-sheet-deep')) return;
     animWindow();
@@ -1684,6 +1691,15 @@ export function installOfficialLayout(win = window) {
      老内核没有 popover、不是弹出页的对话框：照旧 showModal。CW 编辑窗在电脑上也用此路径，让第三方弹窗可接管交互。 */
   const nativeShowModal = win.HTMLDialogElement.prototype.showModal;
   let shield = null;
+  let movedDialogMo = null, movedDialogWatching = false;
+  function syncMovedDialogWatch() {
+    if (!movedDialogMo) return;
+    const watch = !destroyed && enabled() && !!doc.querySelector('dialog[data-cw-lifted][open]');
+    if (watch === movedDialogWatching) return;
+    movedDialogWatching = watch;
+    if (watch) movedDialogMo.observe(doc.body, {childList:true,subtree:true});
+    else movedDialogMo.disconnect();
+  }
   let externalModalOpen = false;
   const sheetAnimationChecks = new Map();
   function guardSheetAnimation(layer) {
@@ -1760,14 +1776,20 @@ export function installOfficialLayout(win = window) {
     shieldMaybeDown();
   }
   // CW editors need to yield to third-party Teleports on desktop too.
-  const liftable = d => canPopover && enabled() && (d.matches('dialog.cw-v4-editor') || (mobile() && d.matches(SHEET_POPUP)));
+  const liftable = d => canPopover && enabled() && !doc.querySelector('dialog:modal') && (d.matches('dialog.cw-v4-editor') || (mobile() && d.matches(SHEET_POPUP)));
   function shieldUp() {
     if (!canPopover) return;
     if (!shield) {
       shield = make('div', 'cw-sheet-shield'); shield.setAttribute('popover', 'manual'); shield.setAttribute('aria-hidden', 'true');
+      // Recheck after an external caller raises the shield; the sheet belongs above it.
+      on(shield, 'toggle', () => {
+        if (shield?.matches(':popover-open')) win.requestAnimationFrame(() => { if (!destroyed) recoverDroppedSheets(); });
+      });
       for (const type of ['click', 'pointerdown', 'mousedown', 'touchstart']) shield.addEventListener(type, e => {
-        if (!recoverDroppedSheets()) return;
-        e.preventDefault(); e.stopPropagation();
+        recoverDroppedSheets();
+        if (!externalModalOpen && (pmHost || doc.querySelector('dialog[data-cw-lifted][open]'))) {
+          e.preventDefault(); e.stopPropagation();
+        }
       }, {passive: false});
       doc.body.append(shield);
     }
@@ -1781,13 +1803,19 @@ export function installOfficialLayout(win = window) {
     if (externalModalOpen) return false;
     const open = [...doc.querySelectorAll('dialog[data-cw-lifted][open]')];
     const dropped = open.filter(d => !d.matches(':popover-open'));
-    if (!dropped.length) { shieldMaybeDown(); return Boolean(pmHost || open.length); }
+    const ordered = openSheetLayers(), top = ordered.at(-1);
+    const covered = top?.matches(':popover-open') && [[.5,.5],[.2,.2],[.8,.8]].some(([fx,fy]) => {
+      const r = top.getBoundingClientRect(), x = r.left + r.width * fx, y = r.top + r.height * fy;
+      return x >= 0 && x < win.innerWidth && y >= 0 && y < win.innerHeight && doc.elementFromPoint(x,y) === shield;
+    });
+    if (!dropped.length && !covered) { shieldMaybeDown(); return false; }
     for (const d of dropped) console.warn('[Claude Web] sheet dropped from top layer', d.parentNode, new Date().toISOString());
     // Rebuild the order, including pages that are still in the top layer.
-    return restoreSheetLayers(openSheetLayers());
+    return restoreSheetLayers(ordered);
   }
   function restoreSheetLayers(ordered) {
     try {
+      shieldUp();
       for (const d of ordered) if (d.matches(':popover-open')) d.hidePopover();
       if (shield.matches(':popover-open')) shield.hidePopover();
       shield.showPopover();
@@ -1809,10 +1837,11 @@ export function installOfficialLayout(win = window) {
     // 2.0.219：直接挂 open，不调 show()——show() 会自动把焦点给第一个按钮，而且不带 preventScroll；弹出页在 DOM 里还挂在设置面板里，
     // 面板就被滚到它那儿（Lulu：点扩展的设置，扩展页自己往下跳）。焦点由各自的代码给（我们的弹窗 focus({preventScroll})，酒馆的弹窗自己 setAutoFocus）。
     if (!d.open) d.setAttribute('open', '');
+    syncMovedDialogWatch();
     if (externalModalOpen) syncExternalSheetYield();
     else if (!d.matches(':popover-open')) {
       try { d.showPopover(); }
-      catch { d.close(); d.removeAttribute('popover'); d.removeAttribute('data-cw-lifted'); shieldMaybeDown(); nativeShowModal.call(d); return; }
+      catch { d.close(); d.removeAttribute('popover'); d.removeAttribute('data-cw-lifted'); shieldMaybeDown(); syncMovedDialogWatch(); nativeShowModal.call(d); return; }
     }
     guardSheetAnimation(d);
     // 酒馆在 close 事件里可能马上又 showModal() 一次（关闭被拦下时）：那时 d 还开着，就不撤 popover，等下一次 close。
@@ -1822,6 +1851,7 @@ export function installOfficialLayout(win = window) {
       d.removeAttribute('popover'); d.removeAttribute('data-cw-lifted');
       win.clearTimeout(sheetAnimationChecks.get(d)); sheetAnimationChecks.delete(d); d.removeAttribute('data-cw-animation-fallback');
       shieldMaybeDown();
+      syncMovedDialogWatch();
     };
     d.addEventListener('close', onClose, {once: true});
   }
@@ -1868,6 +1898,17 @@ export function installOfficialLayout(win = window) {
   }
   function watchSheets() {
     installLift();
+    // The blank part of ST's summary is outside its delegated header target.
+    on(doc, 'click', e => {
+      if (!enabled()) return;
+      const summary=e.target.closest?.('#chat .mes_reasoning_summary');
+      if (!summary || e.target.closest('.mes_reasoning_actions')) return;
+      const details=summary.closest('.mes_reasoning_details');
+      if (details) details.dataset.clawdCollapsed='1';
+      if (!e.target.closest('.mes_reasoning_header')) {
+        e.preventDefault(); summary.querySelector('.mes_reasoning_header')?.click();
+      }
+    }, true);
     disposers.push(() => { for (const timer of sheetAnimationChecks.values()) win.clearTimeout(timer); sheetAnimationChecks.clear(); doc.querySelectorAll('[data-cw-animation-fallback]').forEach(layer => layer.removeAttribute('data-cw-animation-fallback')); });
     // The root is not a content scroller. Avoid fighting the keyboard's reveal;
     // reset only after focus leaves text controls or the visual viewport returns.
@@ -1905,6 +1946,12 @@ export function installOfficialLayout(win = window) {
     // 酒馆的 Popup 是 body 的直接子元素：只看 body 的直接子元素增删，再看这些 <dialog> 自己的 open / closing。
     const watched = new WeakSet();
     const dialogMo = new win.MutationObserver(syncSheet); observers.push(dialogMo);
+    // Moving an open dialog (or its parent) removes its popover from the top layer.
+    movedDialogMo = new win.MutationObserver(records => {
+      if (records.some(r => [...r.removedNodes].some(n => n.nodeType === 1 &&
+        (n.matches?.('dialog[data-cw-lifted][open]') || n.querySelector?.('dialog[data-cw-lifted][open]'))))) syncSheet();
+    });
+    observers.push(movedDialogMo);
     const hook = () => { for (const d of doc.querySelectorAll('body>dialog.popup')) if (!watched.has(d)) { watched.add(d); dialogMo.observe(d, {attributes:true, attributeFilter:['open','closing','opening']}); } syncSheet(); };
     observe(doc.body, hook, {childList:true});
     const pm = pmEl();

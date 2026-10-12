@@ -3,7 +3,7 @@
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings } from './official-extension-settings.js?v=2.0.131';
+import { createExtensionSettings } from './official-extension-settings.js?v=2.0.132';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);
@@ -233,6 +233,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       const s=state(entry),line=make('div','cw-v4-entry-line'),info=make('div','cw-v4-entry-info'),title=make('div','cw-v4-entry-title'),meta=make('div','cw-v4-entry-meta'),dot=make('span','cw-v4-dot'),stateText=make('span',''),pos=make('div','cw-v4-entry-pos'),ord=make('div','cw-v4-entry-ord');
       meta.append(dot,stateText);info.append(title,meta);
       header.append(line);s.created.push(line);header.classList.add('cw-v4-entry-head');
+      move(s,header.querySelector(':scope>.drag-handle'),line);
       const kill=entry.querySelector('[name="entryKillSwitch"]');move(s,kill,line);
       const q=sel_=>header.querySelector(sel_);
       const more=menu(s,[['复制这条',q('.duplicate_entry_button')],['移到其他世界书',q('.move_entry_button')],['删除',q('.delete_entry_button'),true]]);
@@ -240,9 +241,9 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       line.append(info,pos,ord,edit,more);
       // The header is ST's drawer toggle; the row itself must not expand the inline form.
       line.addEventListener('click',e=>{if(!e.target.closest('[name="entryKillSwitch"]'))e.stopPropagation();});
-      line.addEventListener('dblclick',e=>{if(!e.target.closest('button,[name="entryKillSwitch"],summary'))editEntry(entry);});
+      line.addEventListener('dblclick',e=>{if(!e.target.closest('button,[name="entryKillSwitch"],summary,.drag-handle'))editEntry(entry);});
       // 2.0.262 手机：点一下整行就进编辑（电脑照旧双击 / 点「配置」）。
-      line.addEventListener('click',e=>{if(phoneWide()&&!e.target.closest('button,[name="entryKillSwitch"],summary,details'))editEntry(entry);});
+      line.addEventListener('click',e=>{if(phoneWide()&&!e.target.closest('button,[name="entryKillSwitch"],summary,details,.drag-handle'))editEntry(entry);});
       const repaint=()=>paintEntry(entry);entry.addEventListener('input',repaint);entry.addEventListener('change',repaint);kill?.addEventListener('click',()=>setTimeout(repaint,0));
       entry._cwV4Row={line,title,state:stateText,dot,pos,ord};entry.classList.add('cw-v4-world-row');
       s.cleanup=()=>{header.classList.remove('cw-v4-entry-head');entry.classList.remove('cw-v4-world-row');entry.removeEventListener('input',repaint);entry.removeEventListener('change',repaint);delete entry._cwV4Row;};
