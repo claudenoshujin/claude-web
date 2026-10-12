@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.133. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.134. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,13 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.133";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.134";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.133";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.134";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.133";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.134";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.133";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.134";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -370,7 +370,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.133-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.134-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -386,7 +386,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.133", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.134", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1122,7 +1122,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.133", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.134", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -2537,6 +2537,10 @@ if (CLAUDE_ENABLED) {
       const swipes = Array.isArray(last.swipes) ? last.swipes.length : 0;
       return last.mes !== snap.lastMes || swipes !== snap.lastSwipes;
     }
+    function setGeneratingFlag(on) {
+      const root = hostDocument.documentElement;
+      if (on) root.dataset.cwGenerating = "1"; else delete root.dataset.cwGenerating;
+    }
     function watchGenerationEvents() {
       if (generationSubscriptions.length || destroyed) return;
       const context = getContext();
@@ -2559,6 +2563,7 @@ if (CLAUDE_ENABLED) {
           if (active && args[2] === !0) return;
           const wasActive = generationEventActive;
           generationEventActive = active;
+          setGeneratingFlag(active && String(args[0] ?? "") !== "quiet");
           active ? startGenTimer() : stopGenTimer();
           if (!active || wasActive && clawdTracks.settledRound !== clawdTracks.activeRound) {
             if (!active) {
@@ -4372,9 +4377,13 @@ if (CLAUDE_ENABLED) {
       });
     }
     function markCurrentRecent() {
-      const chatId = String(getContext()?.getCurrentChatId?.() ?? "");
+      const context = getContext();
+      const chatId = String(context?.getCurrentChatId?.() ?? "");
+      const groupId = String(context?.groupId ?? "").trim();
+      const avatar = groupId ? "" : String(context?.characters?.[context?.characterId]?.avatar ?? "").trim();
       for (const row of hostDocument.querySelectorAll(".clawd-rail-recents .recentChat")) {
-        const on = Boolean(chatId) && normalizeChatKey(row.dataset.file) === normalizeChatKey(chatId);
+        const owner = groupId ? String(row.dataset.group ?? "").trim() === groupId : !avatar || String(row.dataset.avatar ?? "").trim() === avatar;
+        const on = Boolean(chatId) && owner && normalizeChatKey(row.dataset.file) === normalizeChatKey(chatId);
         row.classList.contains("cw-current") !== on && row.classList.toggle("cw-current", on);
       }
     }
@@ -6694,6 +6703,7 @@ if (CLAUDE_ENABLED) {
       streamFollow = null;
       generationSubscriptions.length = 0;
       generationEventActive = !1;
+      setGeneratingFlag(false);
       scrollHost?.removeEventListener("scroll", handleChatScroll);
       swipeTrackRaf && hostWindow.cancelAnimationFrame(swipeTrackRaf);
       swipeObserver?.disconnect();

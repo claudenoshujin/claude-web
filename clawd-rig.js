@@ -356,7 +356,15 @@ export function buildClawdRig() {
   const isVarColor = ch => ch !== 'o' && /var\(|color-mix/.test(PAL[ch]);
   const solidColor = ch => (ch === 'o' ? '#000' : PAL[ch]);   // 眼睛的 --cl-clawd-eye 四套主题都是 #000
   const PART_WIN = {};
+  /* 2.0.326：所有层共用同一个画框（各层自己的框取并集）。Windows 缩放 125% / 150% 时一格 3px = 3.75 / 4.5 屏幕像素，
+     各层小图框不一样，取整就各取各的，钳子和身子之间漏一道缝（Lulu 2026-10-12）。框一样，取整就一样，拼缝对齐。 */
   function partWin(part) {
+    if (PART_WIN['*']) return PART_WIN['*'];
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of PARTS) { const w = ownWin(p); if (!w.w || !w.h) continue; x0 = Math.min(x0, w.x0); y0 = Math.min(y0, w.y0); x1 = Math.max(x1, w.x0 + w.w - 1); y1 = Math.max(y1, w.y0 + w.h - 1); }
+    return (PART_WIN['*'] = { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+  }
+  function ownWin(part) {
     if (PART_WIN[part]) return PART_WIN[part];
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const name of Object.keys(SPR[SHEET[part]])) for (const m of part === 'sym' ? [false] : [false, true]) {
