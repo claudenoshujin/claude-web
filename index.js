@@ -3615,12 +3615,16 @@ if (CLAUDE_ENABLED) {
       isMobileLayout() || scheduleSwipeTrack();
     }
   function createClawdReadingGate(read, now = Date.now) {
-    const limits = { messages: 3, screens: 2, gapMs: 900, cooldownMs: 8000 };
-    let origin = null, until = 0, lastScroll = 0, fired = false, coolUntil = 0, pointer = null;
-    const reset = (clearCooldown = false) => { origin = null; until = 0; lastScroll = 0; fired = false; pointer = null; if (clearCooldown) coolUntil = 0; };
+    const limits = { messages: 3, screens: 2, gapMs: 900, cooldownMs: 8000, gestureGapMs: 250, continuousMs: 1500 };
+    let origin = null, until = 0, lastScroll = 0, fired = false, coolUntil = 0, pointer = null, gestures = 0, lastActivity = null, continuousSince = 0;
+    const reset = (clearCooldown = false) => { origin = null; until = 0; lastScroll = 0; fired = false; pointer = null; gestures = 0; lastActivity = null; continuousSince = 0; if (clearCooldown) coolUntil = 0; };
+    // Scroll events extend the active gesture; only a quiet gap admits a new one.
+    const activity = t => { lastActivity = t; };
     const begin = () => {
       const t = now();
-      if (!origin || t - lastScroll > limits.gapMs) { origin = read(); fired = false; }
+      if (!origin || t - lastScroll > limits.gapMs) { reset(); origin = read(); }
+      if (origin && (lastActivity === null || t - lastActivity >= limits.gestureGapMs)) { gestures++; continuousSince = t; }
+      if (origin) activity(t);
       if (origin) { until = t + limits.gapMs; lastScroll = t; }
     };
     const intent = event => {
@@ -3636,7 +3640,7 @@ if (CLAUDE_ENABLED) {
       if (event.type === 'pointerdown') {
         if (!inside) { reset(); return; }
         // Capture the reading position before native touch/scrollbar movement.
-        if (!origin || now() - lastScroll > limits.gapMs) { origin = read(); fired = false; }
+        if (!origin || now() - lastScroll > limits.gapMs) { reset(); origin = read(); }
         lastScroll = now(); pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
         const r = host.getBoundingClientRect();
         if (event.clientX >= r.right - Math.max(12, host.offsetWidth - host.clientWidth)) begin();
@@ -3649,9 +3653,11 @@ if (CLAUDE_ENABLED) {
       if (!origin || t > until || t - lastScroll > limits.gapMs) { reset(); return 'none'; }
       const current = read();
       if (!current || !origin.node.isConnected || current.host !== origin.host || current.height !== origin.height || current.extent !== origin.extent) { reset(); return 'none'; }
-      lastScroll = t; until = t + limits.gapMs;
+      // Do not count delayed scroll delivery after a quiet gap as continuous reading.
+      if (lastActivity !== null && t - lastActivity >= limits.gestureGapMs) continuousSince = t;
+      activity(t); lastScroll = t; until = t + limits.gapMs;
       if (fired) return 'hold';
-      if (t < coolUntil || Math.abs(current.id - origin.id) < limits.messages
+      if (t < coolUntil || (gestures < 2 && t - continuousSince < limits.continuousMs) || Math.abs(current.id - origin.id) < limits.messages
         || Math.abs(current.top - origin.top) < limits.screens * origin.height) return 'none';
       fired = true; coolUntil = t + limits.cooldownMs; return 'trigger';
     };
@@ -3665,8 +3671,9 @@ if (CLAUDE_ENABLED) {
     const headerBottom = hostDocument.querySelector('.cw-v4-chat-head')?.getBoundingClientRect().bottom || 0;
     const y = Math.max(0, r.top, headerBottom) + 16;
     // A bounded local hit test, never a scan of the message history.
-    for (const fraction of [.5, .25, .75]) {
-      const node = hostDocument.elementFromPoint(r.left + r.width * fraction, y)?.closest?.('#chat > .mes');
+    // Probe just below a message gap without scanning the history.
+    for (const offset of [0, 12, 24]) for (const fraction of [.5, .25, .75]) {
+      const node = hostDocument.elementFromPoint(r.left + r.width * fraction, Math.min(r.bottom - 1, y + offset))?.closest?.('#chat > .mes');
       const value = node?.getAttribute('mesid');
       if (node?.parentElement === host && /^\d+$/.test(value || '')) return { host, node, id: Number(value), top: host.scrollTop, height: host.clientHeight, extent: host.scrollHeight };
     }
