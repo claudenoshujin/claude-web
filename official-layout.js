@@ -1,12 +1,14 @@
-import { officialIcons } from './official-icons.js?v=2.0.132';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.132';
-import { tr } from './official-i18n.js?v=2.0.132';
+import { installOfficialWeb } from './official-web.js?v=2.0.133';
+import { officialIcons } from './official-icons.js?v=2.0.133';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.133';
+import { tr } from './official-i18n.js?v=2.0.133';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
  */
 export function installOfficialLayout(win = window) {
   const doc = win.document, root = doc.documentElement;
+  const stopOfficialWeb = installOfficialWeb(win);
   const ids = [
     ['left-nav-panel', '预设', 'Presets'], ['rm_api_block', 'API 连接', 'API connection'],
     ['AdvancedFormatting', '格式化', 'Formatting'], ['WorldInfo', '世界书', 'World info'],
@@ -1028,7 +1030,7 @@ export function installOfficialLayout(win = window) {
         const roomUp = h.top - 6 - minY, roomDown = maxY - (h.bottom + 6);
         const full = menu.scrollHeight;
         let up = phone ? (roomUp >= full || roomUp >= roomDown) : !(roomDown >= full || roomDown >= roomUp);
-        // 2.0.132（Lulu：「…」靠近顶上时菜单上半截被标题栏挡住）：以前最少撑到 120px，选中那边放不下也照样撑，
+        // 2.0.133（Lulu：「…」靠近顶上时菜单上半截被标题栏挡住）：以前最少撑到 120px，选中那边放不下也照样撑，
         // 菜单就伸进标题栏后面。现在高度绝不超过 minY..maxY 之间的空间；选中那边不够 120 时，菜单往「…」方向挪（shift），
         // 宁可盖住一点按钮也要整块看得见，剩下的在菜单里滚。
         const room = Math.max(0, Math.floor(up ? roomUp : roomDown));
@@ -1983,6 +1985,7 @@ export function installOfficialLayout(win = window) {
   return { refresh: sync, activate, setExternalModals, destroy() {
     if (destroyed) return;
     destroyed = true;
+    stopOfficialWeb();
     observers.forEach(m=>m.disconnect());
     if (raf) win.cancelAnimationFrame(raf);
     // Native close events are queued. Restore inner editors before their parents.

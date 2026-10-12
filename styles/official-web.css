@@ -1,0 +1,242 @@
+/* 2.0.316：菜单字和图标照官网取色（夜 #c3c2b7 / 日 #52514e），图标 22px，顶行、搜索、各行图标中心对齐；
+   对话页「新建对话」的 + 有圆形灰底；「更多」真折叠。
+   2.0.315 电脑端照 claude.ai 网页版（Lulu 2026-10-11 定，预览 Claude outputs/design-web-v1/design-web-v3.html）。
+   只在 html[data-cw-web] 上生效（official-web.js 只在 rail + classic 电脑布局挂这个属性），手机不受影响。
+   官方 CSS 里很多规则是 #top-settings-holder#top-settings-holder + :not(#zz1):not(#zz2) + !important，
+   所以这里统一加三个 :not(#cwN) 抬权重。颜色是从官网截图逐点取的。 */
+@media (min-width: 701px) {
+html[data-cw-web] {
+  --w-side: #f8f8f6; --w-main: #fcfcfb; --w-pill: #edece8; --w-hover: #f1f0ec; --w-line: #e4e3df;
+  --w-sbg: #fff; --w-sbd: #e2e1dc; --w-cbg: #fff; --w-cbd: #e0dfda; --w-text: #1f1e1d; --w-dim: #8a8983;
+  --w-sub: #7d7b74; --w-bubble: #f0f0ee; --w-shadow: 0 1px 4px rgba(0,0,0,.04); --w-btn: #fff;
+  --w-nav: #52514e; --w-strong: #1f1e1d; --w-newbg: #eae9e4; --w-toggle: #73726c;
+}
+html[data-cw-web][data-claude-integrated-theme="night"] {
+  --w-side: #111111; --w-main: #151515; --w-pill: #343434; --w-hover: #1f1f1e; --w-line: #292929;
+  --w-sbg: #1b1b1a; --w-sbd: #2e2e2d; --w-cbg: #20201f; --w-cbd: #4d4d4c; --w-text: #e9e8e3; --w-dim: #898781;
+  --w-sub: #9c9a93; --w-bubble: #242423; --w-shadow: none; --w-btn: #1b1b1a;
+  --w-nav: #c3c2b7; --w-strong: #f0efec; --w-newbg: #2c2c2a; --w-toggle: #8d8d85;
+}
+
+/* 底色：侧栏和正文分开，中间一条细线 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3), html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body,
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #sheld, html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat,
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #form_sheld, html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-v4-chat-head { background-color: var(--w-main) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat::before { background-color: var(--w-main) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder { background: var(--w-side) !important; border-right: 1px solid var(--w-line) !important; box-shadow: none !important; }
+
+/* 顶行：侧栏开关 · Claude · 对话/代码（去掉 ≡ 和前进后退） */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool > svg:nth-of-type(1),
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool > svg:nth-of-type(3),
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool > svg:nth-of-type(4) { display: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool { display: flex !important; align-items: center !important; gap: 13px !important; padding: 0 4px 0 13px !important; height: 52px !important; min-height: 52px !important; flex: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool > svg:nth-of-type(2) { width: 20px !important; height: 20px !important; flex: none !important; margin: 0 !important; color: var(--w-toggle) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool .cw-desk-seg { margin-left: auto !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-brand { font-family: "Newsreader", Georgia, serif; font-size: 21px; font-weight: 500; color: var(--w-strong); letter-spacing: -.01em; position: relative; top: 2px; }
+
+/* 搜索框（样子） */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search { flex: none; box-sizing: border-box; margin: 4px 0 8px; height: 36px; min-height: 36px; border-radius: 9px;
+  border: 1px solid var(--w-sbd); background: var(--w-sbg); display: flex; align-items: center; gap: 15px; padding: 0 12px; color: var(--w-dim); font-size: 15px; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search svg { width: 16px; height: 16px; flex: none; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search { cursor: text; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search:focus-within { border-color: var(--w-cbd); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search .cw-web-search-input { flex: 1 1 auto; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: transparent; color: var(--w-strong); font: inherit; font-size: 15px; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search .cw-web-search-input::placeholder { color: var(--w-dim); opacity: 1; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-search .cw-web-search-input::-webkit-search-cancel-button { filter: grayscale(1); opacity: .6; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-rail-recents .cw-web-miss { display: none !important; }
+/* 2.0.318 全部聊天搜索结果（在最近对话下面）。.clawd-rail-recents 的子孙有一批 grid 规则，这里全部压回去。 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-rail-recents > .cw-web-results { display: block !important; padding: 16px 0 0 !important; margin: 0 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results > .cw-web-results-head { margin-top: 16px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results-head > .cw-web-results-state { font-size: 12px !important; color: var(--w-dim) !important; grid-column: auto !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results > .cw-web-result { display: flex !important; align-items: center !important; gap: 10px !important; height: auto !important; min-height: 50px !important; padding-top: 6px !important; padding-bottom: 6px !important; padding: 0 10px !important; margin: 0 !important; border-radius: 9px !important; cursor: pointer; grid-template-columns: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results > .cw-web-result:hover, html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results > .cw-web-result:focus-visible { background: var(--w-hover) !important; outline: 0; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result > * { grid-column: auto !important; padding: 0 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result > .cw-web-result-av { flex: 0 0 28px !important; width: 28px !important; height: 28px !important; border-radius: 50% !important; overflow: hidden !important; display: grid !important; place-items: center !important; background: var(--w-pill) !important; color: var(--w-nav) !important; font-size: 13px !important; font-weight: 400 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-av img { width: 100% !important; height: 100% !important; object-fit: cover !important; object-position: 50% 15% !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results > .cw-web-result.cw-web-result { padding: 6px 10px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result > .cw-web-result-body { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 2px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-body > .cw-web-result-top { display: flex !important; align-items: center !important; gap: 6px !important; min-width: 0 !important; padding: 0 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-top > .cw-web-result-name { flex: 0 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 14.5px !important; font-weight: 500 !important; color: var(--w-nav) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-body > .cw-web-result-prev { display: block !important; min-width: 0 !important; padding: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 13.5px !important; font-weight: 400 !important; color: var(--w-sub) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result > .cw-web-result-name { flex: none !important; max-width: 45% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 15px !important; font-weight: 500 !important; color: var(--w-nav) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result > .cw-web-result-prev { flex: 1 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 14px !important; font-weight: 400 !important; color: var(--w-sub) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-top > .cw-web-result-count { flex: none !important; font-size: 11.5px !important; font-weight: 400 !important; padding: 0 5px !important; border-radius: 6px !important; background: var(--w-pill) !important; color: var(--w-sub) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-top > .cw-web-result-date { margin-left: auto !important; } html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-top > .cw-web-result-date { flex: none !important; font-size: 12px !important; font-weight: 400 !important; color: var(--w-dim) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-result-prev > .cw-web-hit { font-weight: 500 !important; color: var(--w-strong) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-results > .cw-web-results-none { display: block !important; padding: 6px 10px !important; font-size: 13.5px !important; color: var(--w-dim) !important; }
+
+/* 入口行：新建对话 / 项目 / 作品 / 酒馆 8 个菜单 / 更多，一律 36px、15px 常规字重 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > .drawer:not(#persona-management-button) { height: 36px !important; margin: 0 !important; flex: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > .drawer:not(#persona-management-button) > .drawer-toggle,
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-row { box-sizing: border-box !important; height: 36px !important; min-height: 36px !important; border-radius: 9px !important; padding: 0 10px !important;
+  display: flex !important; align-items: center !important; gap: 12px !important; margin: 0 !important; flex: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder .clawd-rail-label,
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-row .cw-web-label { font-size: 15px !important; font-weight: 400 !important; color: var(--w-nav) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > .drawer:not(#persona-management-button) > .drawer-toggle > .drawer-icon { flex: 0 0 20px !important; width: 20px !important; height: 20px !important; min-width: 20px !important; max-width: 20px !important; min-height: 20px !important; max-height: 20px !important; margin: 0 1px !important; background-color: var(--w-nav) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > .drawer > .drawer-toggle:hover,
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-new:hover { background: var(--w-hover) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-row { color: var(--w-nav); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-row svg { width: 20px; height: 20px; margin: 0 1px; flex: none; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body.clawd-welcome .cw-web-new .cw-web-label { color: var(--w-strong) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body.clawd-welcome .cw-web-new svg { color: var(--w-strong); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) .cw-web-new svg { width: 24px; height: 24px; margin: 0 -1px; padding: 5px; box-sizing: border-box; border-radius: 50%; background: var(--w-newbg); color: var(--w-strong); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-new { cursor: pointer; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body.clawd-welcome .cw-web-new { background: var(--w-pill) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-badge { font-size: 11.5px; padding: 1px 6px; border-radius: 6px; background: var(--w-pill); color: var(--w-sub); margin-left: -4px; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more, html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more .cw-web-label { color: var(--w-dim) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more { cursor: pointer; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more:hover { background: var(--w-hover) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more svg { transition: transform .15s ease; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more[aria-expanded="true"] svg { transform: rotate(90deg); }
+/* 「更多」收着：背景、扩展这两行排到它下面，平时压成 0 高 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { order: 4 !important; }
+html[data-cw-web]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { height: 0 !important; min-height: 0 !important; }
+html[data-cw-web]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) > .drawer-toggle { display: none !important; }
+
+/* 最近：按日期分组，「最近」标题和它的放大镜不要了（搜索在顶上），排序图标挪到第一组标题右边 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-rail-recents { margin-top: 18px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-rail-recents-label { display: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-date { display: flex !important; align-items: center !important; justify-content: space-between !important; height: 30px !important;
+  padding: 0 10px !important; margin-top: 16px !important; font-size: 13.5px !important; color: var(--w-dim) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-date:first-child { margin-top: 0 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-date > span { grid-column: auto !important; font-weight: 400 !important; color: var(--w-dim) !important; padding: 0 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-date > .cw-web-filter { grid-column: auto !important; width: 16px !important; height: 16px !important; color: var(--w-sub) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .recentChat { min-height: 36px !important; height: 36px !important; border-radius: 9px !important; padding: 0 10px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .recentChat .characterName { font-size: 15px !important; font-weight: 500 !important; color: var(--w-nav) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .recentChat .chatPreview { font-size: 14px !important; color: var(--w-sub) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .recentChat:hover { background: var(--w-hover) !important; }
+
+/* 底部用户行：头像和最近对话的头像左边对齐；右边加一个图标（样子） */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > #persona-management-button > .drawer-toggle { padding-left: 19px !important; padding-right: 16px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #persona-management-button .clawd-user-face { flex: 0 0 28px !important; width: 28px !important; min-width: 28px !important; max-width: 28px !important; height: 28px !important; min-height: 28px !important; max-height: 28px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-apps { order: 99; margin-left: auto; display: flex; color: var(--w-sub); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-apps svg { width: 18px; height: 18px; }
+
+/* 右上角：只留幽灵；对话页换成 文件图标 +「分享」 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-win > svg:not(.cw-ghost) { display: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-share { position: fixed; top: 9px; right: 14px; z-index: 50; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-share svg { width: 18px; height: 18px; color: var(--w-text); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-share b { font-weight: 400; font-size: 14.5px; color: var(--w-text); border: 1px solid var(--w-sbd); border-radius: 9px; padding: 4px 11px; background: var(--w-btn); }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body.clawd-welcome > .cw-web-share { display: none; }
+
+/* 输入框：细边、大圆角；框下一行 左「项目 ⌄」/ 右角色和档位，对齐框的内边距 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #send_form { background: var(--w-cbg) !important; border: 1px solid var(--w-cbd) !important; border-radius: 18px !important; box-shadow: var(--w-shadow) !important; overflow: visible !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #send_textarea::placeholder { color: var(--w-dim) !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #nonQRFormItems { position: static !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-character-switcher { position: absolute !important; right: 14px !important; left: auto !important; top: calc(100% + 7px) !important; bottom: auto !important; height: 24px !important; font-size: 13.5px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-character-switcher * { font-size: 13.5px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-proj { position: absolute !important; left: 16px !important; top: calc(100% + 7px) !important; height: 24px !important; display: flex !important;
+  align-items: center; gap: 4px; font-size: 13.5px; color: var(--w-sub); pointer-events: none; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-proj svg { width: 12px; height: 12px; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-welcome-hero { font-size: 34px !important; line-height: 1.3 !important; }
+
+/* 对话页：框里只剩一行输入 + 回车键；+ 和列表挪到框下左边（麦克风不要），提示句居中，角色/档位在右，三者一条线 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) .cw-web-proj { display: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #send_form { padding: 4px 10px !important; min-height: 52px !important; border-radius: 16px !important; margin-bottom: 30px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #nonQRFormItems { align-items: center !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #leftSendForm { position: absolute !important; left: 6px !important; top: calc(100% + 6px) !important; height: 26px !important; gap: 0 !important; align-items: center !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #leftSendForm > * { transform: scale(.82); margin: 0 -3px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) .clawd-fake-mic { display: none !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #send_textarea { padding-left: 6px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #send_form::after { left: 0 !important; right: 0 !important; width: auto !important; text-align: center !important; top: calc(100% + 11px) !important; bottom: auto !important; font-size: 12.5px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) .clawd-character-switcher { top: calc(100% + 5px) !important; translate: 0 -6px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body:not(.clawd-welcome) #send_but::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 5v6.5a3 3 0 0 1-3 3H5.5'/%3E%3Cpath d='M9.5 10.5 5.5 14.5l4 4'/%3E%3C/svg%3E") !important;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 5v6.5a3 3 0 0 1-3 3H5.5'/%3E%3Cpath d='M9.5 10.5 5.5 14.5l4 4'/%3E%3C/svg%3E") !important;
+  background-color: var(--w-sub) !important; }
+
+/* F02 字号：正文 17.5 → 16、行高 1.65；侧栏 15。和侧栏只差 1px。 */
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat .mes_text { font-size: 16px !important; line-height: 1.65 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat .mes[is_user="true"] .mes_text { font-size: 15.5px !important; background: var(--w-bubble) !important; border-radius: 14px !important; }
+}
+
+
+/* 2.0.320 手机侧栏照官网 App（预览 design-phone-sidebar-v1，Lulu 定按官网尺寸；量法见 tools/_tmp/cc-web/inkcols.cjs）。
+   手机没有电脑那段 @media；只看 html[data-cw-web-phone]。下面先是和电脑共用的日期标题 / 搜索 / 结果规则（脚本照抄、换前缀），再是手机自己的。 */
+html[data-cw-web-phone] {
+  --w-dim: #7c7c7a; --w-nav: #1f1e1d; --w-strong: #141413; --w-sub: #73726c; --w-pill: #e8e7e2; --w-hover: #ebeae6;
+  --w-sbg: #fff; --w-sbd: #e2e1dc; --w-cbd: #cfcdc6;
+}
+html[data-cw-web-phone][data-claude-integrated-theme="night"] {
+  --w-dim: #9c9a93; --w-nav: #e8e6df; --w-strong: #f8f8f6; --w-sub: #a3a19b; --w-pill: #2c2c2a; --w-hover: #2a2a28;
+  --w-sbg: #2a2a28; --w-sbd: #3a3936; --w-cbd: #55534c;
+}
+/* 搜索框（样子） */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search { flex: none; box-sizing: border-box; margin: 4px 0 8px; height: 36px; min-height: 36px; border-radius: 9px;
+  border: 1px solid var(--w-sbd); background: var(--w-sbg); display: flex; align-items: center; gap: 15px; padding: 0 12px; color: var(--w-dim); font-size: 15px; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search svg { width: 16px; height: 16px; flex: none; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search { cursor: text; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search:focus-within { border-color: var(--w-cbd); }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search .cw-web-search-input { flex: 1 1 auto; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; box-shadow: none; background: transparent; color: var(--w-strong); font: inherit; font-size: 15px; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search .cw-web-search-input::placeholder { color: var(--w-dim); opacity: 1; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-search .cw-web-search-input::-webkit-search-cancel-button { filter: grayscale(1); opacity: .6; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .clawd-rail-recents .cw-web-miss { display: none !important; }
+/* 2.0.318 全部聊天搜索结果（在最近对话下面）。.clawd-rail-recents 的子孙有一批 grid 规则，这里全部压回去。 */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .clawd-rail-recents > .cw-web-results { display: block !important; padding: 16px 0 0 !important; margin: 0 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results > .cw-web-results-head { margin-top: 16px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results-head > .cw-web-results-state { font-size: 12px !important; color: var(--w-dim) !important; grid-column: auto !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results > .cw-web-result { display: flex !important; align-items: center !important; gap: 10px !important; height: auto !important; min-height: 50px !important; padding-top: 6px !important; padding-bottom: 6px !important; padding: 0 10px !important; margin: 0 !important; border-radius: 9px !important; cursor: pointer; grid-template-columns: none !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results > .cw-web-result:hover, html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results > .cw-web-result:focus-visible { background: var(--w-hover) !important; outline: 0; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result > * { grid-column: auto !important; padding: 0 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result > .cw-web-result-av { flex: 0 0 28px !important; width: 28px !important; height: 28px !important; border-radius: 50% !important; overflow: hidden !important; display: grid !important; place-items: center !important; background: var(--w-pill) !important; color: var(--w-nav) !important; font-size: 13px !important; font-weight: 400 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-av img { width: 100% !important; height: 100% !important; object-fit: cover !important; object-position: 50% 15% !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results > .cw-web-result.cw-web-result { padding: 6px 10px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result > .cw-web-result-body { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 2px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-body > .cw-web-result-top { display: flex !important; align-items: center !important; gap: 6px !important; min-width: 0 !important; padding: 0 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-top > .cw-web-result-name { flex: 0 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 14.5px !important; font-weight: 500 !important; color: var(--w-nav) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-body > .cw-web-result-prev { display: block !important; min-width: 0 !important; padding: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 13.5px !important; font-weight: 400 !important; color: var(--w-sub) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result > .cw-web-result-name { flex: none !important; max-width: 45% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 15px !important; font-weight: 500 !important; color: var(--w-nav) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result > .cw-web-result-prev { flex: 1 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; font-size: 14px !important; font-weight: 400 !important; color: var(--w-sub) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-top > .cw-web-result-count { flex: none !important; font-size: 11.5px !important; font-weight: 400 !important; padding: 0 5px !important; border-radius: 6px !important; background: var(--w-pill) !important; color: var(--w-sub) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-top > .cw-web-result-date { margin-left: auto !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-top > .cw-web-result-date { flex: none !important; font-size: 12px !important; font-weight: 400 !important; color: var(--w-dim) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-result-prev > .cw-web-hit { font-weight: 500 !important; color: var(--w-strong) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-results > .cw-web-results-none { display: block !important; padding: 6px 10px !important; font-size: 13.5px !important; color: var(--w-dim) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-date { display: flex !important; align-items: center !important; justify-content: space-between !important; height: 30px !important;
+  padding: 0 10px !important; margin-top: 16px !important; font-size: 13.5px !important; color: var(--w-dim) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-date:first-child { margin-top: 0 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-date > span { grid-column: auto !important; font-weight: 400 !important; color: var(--w-dim) !important; padding: 0 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-date > .cw-web-filter { grid-column: auto !important; width: 16px !important; height: 16px !important; color: var(--w-sub) !important; }
+/* 标题左移到官网 x≈16；右边放大镜，和标题同高 */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > .clawd-rail-brand { position: relative !important; margin-left: -8px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-phone-search { position: absolute; right: 1px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; margin: 0; padding: 6px; border: 0; background: none; color: currentColor; display: grid; place-items: center; cursor: pointer; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-phone-search svg { width: 24px; height: 24px; }
+/* 搜索框平时收着，点放大镜才在标题下出来 */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > .cw-web-search { display: none !important; }
+html[data-cw-web-phone][data-cw-web-search="open"]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > .cw-web-search { display: flex !important; flex: none; box-sizing: border-box; height: 40px; margin: 2px 0 8px; padding: 0 12px; gap: 12px; align-items: center; border-radius: 12px; border: 1px solid var(--w-sbd); background: var(--w-sbg); color: var(--w-dim); font-size: 16px; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > .cw-web-search .cw-web-search-input { font-size: 16px !important; }
+/* 菜单图标右移到官网 x≈27，文字起点不动 */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > .drawer:not(#persona-management-button) > .drawer-toggle > .drawer-icon { margin-left: 3px !important; margin-right: -3px !important; }
+/* 「更多」：留预设 / API 连接 / 世界书 / 角色卡；格式化、偏好设置、背景、扩展收在它下面（压成 0 高，不藏整个 .drawer——开着的设置页挂在里面） */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more { display: flex !important; align-items: center !important; gap: 12px !important; height: 46px !important; padding: 0 0 0 13px !important; flex: none !important; color: var(--w-dim) !important; cursor: pointer; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more .cw-web-label { font-size: 17px !important; color: var(--w-dim) !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more svg { width: 25px; height: 25px; flex: none; transition: transform .15s ease; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more[aria-expanded="true"] svg { transform: rotate(90deg); }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { order: 4 !important; }
+html[data-cw-web-phone]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { position: absolute !important; top: 0 !important; left: 0 !important; height: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+html[data-cw-web-phone]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) > .drawer-toggle { display: none !important; }
+/* 最近：日期分组代替「最近」标题；行高 50、头像 30（官网），去掉行尾日期，⋯ 淡一点 */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents-label { display: none !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .clawd-rail-recents .cw-web-date { padding: 0 15px !important; margin-top: 14px !important; height: 30px !important; font-size: 14px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .clawd-rail-recents .recentChatList > .cw-web-date:first-child { margin-top: 0 !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat { height: 50px !important; min-height: 50px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat.recentChat.recentChat > .avatar.avatar,
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat.recentChat.recentChat > .avatar.avatar img { width: 30px !important; height: 30px !important; min-width: 30px !important; max-width: 30px !important; min-height: 30px !important; max-height: 30px !important; flex: 0 0 30px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat.recentChat.recentChat > .avatar.avatar { margin-left: 4px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat .characterName { font-size: 17px !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat .chatDate { display: none !important; }
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents .recentChat .cw-recent-more { opacity: .55 !important; }
+/* 新对话按钮照官网 New session 加宽 */
+html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > .clawd-mobile-new-chat { min-width: 149px !important; height: 42px !important; }
+
+
+/* 2.0.322 侧栏菜单图标：自己画的一套，尺寸照 Claude 量的（线宽 1.2 / 24，完整图标撑满 80%）。电脑、手机共用。
+   由 tools/_tmp/cc-web/patch-322.cjs 从 icons-v5.cjs 生成，改图标改那边再生成。 */
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #ai-config-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6.3%203.4h12a1.7%201.7%200%200%201%201.7%201.7v10.6%22%2F%3E%3Cpath%20d%3D%22M6.3%203.4a2%202%200%200%200-2%202v.4a1.1%201.1%200%200%200%201.1%201.1h.9%22%2F%3E%3Cpath%20d%3D%22M6.3%203.4v13.7a2.6%202.6%200%200%200%202.6%202.6%22%2F%3E%3Cpath%20d%3D%22M8.9%2019.7h10.4a2.2%202.2%200%200%200%200-4.4h-8.6a1.1%201.1%200%200%200-1.1%201.1v1%22%2F%3E%3Cpath%20d%3D%22M9.6%208.6h7%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6.3%203.4h12a1.7%201.7%200%200%201%201.7%201.7v10.6%22%2F%3E%3Cpath%20d%3D%22M6.3%203.4a2%202%200%200%200-2%202v.4a1.1%201.1%200%200%200%201.1%201.1h.9%22%2F%3E%3Cpath%20d%3D%22M6.3%203.4v13.7a2.6%202.6%200%200%200%202.6%202.6%22%2F%3E%3Cpath%20d%3D%22M8.9%2019.7h10.4a2.2%202.2%200%200%200%200-4.4h-8.6a1.1%201.1%200%200%200-1.1%201.1v1%22%2F%3E%3Cpath%20d%3D%22M9.6%208.6h7%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #sys-settings-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cg%20transform%3D%22rotate(45%2012%2012)%22%3E%3Cpath%20d%3D%22M5.4%208.8h13.2%22%2F%3E%3Cpath%20d%3D%22M9.3%203.1v7.2M14.7%203.1v7.2%22%2F%3E%3Cpath%20d%3D%22M7.3%208.8v1.5a4.7%204.7%200%200%200%209.4%200V8.8%22%2F%3E%3Cpath%20d%3D%22M12%2015v6.2%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cg%20transform%3D%22rotate(45%2012%2012)%22%3E%3Cpath%20d%3D%22M5.4%208.8h13.2%22%2F%3E%3Cpath%20d%3D%22M9.3%203.1v7.2M14.7%203.1v7.2%22%2F%3E%3Cpath%20d%3D%22M7.3%208.8v1.5a4.7%204.7%200%200%200%209.4%200V8.8%22%2F%3E%3Cpath%20d%3D%22M12%2015v6.2%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #advanced-formatting-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%207%203%2012l5%205M16%207l5%205-5%205M13.7%204.2%2010.3%2019.8%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%207%203%2012l5%205M16%207l5%205-5%205M13.7%204.2%2010.3%2019.8%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #WI-SP-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8.27%204.36A8.5%208.5%200%201%201%203.52%2012.59%22%2F%3E%3Cpath%20d%3D%22M3.3%203.6%204%208.7%208.9%207.4Z%22%20fill%3D%22black%22%2F%3E%3Cpath%20d%3D%22M6.6%2012.3c.75-.75%201.5-.75%202.25%200s1.5.75%202.25%200%201.5-.75%202.25%200%201.5.75%202.25%200%201.5-.75%202.25%200%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8.27%204.36A8.5%208.5%200%201%201%203.52%2012.59%22%2F%3E%3Cpath%20d%3D%22M3.3%203.6%204%208.7%208.9%207.4Z%22%20fill%3D%22black%22%2F%3E%3Cpath%20d%3D%22M6.6%2012.3c.75-.75%201.5-.75%202.25%200s1.5.75%202.25%200%201.5-.75%202.25%200%201.5.75%202.25%200%201.5-.75%202.25%200%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #user-settings-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9.21%205.26L10.3%204.9L10.42%203.04L13.58%203.04L13.7%204.9L14.79%205.26L15.81%205.78L17.22%204.55L19.45%206.78L18.22%208.19L18.74%209.21L19.1%2010.3L20.96%2010.42L20.96%2013.58L19.1%2013.7L18.74%2014.79L18.22%2015.81L19.45%2017.22L17.22%2019.45L15.81%2018.22L14.79%2018.74L13.7%2019.1L13.58%2020.96L10.42%2020.96L10.3%2019.1L9.21%2018.74L8.19%2018.22L6.78%2019.45L4.55%2017.22L5.78%2015.81L5.26%2014.79L4.9%2013.7L3.04%2013.58L3.04%2010.42L4.9%2010.3L5.26%209.21L5.78%208.19L4.55%206.78L6.78%204.55L8.19%205.78Z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%222.7%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M9.21%205.26L10.3%204.9L10.42%203.04L13.58%203.04L13.7%204.9L14.79%205.26L15.81%205.78L17.22%204.55L19.45%206.78L18.22%208.19L18.74%209.21L19.1%2010.3L20.96%2010.42L20.96%2013.58L19.1%2013.7L18.74%2014.79L18.22%2015.81L19.45%2017.22L17.22%2019.45L15.81%2018.22L14.79%2018.74L13.7%2019.1L13.58%2020.96L10.42%2020.96L10.3%2019.1L9.21%2018.74L8.19%2018.22L6.78%2019.45L4.55%2017.22L5.78%2015.81L5.26%2014.79L4.9%2013.7L3.04%2013.58L3.04%2010.42L4.9%2010.3L5.26%209.21L5.78%208.19L4.55%206.78L6.78%204.55L8.19%205.78Z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%222.7%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #backgrounds-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14.2%2020.4A8.6%208.6%200%201%201%2020.5%2013.6h-5a1.3%201.3%200%200%200-1.3%201.3Z%22%2F%3E%3Ccircle%20cx%3D%228.2%22%20cy%3D%228.2%22%20r%3D%221.45%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3Ccircle%20cx%3D%2212.8%22%20cy%3D%226.8%22%20r%3D%221.45%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2212.6%22%20r%3D%221.45%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14.2%2020.4A8.6%208.6%200%201%201%2020.5%2013.6h-5a1.3%201.3%200%200%200-1.3%201.3Z%22%2F%3E%3Ccircle%20cx%3D%228.2%22%20cy%3D%228.2%22%20r%3D%221.45%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3Ccircle%20cx%3D%2212.8%22%20cy%3D%226.8%22%20r%3D%221.45%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2212.6%22%20r%3D%221.45%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #extensions-settings-button > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.6%22%20y%3D%229.4%22%20width%3D%225.6%22%20height%3D%225.6%22%20rx%3D%221.1%22%2F%3E%3Crect%20x%3D%223.6%22%20y%3D%2215%22%20width%3D%225.6%22%20height%3D%225.6%22%20rx%3D%221.1%22%2F%3E%3Crect%20x%3D%229.2%22%20y%3D%2215%22%20width%3D%225.6%22%20height%3D%225.6%22%20rx%3D%221.1%22%2F%3E%3Crect%20x%3D%2214.5%22%20y%3D%223.6%22%20width%3D%225.9%22%20height%3D%225.9%22%20rx%3D%221.1%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223.6%22%20y%3D%229.4%22%20width%3D%225.6%22%20height%3D%225.6%22%20rx%3D%221.1%22%2F%3E%3Crect%20x%3D%223.6%22%20y%3D%2215%22%20width%3D%225.6%22%20height%3D%225.6%22%20rx%3D%221.1%22%2F%3E%3Crect%20x%3D%229.2%22%20y%3D%2215%22%20width%3D%225.6%22%20height%3D%225.6%22%20rx%3D%221.1%22%2F%3E%3Crect%20x%3D%2214.5%22%20y%3D%223.6%22%20width%3D%225.9%22%20height%3D%225.9%22%20rx%3D%221.1%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }
+:is(html[data-cw-web],html[data-cw-web-phone]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > #rightNavHolder > .drawer-toggle > .drawer-icon { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%229.9%22%20r%3D%223.1%22%2F%3E%3Cpath%20d%3D%22M6.2%2018.2c1.3-2.5%203.3-3.7%205.8-3.7s4.5%201.2%205.8%203.7%22%2F%3E%3C%2Fsvg%3E") !important; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%229.9%22%20r%3D%223.1%22%2F%3E%3Cpath%20d%3D%22M6.2%2018.2c1.3-2.5%203.3-3.7%205.8-3.7s4.5%201.2%205.8%203.7%22%2F%3E%3C%2Fsvg%3E") !important; -webkit-mask-size: contain !important; mask-size: contain !important; }

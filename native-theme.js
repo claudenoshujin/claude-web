@@ -1,4 +1,4 @@
-import { saveRestoredTheme } from './theme-restore.js?v=2.0.132';
+import { saveRestoredTheme } from './theme-restore.js?v=2.0.133';
 
 // SHA-256 of sorted complete preset JSON from ST 1.18's default/content/themes.
 // TT 2.2 mobile's settings repository changes only chat_width to 100.
