@@ -1,72 +1,132 @@
-import { saveRestoredTheme } from './theme-restore.js?v=2.0.136';
+import { saveRestoredTheme, hostScriptLoads } from './theme-restore.js?v=2.0.137';
 
-// SHA-256 of sorted complete preset JSON from ST 1.18's default/content/themes.
-// TT 2.2 mobile's settings repository changes only chat_width to 100.
-// The third fingerprint covers that exact official transformation, only in TT.
-// A familiar name alone is insufficient: users can replace a bundled preset.
-const bundledThemes = [
-  ['Dark Lite', 'e688ccf16589eb7dd3088b29e47334827c10a01318907b09daef9952574e5560', '6bd2d080f3b9a3a8ede00dcf203a2592364d79fce25c4213106b0014f18fb7b1'],
-  ['Azure', '694630d974fd61a86c7cbe4a4fe343dd8b5e4b2f4cc74df3dacb97e527415787', 'fc769b3c220e7ecd3698cd3f87ee7613f0e502bada9474dbdd96f18fe567fa7f'],
-  ['Cappuccino', 'c22cba74fefe815054eb94b8d3a8a393601d417c472a6d629283ce80ba239350', 'db88abb41f0c1cc436da3542b7d99b77f39fc2b6e52c3ca2ab80f99f42b9ac92'],
-  ['Celestial Macaron', 'c8782c5daf260c3d6405268ceebab06c136377e0569a33c8dbebf56d0d7221f6', '9c9caa47795f80ace01881fee4459cb3e7885fd571951b3c126d57133c4612d4'],
-  ['Dark V 1.0', 'f5afaa26b7cb7a1f0d5a66f7f212efe4ae5177c0b9250520c33421ae4fd9cf1d', 'd2eba469b154644d6a4cd1045d71a1cd62ac14392119cbcd6ec33a096b5a58d0'],
-];
-const warningKey = 'claude-web:native-theme-warning:v1';
-const missingMessage = 'CW 没找到可确认的酒馆原生 UI 主题，暂未启动。请在「用户设置 → UI 主题」手动选择原生主题，或恢复酒馆自带的主题预设，再点「重新启用 CW」。其他美化和预设不会被删除。';
+// Candidate (not published): CW no longer locks onto a fingerprint-verified
+// native preset. It applies its own bundled copy of the stock "Dark Lite"
+// values (ST 1.18 default/content/themes/Dark Lite.json, identical to the file
+// bundled with TauriTavern 2.3.0) as the base, so a modified or deleted preset
+// can no longer keep CW switched off.
+export const BUILTIN_DARK_LITE = Object.freeze({
+  theme: 'Dark Lite',
+  blur_strength: 10,
+  main_text_color: 'rgba(220, 220, 210, 1)',
+  italics_text_color: 'rgba(145, 145, 145, 1)',
+  underline_text_color: 'rgba(188, 231, 207, 1)',
+  quote_text_color: 'rgba(225, 138, 36, 1)',
+  blur_tint_color: 'rgba(23, 23, 23, 1)',
+  chat_tint_color: 'rgba(23, 23, 23, 1)',
+  user_mes_blur_tint_color: 'rgba(30, 30, 30, 0.9)',
+  bot_mes_blur_tint_color: 'rgba(30, 30, 30, 0.9)',
+  shadow_color: 'rgba(0, 0, 0, 1)',
+  shadow_width: 2,
+  border_color: 'rgba(0, 0, 0, 1)',
+  font_scale: 1,
+  fast_ui_mode: true,
+  waifuMode: false,
+  avatar_style: 0,
+  chat_display: 0,
+  noShadows: true,
+  chat_width: 50,
+  timer_enabled: false,
+  timestamps_enabled: true,
+  timestamp_model_icon: true,
+  mesIDDisplay_enabled: false,
+  hideChatAvatars_enabled: false,
+  message_token_count_enabled: false,
+  expand_message_actions: false,
+  enableZenSliders: '',
+  enableLabMode: '',
+  hotswap_enabled: true,
+  custom_css: '',
+  bogus_folders: true,
+  reduced_motion: false,
+  compact_input_area: true,
+});
 
-export async function prepareNativeTheme(hostWindow = window, {allowManual = false, restoreFields = []} = {}) {
-  const native = await import(new URL('/script.js', hostWindow.document.baseURI).href);
-  for (let attempt = 0; native.settingsReady === false && attempt < 200; attempt++) await new Promise(resolve => hostWindow.setTimeout(resolve,100));
-  if (native.settingsReady === false) throw new Error('酒馆主题设置尚未就绪，请稍后重新启用 CW');
-  const context = hostWindow.SillyTavern?.getContext?.();
-  const select = hostWindow.document.querySelector('#themes');
-  if (!context?.powerUserSettings || !select) throw new Error('酒馆主题设置尚未就绪，请稍后重新启用 CW');
-  const controller = new hostWindow.AbortController();
-  const timer = hostWindow.setTimeout(() => controller.abort(), 8000);
-  let data;
-  try {
-    const response = await hostWindow.fetch('/api/settings/get', {method:'POST', headers:context.getRequestHeaders(), body:'{}', signal:controller.signal});
-    if (!response.ok) throw new Error('无法读取酒馆主题清单');
-    data = await response.json();
-  } finally { hostWindow.clearTimeout(timer); }
-  let chosen;
-  for (const [name, expected, ttMobileExpected] of bundledThemes) {
-    const theme = data.themes?.find(theme => theme.name === name);
-    if (!theme || ![...select.options].some(option => option.value === name && !option.disabled)) continue;
-    const canonical = JSON.stringify(Object.fromEntries(Object.keys(theme).sort().map(key => [key, theme[key]])));
-    const bytes = await hostWindow.crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
-    const hash = [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2,'0')).join('');
-    if (hash === expected || (typeof hostWindow.__TAURI__?.core?.invoke === 'function' && hash === ttMobileExpected)) { chosen = theme; break; }
+const notReady = '酒馆主题设置尚未就绪，请稍后重新启用 CW';
+const isClaudeTheme = name => typeof name === 'string' && /^Claude Web/.test(name);
+const clone = value => JSON.parse(JSON.stringify(value));
+
+// Readiness never relies on `/script.js` alone: if the host loaded its app
+// under another URL (TT retries with `script.js?tt_retry=…`), that import is a
+// second, never-initialised instance whose flag stays false. It is imported only
+// when resource timing shows a plain `/script.js` load (see hostScriptLoads);
+// otherwise the live context and APP_READY / SETTINGS_LOADED decide.
+// On failure the message names each check so a screenshot is enough to triage.
+export async function waitHostSettings(hostWindow, timeoutMs = 60000, contextWaitMs = 20000) {
+  const started = Date.now();
+  const loads = hostScriptLoads(hostWindow);
+  const facts = {instance: loads.urls.length ? (loads.safe ? '未比对' : '未导入（加载地址带参数）') : '未导入（无加载记录）', settingsReady: '未读', wait: '未开始'};
+  const fail = context => {
+    const list = loads.urls.join(' , ') || '无';
+    const short = list.length > 240 ? list.slice(0, 240) + '…' : list;
+    const parts = [
+      'powerUserSettings ' + (context?.powerUserSettings ? '有' : '缺失'),
+      'eventSource ' + (context?.eventSource ? '有' : '缺失'),
+      '与 /script.js 同一实例：' + facts.instance,
+      'settingsReady：' + facts.settingsReady,
+      'APP_READY：' + facts.wait,
+      '#themes ' + (hostWindow.document.querySelector('#themes') ? '有' : '无'),
+    ];
+    return new Error(notReady + '（' + parts.join('；') + '）script.js：' + short);
+  };
+  let context;
+  while (Date.now() - started < contextWaitMs) {
+    context = hostWindow.SillyTavern?.getContext?.();
+    if (context?.powerUserSettings && context.eventSource) break;
+    await new Promise(resolve => hostWindow.setTimeout(resolve, 100));
   }
-  let manual = false;
-  if (!chosen && allowManual) {
-    const current = data.themes?.find(theme => theme.name === select.value && !/^Claude Web/.test(theme.name));
-    if (current) {
-      const popup = await import(new URL('/scripts/popup.js', hostWindow.document.baseURI).href);
-      // Popup.show.confirm builds HTML from a string (an element would print as
-      // "[object HTMLDivElement]"), so pass text and escape the user's theme name.
-      const name = String(current.name).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-      const text = '当前 UI 主题：' + name + '。CW 无法自动确认它是否为原生主题。你是否已在酒馆设置中手动换成原生主题，并确认继续启用 CW？';
-      if (await popup.Popup.show.confirm('确认已手动更换主题', text)) { chosen = current; manual = true; }
-    }
+  if (!context?.powerUserSettings || !context.eventSource) throw fail(context);
+  if (loads.safe) {
+    try {
+      const native = await import(new URL('/script.js', hostWindow.document.baseURI).href);
+      const same = native.eventSource === context.eventSource;
+      facts.instance = same ? '是' : '否';
+      facts.settingsReady = String(native.settingsReady);
+      // A module export only counts when it is the very instance behind the context.
+      if (same && native.settingsReady === true) return context;
+    } catch (error) { facts.instance = '导入失败'; }
   }
-  if (!chosen) {
-    let warned = false;
-    try { warned = hostWindow.localStorage.getItem(warningKey) === '1'; hostWindow.localStorage.setItem(warningKey,'1'); } catch {}
-    if (!warned) {
-      const popup = await import(new URL('/scripts/popup.js', hostWindow.document.baseURI).href);
-      // Do not hold the extension loader or host startup until dismissal.
-      void popup.callGenericPopup(missingMessage, popup.POPUP_TYPE.TEXT).catch(console.warn);
-    }
-    return {ready:false, message:missingMessage};
+  // APP_READY auto-fires for late listeners in ST 1.14, ST 1.18 and TT 2.3.0,
+  // and is always emitted after settings were applied.
+  const types = context.eventTypes || {};
+  const events = [types.APP_READY, types.SETTINGS_LOADED].filter(Boolean);
+  const waitMs = Math.max(1000, timeoutMs - (Date.now() - started));
+  facts.wait = events.length ? '等待中' : '无事件类型';
+  const ready = events.length && await new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      hostWindow.clearTimeout(timer);
+      for (const event of events) context.eventSource.removeListener?.(event, onEvent);
+      resolve(value);
+    };
+    const onEvent = () => finish(true);
+    const timer = hostWindow.setTimeout(() => finish(false), waitMs);
+    for (const event of events) context.eventSource.on(event, onEvent);
+  });
+  if (!ready) {
+    if (events.length) facts.wait = '等待 ' + Math.round(waitMs / 1000) + ' 秒超时';
+    throw fail(context);
   }
-  select.value = chosen.name;
-  select.dispatchEvent(new hostWindow.Event('change', {bubbles:true}));
-  const expected = {theme:chosen.name, ...Object.fromEntries(Object.entries(chosen).filter(([key]) => key !== 'name'))};
-  if (Object.keys(expected).some(key => JSON.stringify(context.powerUserSettings[key]) !== JSON.stringify(expected[key]))) throw new Error('酒馆原生主题尚未完整应用');
+  return hostWindow.SillyTavern.getContext();
+}
+
+export async function prepareNativeTheme(hostWindow = window, {restoreFields = []} = {}) {
   if (!restoreFields.length) throw new Error('Missing native restore field whitelist');
-  const restore = JSON.parse(JSON.stringify(Object.fromEntries(restoreFields.map(key => [key, context.powerUserSettings[key]]))));
-  await saveRestoredTheme(hostWindow, context, restore);
-  try { hostWindow.localStorage.removeItem(warningKey); } catch {}
-  return {ready:true, theme:chosen.name, manual, restore};
+  const context = await waitHostSettings(hostWindow);
+  const settings = context.powerUserSettings;
+  // Restore target: the user's own theme fields. Fall back to the bundled
+  // Dark Lite only when the current theme already belongs to CW or is unknown.
+  const original = clone(Object.fromEntries(restoreFields.map(key => [key, settings[key]])));
+  const usable = typeof original.theme === 'string' && original.theme && !isClaudeTheme(original.theme);
+  const restore = usable ? original : clone(BUILTIN_DARK_LITE);
+  // Base CW runs on: bundled Dark Lite values; no preset lookup, no fingerprint.
+  Object.assign(settings, clone(BUILTIN_DARK_LITE));
+  const select = hostWindow.document.querySelector('#themes');
+  if (select && [...select.options].some(option => option.value === BUILTIN_DARK_LITE.theme)) select.value = BUILTIN_DARK_LITE.theme;
+  const customCss = hostWindow.document.querySelector('#customCSS');
+  if (customCss) { customCss.value = ''; hostWindow.jQuery?.(customCss).trigger('input'); }
+  await saveRestoredTheme(hostWindow, context, clone(BUILTIN_DARK_LITE));
+  return {ready:true, theme:BUILTIN_DARK_LITE.theme, manual:false, restore, restoreSource: usable ? 'original' : 'builtin'};
 }

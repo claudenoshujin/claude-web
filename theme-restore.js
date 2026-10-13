@@ -3,6 +3,18 @@
 const activeSaves = new WeakMap();
 const SAVE_CONFIRM_TIMEOUT_MS = 15000;
 
+// Import the host's `/script.js` only when resource timing shows the page itself
+// loaded exactly that URL (no query). A retried load such as
+// `script.js?tt_retry=1` means `/script.js` would be a second, uninitialised
+// instance; no timing entries at all is treated as unknown. Both cases skip it.
+export function hostScriptLoads(hostWindow) {
+  let names = [];
+  try { names = hostWindow.performance.getEntriesByType('resource').map(entry => entry.name); } catch {}
+  const urls = names.filter(name => { try { return /\/script\.js$/.test(new URL(name).pathname); } catch { return false; } });
+  const plain = urls.filter(name => !new URL(name).search);
+  return {urls, safe: plain.length > 0 && plain.length === urls.length};
+}
+
 export async function saveRestoredTheme(hostWindow, context, expected) {
   if (activeSaves.has(hostWindow)) {
     const error = new Error('原生保存请求仍在进行，请等待后重试');
@@ -17,29 +29,47 @@ export async function saveRestoredTheme(hostWindow, context, expected) {
   };
   const work = Promise.resolve().then(async () => {
   const base = hostWindow.document.baseURI;
-  const [native, utils] = await Promise.all([
-    import(new URL('/script.js', base).href),
-    import(new URL('/scripts/utils.js', base).href),
-  ]);
+  // A second `/script.js` instance would save its own defaults, so its
+  // saveSettings is used only when the import is safe and is the live instance.
+  let native = null, utils = null;
+  if (hostScriptLoads(hostWindow).safe) {
+    [native, utils] = await Promise.all([
+      import(new URL('/script.js', base).href),
+      import(new URL('/scripts/utils.js', base).href),
+    ]);
+  }
   checkDeadline();
-  if (typeof native.saveSettings !== 'function') throw new Error('原生保存接口不可用');
-  utils.cancelDebounce?.(context.saveSettingsDebounced);
-  const saveResult = await native.saveSettings();
-  checkDeadline();
-  if (saveResult === false) throw new Error('原生主题保存失败');
-  const response = await hostWindow.fetch(new URL('/api/settings/get', base), {
-    method: 'POST',
-    headers: native.getRequestHeaders(),
-    body: '{}',
-    signal: controller.signal,
-  });
-  if (!response.ok) throw new Error('无法确认主题保存结果');
-  const result = await response.json();
-  checkDeadline();
-  const saved = typeof result.settings === 'string' ? JSON.parse(result.settings) : result.settings;
-  const actual = saved?.power_user;
-  if (!actual || Object.keys(expected).some(key => JSON.stringify(actual[key]) !== JSON.stringify(expected[key]))) {
-    throw new Error('恢复后的主题尚未保存');
+  const sameInstance = !!native && native.eventSource === context.eventSource && typeof native.saveSettings === 'function';
+  const readBack = async () => {
+    const response = await hostWindow.fetch(new URL('/api/settings/get', base), {
+      method: 'POST',
+      headers: context.getRequestHeaders(),
+      body: '{}',
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('无法确认主题保存结果');
+    const result = await response.json();
+    checkDeadline();
+    const saved = typeof result.settings === 'string' ? JSON.parse(result.settings) : result.settings;
+    const actual = saved?.power_user;
+    return !!actual && Object.keys(expected).every(key => JSON.stringify(actual[key]) === JSON.stringify(expected[key]));
+  };
+  if (sameInstance) {
+    utils?.cancelDebounce?.(context.saveSettingsDebounced);
+    const saveResult = await native.saveSettings();
+    checkDeadline();
+    if (saveResult === false) throw new Error('原生主题保存失败');
+    if (!await readBack()) throw new Error('恢复后的主题尚未保存');
+  } else {
+    if (typeof context.saveSettingsDebounced !== 'function') throw new Error('原生保存接口不可用');
+    context.saveSettingsDebounced();
+    let ok = false;
+    for (let attempt = 0; !ok && attempt < 12; attempt++) {
+      await new Promise(resolve => hostWindow.setTimeout(resolve, 1000));
+      checkDeadline();
+      ok = await readBack();
+    }
+    if (!ok) throw new Error('恢复后的主题尚未保存');
   }
   });
   activeSaves.set(hostWindow, work);
