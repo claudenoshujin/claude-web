@@ -1095,6 +1095,7 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog select.cw-v4-state-s
 html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit .cw-v4-row-controls>textarea{width:100%!important;min-height:64px;box-sizing:border-box;border:1px solid var(--v4-ctl-line)!important;border-radius:8px!important;background:var(--v4-ctl)!important;padding:10px 12px!important;font:400 14px/1.5 var(--cw-v4-font)!important;color:var(--v4-text)!important;resize:vertical}
 html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit .cw-v4-row-controls>.select2-container{width:100%!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit .cw-v4-content-row .cw-v4-row-controls>textarea{min-height:220px;font:400 14px/1.6 var(--cw-v4-font)!important}
+html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-content-row .tt-codemirror-editor{min-height:220px;min-width:0;width:100%;flex:1 1 100%}
 html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit .cw-v4-row.cw-v4-stack>.cw-v4-row-controls{width:100%}
 html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit .cw-v4-row-controls>select{min-width:160px}
 html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit .cw-v4-row-controls>input:is([type=text],:not([type])){width:200px}
@@ -1876,7 +1877,7 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit-head>
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit-head>select.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel{padding-left:28px!important;min-width:132px!important}
 
 
-html body img[src*="default_Assistant.png" i][src],html body .claude-welcome-clawd-assistant .mesAvatarWrapper .avatar img[src]{content:url("../icons/assistant-clawd.png?v=2.0.135")!important;image-rendering:auto!important;object-fit:contain!important;object-position:50% 55%!important;box-sizing:border-box!important;padding:4%!important;background-color:transparent!important}
+html body img[src*="default_Assistant.png" i][src],html body .claude-welcome-clawd-assistant .mesAvatarWrapper .avatar img[src]{content:url("../icons/assistant-clawd.png?v=2.0.136")!important;image-rendering:auto!important;object-fit:contain!important;object-position:50% 55%!important;box-sizing:border-box!important;padding:4%!important;background-color:transparent!important}
 
 
 @media all{

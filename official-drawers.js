@@ -3,7 +3,7 @@
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings } from './official-extension-settings.js?v=2.0.135';
+import { createExtensionSettings } from './official-extension-settings.js?v=2.0.136';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);
@@ -15,7 +15,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   const extensionSettings=createExtensionSettings({win,t,L,make,button,icon,openEditor});
   const get=id=>doc.getElementById(id);
   function state(root){let s=states.get(root);if(!s){s={moves:[],created:[],root};states.set(root,s);}return s;}
-  function move(s,node,host,before){if(!node||node===host||node.contains(host))return;const companion=node.matches?.('select.select2-hidden-accessible')&&node.nextElementSibling?.matches('.select2-container')?node.nextElementSibling:null;if(node.parentNode){const mark=doc.createComment('cw-drawer-return');node.before(mark);s.moves.push([node,mark]);}if(before)host.insertBefore(node,before);else host.append(node);if(companion)move(s,companion,host);}
+  function move(s,node,host,before){if(!node||node===host||node.contains(host))return;const companion=(node.matches?.('select.select2-hidden-accessible')&&node.nextElementSibling?.matches('.select2-container')||node.matches?.('textarea')&&node.nextElementSibling?.matches('.tt-codemirror-editor'))?node.nextElementSibling:null;if(node.parentNode){const mark=doc.createComment('cw-drawer-return');node.before(mark);s.moves.push([node,mark]);}if(before)host.insertBefore(node,before);else host.append(node);if(companion)move(s,companion,host);}
   const created=(s,n)=>{s.created.push(n);return n;};
   const cleanup=(s,f)=>{(s.cleanups||=[]).push(f);};
   function section(page,title){const n=make('section','cw-v4-section');if(title)n.append(make('h2','',L(title)));page.append(n);return n;}
@@ -255,8 +255,8 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   function editEntry(entry){
     const drawer=entry.querySelector('.inline-drawer');
     // ST creates the editor lazily on this native event.
-    if(!entry.querySelector('.world_entry_edit'))win.jQuery?.(drawer).trigger('inline-drawer-toggle');
-    const form=entry.querySelector('.world_entry_edit');if(!form)return;
+    if(!entry.querySelector('.world_entry_edit'))drawer?.dispatchEvent(new win.CustomEvent('inline-drawer-toggle',{bubbles:true,detail:{open:true}}));
+    const form=entry.querySelector('.world_entry_edit');if(!form){console.warn('[CW] WI editor not created');win.toastr?.warning(t('世界书编辑器未能打开，请刷新后重试。','Could not open the world info editor. Please refresh and retry.'));return;}
     const Q=n=>entry.querySelector(`[name="${n}"]`);
     const es={moves:[],created:[],root:form},box=make('div','cw-v4-dialog-box cw-v4-wi-edit');
     entry.append(box);
@@ -294,12 +294,20 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     const del=button(L('删除这条'),()=>{dialog?.close();entry.querySelector('.delete_entry_button')?.click();},'cw-v4-button cw-v4-danger');
     let dialog=null;
     openEditor(box,'',undefined,{head,foot:del,onClose:()=>{
+      // TT mounts asynchronously on the first open; find the live companion at close.
+      const editor=content?.nextElementSibling?.matches('.tt-codemirror-editor')?content.nextElementSibling:null;
+      if(editor){
+        if(editor.contains(doc.activeElement))doc.activeElement.blur();
+        // openEditor may already have hidden the focused node. Flush via TT's own handler.
+        editor.dispatchEvent(new win.FocusEvent('focusout',{bubbles:true,relatedTarget:null}));
+      }
       content?.removeEventListener('input',tk);
       for(const [c,d,h] of shown){c.style.display=d;c.hidden=h;c.classList.remove('cw-v4-icon-toggle');}
       for(const [o,v] of [...stateText,...posText])o.textContent=v;
       if(stateSel){stateSel.removeEventListener('input',paintDot);stateSel.removeEventListener('change',paintDot);for(const o of stateSel.options)delete o.dataset.cwDot;}
       comment?.classList.remove('cw-v4-title-field');stateSel?.classList.remove('cw-v4-state-sel');
       for(const [node,mark] of [...es.moves].reverse())if(mark.parentNode)mark.replaceWith(node);
+      if(editor&&content?.parentNode)content.after(editor);
       es.created.forEach(n=>n.remove());box.remove();paintEntry(entry);
     }});
     dialog=box.closest('dialog');dialog?.classList.add('cw-v4-wi-dialog');
