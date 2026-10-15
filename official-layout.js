@@ -1,7 +1,7 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.142';
-import { officialIcons } from './official-icons.js?v=2.0.142';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.142';
-import { tr } from './official-i18n.js?v=2.0.142';
+import { installOfficialWeb } from './official-web.js?v=2.0.143';
+import { officialIcons } from './official-icons.js?v=2.0.143';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.143';
+import { tr } from './official-i18n.js?v=2.0.143';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -357,6 +357,8 @@ export function installOfficialLayout(win = window) {
     // 2.0.214：要编辑的东西在收起的 <details> 里（Claude Web「自定义配色」）时，放在 details 里面的 <dialog> 画不出来；挪到最外层收起的 details 后面。
     let place = host || anchor;
     for (let d = place.parentElement?.closest('details:not([open])'); d; d = d.parentElement?.closest('details:not([open])')) place = d;
+    // Older Chromium sizes fixed popovers against clipped desktop-only sections.
+    for (let d = place.parentElement?.closest('.cw-v4-desk-only:not(.cw-v4-editing)'); d; d = d.parentElement?.closest('.cw-v4-desk-only:not(.cw-v4-editing)')) place = d;
     place.after(dialog); body.append(node); dialog.append(head, body,footer);
     // Select2 normally attaches results to body, which is behind a modal's
     // top layer. Preserve its existing adapter/options and change only host.
@@ -1950,6 +1952,18 @@ export function installOfficialLayout(win = window) {
     const open = [...doc.querySelectorAll('dialog[data-cw-lifted][open]')];
     const dropped = open.filter(d => !d.matches(':popover-open'));
     const ordered = openSheetLayers(), top = ordered.at(-1);
+    // A zero-size sheet cannot provide hit-test points. Close it through its
+    // native lifecycle so content returns and the shield cannot trap the page.
+    // Only CW's own sheets: host / extension dialogs may hide themselves on purpose.
+    if (top?.matches('dialog.cw-v4-editor:popover-open') && !sheetAnimationChecks.has(top)) {
+      const r = top.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) {
+        top.close();
+        shieldMaybeDown(); syncSheet();
+        console.warn('[Claude Web] zero-size sheet closed; content restored');
+        return true;
+      }
+    }
     const covered = top?.matches(':popover-open') && !sheetAnimationChecks.has(top) && [[.5,.5],[.2,.2],[.8,.8]].some(([fx,fy]) => {
       const r = top.getBoundingClientRect(), x = r.left + r.width * fx, y = r.top + r.height * fy;
       if (x < 0 || x >= win.innerWidth || y < 0 || y >= win.innerHeight) return false;

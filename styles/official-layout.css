@@ -3651,3 +3651,8 @@ html[data-cw-v4] body #chat .cw-edit-action[hidden]{display:none!important}
 html[data-cw-v4] body #chat .cw-edit-action svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6}
 html[data-cw-v4] body #chat .cw-edit-action:hover{background:var(--v4-hover);color:var(--v4-text)}
 html[data-cw-v4] body #chat .cw-edit-action.cw-edit-danger{margin-left:8px;border-left:1px solid var(--v4-line);border-radius:0 7px 7px 0;color:#c8534b}
+
+/* The character list scrolls; a transform hint would capture its fixed FAB.
+   Keep native drawer transitions, which still use their actual transform. */
+html[data-cw-v4][data-claude-layout="mobile"] body #top-settings-holder#top-settings-holder #right-nav-panel{will-change:auto!important}
+@media(max-width:700px){html[data-cw-v4] body #top-settings-holder#top-settings-holder #right-nav-panel{will-change:auto!important}}
