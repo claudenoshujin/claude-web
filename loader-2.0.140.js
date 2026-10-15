@@ -39,11 +39,11 @@ function showStartupError(error) {
 
 // Do not hold ST's settings startup on its own readiness-dependent CW gate.
 void (async () => {
-  const { installSafety } = await import('./emergency.js?v=2.0.139');
+  const { installSafety } = await import('./emergency.js?v=2.0.140');
   const safety = await installSafety();
   if (!await safety.shouldStart()) return;
   try {
-    await import('./index.js?v=2.0.139');
+    await import('./index.js?v=2.0.140');
   } catch (error) {
     console.error('[Claude Web] 主界面加载失败', error);
     safety.notify('CW 主界面加载失败：' + error.message + '。可使用这里的紧急退出。');

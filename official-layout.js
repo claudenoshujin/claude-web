@@ -1,7 +1,7 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.139';
-import { officialIcons } from './official-icons.js?v=2.0.139';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.139';
-import { tr } from './official-i18n.js?v=2.0.139';
+import { installOfficialWeb } from './official-web.js?v=2.0.140';
+import { officialIcons } from './official-icons.js?v=2.0.140';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.140';
+import { tr } from './official-i18n.js?v=2.0.140';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1694,6 +1694,8 @@ export function installOfficialLayout(win = window) {
      老内核没有 popover、不是弹出页的对话框：照旧 showModal。CW 编辑窗在电脑上也用此路径，让第三方弹窗可接管交互。 */
   const nativeShowModal = win.HTMLDialogElement.prototype.showModal;
   let shield = null;
+  let restoringSheetLayers = false, ownedShieldToggle = false, shieldRecoveryRaf = 0;
+  const sheetRecoveryWindows = new WeakMap();
   let movedDialogMo = null, movedDialogWatching = false;
   const MOVED_SHEETS = 'dialog[data-cw-lifted][open],dialog.cw-v4-editor[open],dialog.cw-st-sheet[open]';
   function syncMovedDialogWatch() {
@@ -1719,6 +1721,7 @@ export function installOfficialLayout(win = window) {
         layer.setAttribute('data-cw-animation-fallback', '');
         console.warn('[Claude Web] sheet entrance stayed outside viewport; skipped animation');
       }
+      recoverDroppedSheets();
     }, 1200));
   }
   const yieldedSheets = new Set();
@@ -1786,8 +1789,11 @@ export function installOfficialLayout(win = window) {
     if (!shield) {
       shield = make('div', 'cw-sheet-shield'); shield.setAttribute('popover', 'manual'); shield.setAttribute('aria-hidden', 'true');
       // Recheck after an external caller raises the shield; the sheet belongs above it.
+      on(shield, 'beforetoggle', () => { ownedShieldToggle = restoringSheetLayers; });
       on(shield, 'toggle', () => {
-        if (shield?.matches(':popover-open')) win.requestAnimationFrame(() => { if (!destroyed) recoverDroppedSheets(); });
+        if (ownedShieldToggle) { ownedShieldToggle = false; return; }
+        if (restoringSheetLayers || shieldRecoveryRaf || !shield?.matches(':popover-open')) return;
+        shieldRecoveryRaf = win.requestAnimationFrame(() => { shieldRecoveryRaf = 0; if (!destroyed) recoverDroppedSheets(); });
       });
       for (const type of ['click', 'pointerdown', 'mousedown', 'touchstart']) shield.addEventListener(type, e => {
         recoverDroppedSheets();
@@ -1804,6 +1810,7 @@ export function installOfficialLayout(win = window) {
     try { shield.hidePopover(); } catch {}
   }
   function recoverDroppedSheets() {
+    if (restoringSheetLayers || destroyed) return false;
     // A native modal also leaves the top layer when its ancestor is moved.
     // Recover it before checking external modals: an existing transparent
     // modal is precisely what made this sheet use the native path.
@@ -1822,22 +1829,55 @@ export function installOfficialLayout(win = window) {
     const open = [...doc.querySelectorAll('dialog[data-cw-lifted][open]')];
     const dropped = open.filter(d => !d.matches(':popover-open'));
     const ordered = openSheetLayers(), top = ordered.at(-1);
-    const covered = top?.matches(':popover-open') && [[.5,.5],[.2,.2],[.8,.8]].some(([fx,fy]) => {
+    const covered = top?.matches(':popover-open') && !sheetAnimationChecks.has(top) && [[.5,.5],[.2,.2],[.8,.8]].some(([fx,fy]) => {
       const r = top.getBoundingClientRect(), x = r.left + r.width * fx, y = r.top + r.height * fy;
-      return x >= 0 && x < win.innerWidth && y >= 0 && y < win.innerHeight && doc.elementFromPoint(x,y) === shield;
+      if (x < 0 || x >= win.innerWidth || y < 0 || y >= win.innerHeight) return false;
+      const hits = doc.elementsFromPoint(x,y), pageIndex = hits.findIndex(el => el === top || top.contains(el));
+      // A noninteractive/transparent page does not occur in the hit stack at all.
+      return hits[0] === shield && pageIndex > 0;
     });
     if (!dropped.length && !covered) { shieldMaybeDown(); return recoveredNative; }
+    // Older Chromium may still put the shield first after a successful API
+    // reorder. Use the browser's native modal boundary instead of retrying.
+    const recentRecovery = top && sheetRecoveryWindows.get(top);
+    if (covered && top.matches('dialog') && recentRecovery?.count > 0 && win.performance.now() - recentRecovery.start < 2000) {
+      try {
+        top.hidePopover(); top.removeAttribute('popover'); top.removeAttribute('data-cw-lifted');
+        top.removeAttribute('open'); nativeShowModal.call(top);
+        sheetRecoveryWindows.delete(top); shieldMaybeDown();
+        console.warn('[Claude Web] shield order remained blocked; using native modal');
+        return true;
+      } catch (error) {
+        top.setAttribute('open',''); top.close(); shieldMaybeDown();
+        console.warn('[Claude Web] native modal fallback failed',error); return false;
+      }
+    }
     for (const d of dropped) console.warn('[Claude Web] sheet dropped from top layer', d.parentNode, new Date().toISOString());
     // Rebuild the order, including pages that are still in the top layer.
     return restoreSheetLayers(ordered);
   }
   function restoreSheetLayers(ordered) {
+    if (restoringSheetLayers || !ordered.length) return false;
+    const top = ordered.at(-1), now = win.performance.now();
+    let budget = sheetRecoveryWindows.get(top);
+    if (!budget || now - budget.start >= 2000) { budget = {start:now, count:0, warned:false}; sheetRecoveryWindows.set(top,budget); }
+    if (budget.count >= 3) {
+      if (!budget.warned) { budget.warned = true; console.warn('[Claude Web] sheet recovery paused after 3 attempts in 2 seconds'); }
+      return false;
+    }
+    budget.count += 1;
+    restoringSheetLayers = true;
     try {
       shieldUp();
       for (const d of ordered) if (d.matches(':popover-open')) d.hidePopover();
       if (shield.matches(':popover-open')) shield.hidePopover();
       shield.showPopover();
-      for (const d of ordered) { d.setAttribute('popover', 'manual'); d.showPopover(); guardSheetAnimation(d); }
+      for (const d of ordered) {
+        win.clearTimeout(sheetAnimationChecks.get(d)); sheetAnimationChecks.delete(d);
+        d.setAttribute('data-cw-animation-fallback', '');
+        d.setAttribute('popover', 'manual'); d.showPopover();
+      }
+      if (!shieldRecoveryRaf) shieldRecoveryRaf = win.requestAnimationFrame(() => { shieldRecoveryRaf = 0; if (!destroyed) recoverDroppedSheets(); });
       return true;
     } catch (error) {
       console.warn('[Claude Web] sheet recovery failed', error);
@@ -1846,7 +1886,7 @@ export function installOfficialLayout(win = window) {
       }
       shieldMaybeDown(); syncSheet();
       return false;
-    }
+    } finally { restoringSheetLayers = false; }
   }
   function liftDialog(d) {
     d.removeAttribute('data-cw-animation-fallback');
@@ -1867,6 +1907,7 @@ export function installOfficialLayout(win = window) {
       if (d.open) { d.addEventListener('close', onClose, {once: true}); return; }
       try { if (d.matches(':popover-open')) d.hidePopover(); } catch {}
       d.removeAttribute('popover'); d.removeAttribute('data-cw-lifted');
+      sheetRecoveryWindows.delete(d);
       win.clearTimeout(sheetAnimationChecks.get(d)); sheetAnimationChecks.delete(d); d.removeAttribute('data-cw-animation-fallback');
       shieldMaybeDown();
       syncMovedDialogWatch();
@@ -1927,7 +1968,7 @@ export function installOfficialLayout(win = window) {
         e.preventDefault(); summary.querySelector('.mes_reasoning_header')?.click();
       }
     }, true);
-    disposers.push(() => { for (const timer of sheetAnimationChecks.values()) win.clearTimeout(timer); sheetAnimationChecks.clear(); doc.querySelectorAll('[data-cw-animation-fallback]').forEach(layer => layer.removeAttribute('data-cw-animation-fallback')); });
+    disposers.push(() => { if (shieldRecoveryRaf) win.cancelAnimationFrame(shieldRecoveryRaf); shieldRecoveryRaf = 0; for (const timer of sheetAnimationChecks.values()) win.clearTimeout(timer); sheetAnimationChecks.clear(); doc.querySelectorAll('[data-cw-animation-fallback]').forEach(layer => layer.removeAttribute('data-cw-animation-fallback')); });
     // The root is not a content scroller. Avoid fighting the keyboard's reveal;
     // reset only after focus leaves text controls or the visual viewport returns.
     let rootResetRaf = 0, keyboardViewportSmall = false, keyboardViewportFullHeight = win.visualViewport?.height || win.innerHeight;
