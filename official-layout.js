@@ -1,7 +1,7 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.143';
-import { officialIcons } from './official-icons.js?v=2.0.143';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.143';
-import { tr } from './official-i18n.js?v=2.0.143';
+import { installOfficialWeb } from './official-web.js?v=2.0.144';
+import { officialIcons } from './official-icons.js?v=2.0.144';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.144';
+import { tr } from './official-i18n.js?v=2.0.144';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1695,7 +1695,7 @@ export function installOfficialLayout(win = window) {
     shieldMaybeDown();
   }
   const pmEl = () => doc.getElementById('completion_prompt_manager_popup');
-  const sheetIsOpen = el => el.matches('dialog') ? el.open && !el.hasAttribute('closing') && !el.hasAttribute('data-cw-closing') : el.classList.contains('openDrawer');
+  const sheetIsOpen = el => el.matches('dialog') ? (el.open || el.hasAttribute('data-cw-sheet-yielded-native')) && !el.hasAttribute('closing') && !el.hasAttribute('data-cw-closing') : el.classList.contains('openDrawer');
   function animWindow() {
     root.setAttribute('data-cw-sheet-anim', '');
     win.clearTimeout(sheetAnimTimer);
@@ -1724,7 +1724,7 @@ export function installOfficialLayout(win = window) {
     }
     let now = [];
     if (mobile() && enabled()) {
-      now = [...doc.querySelectorAll('dialog.cw-v4-editor[open],' + SHEET_POPUP + '[open]')];
+      now = [...doc.querySelectorAll('dialog.cw-v4-editor[open],' + SHEET_POPUP + '[open],dialog[data-cw-sheet-yielded-native]')];
       if (pmOpen) now.push(pm);
       now = now.filter(sheetIsOpen);
     }
@@ -1816,11 +1816,12 @@ export function installOfficialLayout(win = window) {
      · Escape 关弹窗：document 上接，给我们的弹窗走 shut()，给酒馆弹窗发 cancel 事件（酒馆自己决定能不能关）。
      老内核没有 popover、不是弹出页的对话框：照旧 showModal。CW 编辑窗在电脑上也用此路径，让第三方弹窗可接管交互。 */
   const nativeShowModal = win.HTMLDialogElement.prototype.showModal;
+  const nativeClose = win.HTMLDialogElement.prototype.close;
   let shield = null;
   let restoringSheetLayers = false, ownedShieldToggle = false, shieldRecoveryRaf = 0;
   const sheetRecoveryWindows = new WeakMap();
   let movedDialogMo = null, movedDialogWatching = false;
-  const MOVED_SHEETS = 'dialog[data-cw-lifted][open],dialog.cw-v4-editor[open],dialog.cw-st-sheet[open]';
+  const MOVED_SHEETS = 'dialog[data-cw-lifted][open],dialog.cw-v4-editor[open],dialog.cw-st-sheet[open],dialog[data-cw-sheet-yielded-native]';
   function syncMovedDialogWatch() {
     if (!movedDialogMo) return;
     const watch = !destroyed && enabled() && !!doc.querySelector(MOVED_SHEETS);
@@ -1884,25 +1885,52 @@ export function installOfficialLayout(win = window) {
     externalModalOpen = externalSheetModals.length > 0;
     syncExternalSheetYield();
   }
+  // Keep native modal pages logically open while their top-layer boundary is lowered.
+  // Only CW editors and phone popups decorated as CW sheets participate.
+  function restoreYieldedNative(d) {
+    d.removeAttribute('data-cw-sheet-yielded-native');
+    if (!d.isConnected) return;
+    try { if (!d.matches(':modal')) { d.removeAttribute('open'); nativeShowModal.call(d); } }
+    catch (error) {
+      d.setAttribute('open',''); d.close();
+      console.warn('[Claude Web] yielded native sheet restore failed', error);
+    }
+  }
   function syncExternalSheetYield() {
-    if (!canPopover || destroyed) return;
-    const ordered = openSheetLayers();
+    if (destroyed) return;
+    for (const d of yieldedSheets) if (!d.isConnected) { d.removeAttribute('data-cw-sheet-yielded'); d.removeAttribute('data-cw-sheet-yielded-native'); yieldedSheets.delete(d); }
+    const native = [...doc.querySelectorAll('dialog.cw-v4-editor:modal' + (mobile() ? ',dialog.cw-st-sheet:modal' : ''))];
+    const held = [...yieldedSheets].filter(d => d.hasAttribute('data-cw-sheet-yielded-native'));
+    const layers = new Set([...(canPopover ? openSheetLayers() : []), ...native, ...held]);
+    const ordered = [...new Set([...sheetStack.map(d => d === pmEl() ? pmHost : d).filter(d => layers.has(d)), ...layers])];
     if (externalModalOpen && enabled() && ordered.length) {
       const entering = !yieldedSheets.size;
       if (!root.hasAttribute('data-cw-sheet-yield')) root.setAttribute('data-cw-sheet-yield', '');
       for (const d of ordered) {
         yieldedSheets.add(d); if (!d.hasAttribute('data-cw-sheet-yielded')) d.setAttribute('data-cw-sheet-yielded', '');
-        try { if (d.matches(':popover-open')) d.hidePopover(); } catch {}
+        if (d.matches(':modal') && native.includes(d)) {
+          d.setAttribute('data-cw-sheet-yielded-native','');
+          d.removeAttribute('open');
+          // Chromium 138 may keep :modal/inert after open is removed. Clear its
+          // native boundary while suppressing only this queued pause-close event.
+          if (d.matches(':modal')) {
+            d.addEventListener('close', e => e.stopImmediatePropagation(), {capture:true, once:true});
+            d.setAttribute('open',''); nativeClose.call(d);
+          }
+        } else if (canPopover) { try { if (d.matches(':popover-open')) d.hidePopover(); } catch {} }
       }
       try { if (shield?.matches(':popover-open')) shield.hidePopover(); } catch {}
       if (entering && !yieldCheckRaf) yieldCheckRaf = win.requestAnimationFrame(checkYieldHitTargets);
       return;
     }
-    if (!yieldedSheets.size) return;
-    // Only restore still-open pages; a third-party modal may have closed its owner.
+    if (!yieldedSheets.size) { root.removeAttribute('data-cw-sheet-yield'); return; }
+    const restoreNative = [...yieldedSheets].filter(d => d.hasAttribute('data-cw-sheet-yielded-native'));
     for (const d of yieldedSheets) d.removeAttribute('data-cw-sheet-yielded');
     yieldedSheets.clear(); root.removeAttribute('data-cw-sheet-yield');
-    if (ordered.length && enabled()) restoreSheetLayers(ordered);
+    // Restore popovers first, native modal boundaries last, preserving their layer order.
+    const popovers = canPopover ? openSheetLayers() : [];
+    if (popovers.length && enabled()) restoreSheetLayers(popovers);
+    for (const d of restoreNative) restoreYieldedNative(d);
     shieldMaybeDown();
   }
   // CW editors need to yield to third-party Teleports on desktop too.
@@ -1939,7 +1967,7 @@ export function installOfficialLayout(win = window) {
     // modal is precisely what made this sheet use the native path.
     let recoveredNative = false;
     for (const d of doc.querySelectorAll('dialog.cw-v4-editor[open]:not([data-cw-lifted]),dialog.cw-st-sheet[open]:not([data-cw-lifted])')) {
-      if (d.matches(':modal') || d.hasAttribute('closing') || d.hasAttribute('data-cw-closing')) continue;
+      if (d.hasAttribute('data-cw-sheet-yielded-native') || d.matches(':modal') || d.hasAttribute('closing') || d.hasAttribute('data-cw-closing')) continue;
       try { d.removeAttribute('open'); nativeShowModal.call(d); recoveredNative = true; }
       catch (error) {
         console.warn('[Claude Web] native sheet recovery failed', error);
@@ -2177,6 +2205,7 @@ export function installOfficialLayout(win = window) {
   return { refresh: sync, activate, setExternalModals, destroy() {
     if (destroyed) return;
     destroyed = true;
+    for (const d of yieldedSheets) if (d.hasAttribute('data-cw-sheet-yielded-native')) restoreYieldedNative(d);
     stopOfficialWeb();
     observers.forEach(m=>m.disconnect());
     if (raf) win.cancelAnimationFrame(raf);
