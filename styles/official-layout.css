@@ -3613,3 +3613,11 @@ html[data-cw-v4] body #top-settings-holder#top-settings-holder dialog.cw-v4-edit
 html[data-cw-v4] body dialog.popup.popup.cw-st-sheet,
 html[data-cw-v4] body>.cw-pm-host.cw-pm-host,
 html[data-cw-v4] body dialog.cwx-popup.cwx-popup{min-height:0!important}
+
+/* Mouse users retain a draggable chat scrollbar, including narrow windows. */
+@media (hover:hover) and (pointer:fine){
+ html[data-cw-v4] body #chat{scrollbar-width:thin!important;scrollbar-color:var(--cw-scrollbar,#d1cfc5) transparent!important;scrollbar-gutter:stable both-edges!important}
+ html[data-cw-v4] body #chat::-webkit-scrollbar{display:block!important;width:6px!important}
+ html[data-cw-v4] body #chat::-webkit-scrollbar-thumb{background:var(--cw-scrollbar,#d1cfc5)!important}
+ html[data-cw-v4] body #chat::-webkit-scrollbar-thumb:hover{background:var(--cw-scrollbar-hover,#87867f)!important}
+}

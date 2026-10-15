@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.138. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.139. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,13 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.138";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.139";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.138";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.139";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.138";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.139";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.138";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.139";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -370,7 +370,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.138-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.139-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -386,7 +386,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.138", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.139", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1122,7 +1122,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.138", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.139", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -6544,6 +6544,26 @@ if (CLAUDE_ENABLED) {
       drawerGuardTimer && hostWindow.clearTimeout(drawerGuardTimer);
       drawerGuardTimer = 0;
     }
+    // Welcome messages can be re-rendered without MESSAGE_ALLOW_SYSTEM_UI.
+    function openWelcomeDrawer(event) {
+      if (destroyed || event.button > 0) return;
+      const button = event.target?.closest?.('#chat :is(.mes,.clawd-welcome-shortcuts) .custom-drawer-opener[data-target], #chat :is(.mes,.clawd-welcome-shortcuts) .drawer-opener[data-target]');
+      if (!button) return;
+      const mobileV4 = isMobileLayout() && hostDocument.documentElement.hasAttribute('data-cw-v4');
+      if (!mobileV4 && !button.classList.contains('custom-drawer-opener')) return;
+      const id = button.dataset.target;
+      if (![ 'sys-settings-button', 'rightNavHolder', 'extensions-settings-button' ].includes(id)) return;
+      const drawer = hostDocument.getElementById(id);
+      const panel = drawer?.querySelector(':scope > .drawer-content');
+      const toggle = drawer?.querySelector(':scope > .drawer-toggle');
+      if (!panel || !toggle || drawer.classList.contains('resizing')) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (mobileV4) {
+        const shell = hostDocument.querySelector('.cw-v4-shell');
+        if (!panel.classList.contains('openDrawer') || !shell || shell.hidden || shell.dataset.panel !== panel.id) showPanelFromRail(panel);
+      } else if (!panel.classList.contains('openDrawer')) toggle.click();
+    }
     function guardDrawerClick(event) {
       if (!railEnabled || isMobileLayout() || destroyed) return;
       const drawer = railToggleOf(event.target);
@@ -6711,6 +6731,7 @@ if (CLAUDE_ENABLED) {
       observedSwipeMessages.clear();
       visibleSwipeMessages.clear();
       hostDocument.removeEventListener("click", interceptNativeDelete, !0);
+      hostDocument.removeEventListener("click", openWelcomeDrawer, !0);
       hostDocument.removeEventListener("click", guardDrawerClick, !0);
       hostDocument.removeEventListener("mousedown", blockDrawerAutoClose, !0);
       hostDocument.removeEventListener("touchstart", blockDrawerAutoClose, !0);
@@ -6966,6 +6987,7 @@ if (CLAUDE_ENABLED) {
         passive: !0
       });
       hostDocument.addEventListener("click", interceptNativeDelete, !0);
+      hostDocument.addEventListener("click", openWelcomeDrawer, !0);
       hostDocument.addEventListener("click", guardDrawerClick, !0);
       hostDocument.addEventListener("mousedown", blockDrawerAutoClose, !0);
       hostDocument.addEventListener("touchstart", blockDrawerAutoClose, !0);
