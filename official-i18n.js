@@ -1,6 +1,8 @@
 /* English strings of design-v4 (i18n.js EN table, copied verbatim). The layout is written with the design's
    Chinese labels; other languages look them up here, as the design preview does. */
 export const EN = {
+  '已保存，刷新页面后生效。请先保存正在编辑的内容。':'Saved. Reload to apply. Save your current edits first.', '刷新页面':'Reload page',
+  '界面样式':'Interface style', '新版（当前）':'New (current)', '旧版':'Old',
   // 侧栏、设置导航
   '预设':'Presets', 'API连接':'API Connection', 'API 连接':'API Connection', '格式化':'Formatting', '世界书':'World Info', '偏好设置':'Preferences',
   '背景':'Backgrounds', '扩展':'Extensions', '角色卡':'Characters', '酒馆':'Tavern', '用户角色':'Personas', '外观':'Appearance', '界面':'Interface',

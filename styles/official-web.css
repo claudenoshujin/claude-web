@@ -271,3 +271,9 @@ html[data-cw-web-phone][data-cw-generating]:not(#x1):not(#x2):not(#x3):not(#x4):
 /* 2.0.327 手机夜间：输入框空着时那个音波键照官网 App——白底黑图标（原来是黑底白图标，夜里看着像个洞）。 */
 html[data-cw-web-phone][data-claude-integrated-theme="night"]:not(#x1):not(#x2):not(#x3):not(#x4):not(#x5):not(#x6):not(#x7) body:not(.claude-generation-active):not(.cw-v4-filled) #send_form #rightSendForm #send_but { background: var(--w-strong) !important; }
 html[data-cw-web-phone][data-claude-integrated-theme="night"]:not(#x1):not(#x2):not(#x3):not(#x4):not(#x5):not(#x6):not(#x7) body:not(.claude-generation-active):not(.cw-v4-filled) #send_form #rightSendForm #send_but::before { background: #141413 !important; }
+
+/* Approved repeated-avatar dot, Web mobile style only. */
+html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar{position:relative!important;background:none!important;box-shadow:none!important;border:0!important}
+html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar>img{visibility:hidden!important}
+html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{content:""!important;position:absolute!important;left:50%!important;top:50%!important;width:9px!important;height:9px!important;transform:translate(-50%,-50%)!important;box-sizing:border-box!important;border:1.3px solid #aaa89f!important;border-radius:50%!important;background:none!important}
+html[data-cw-web-phone][data-claude-integrated-theme="night"] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{border-color:#77756e!important}

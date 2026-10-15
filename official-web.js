@@ -51,6 +51,7 @@ export function installOfficialWeb(win = window) {
   const teardown = () => {
     searchGen++; win.clearTimeout(searchTimer); query = ''; results = null; mode = null;
     mine().forEach(n => n.remove());
+    doc.querySelectorAll('.cw-web-miss').forEach(n => n.classList.remove('cw-web-miss'));
     for (const k of ['cwWeb', 'cwWebPhone', 'cwWebMore', 'cwWebSearch']) delete root.dataset[k];
   };
   // 「更多」：收起时 CSS 把背景、扩展两行压成 0 高（不 display:none 整个 .drawer——它们的设置页是 fixed 的、挂在里面，
@@ -369,7 +370,7 @@ export function installOfficialWeb(win = window) {
 
   if (!doc.getElementById('cw-web-style')) {
     const link = doc.createElement('link'); link.id = 'cw-web-style'; link.rel = 'stylesheet';
-    link.href = new URL('styles/official-web.css?v=2.0.141', import.meta.url).href; doc.head.append(link);
+    link.href = new URL('styles/official-web.css?v=2.0.142', import.meta.url).href; doc.head.append(link);
   }
   let raf = 0;
   const schedule = () => { if (!raf) raf = win.requestAnimationFrame(() => { raf = 0; ensure(); }); };

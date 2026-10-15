@@ -3642,3 +3642,12 @@ html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll{display:inline-block!
 html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll>ruby{white-space:nowrap!important;max-width:none!important;ruby-align:start!important}
 html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll:focus-visible{outline:1px solid var(--v4-muted);outline-offset:2px}
 html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.timestamp-icon[hidden]{display:none!important}
+
+/* Lulu selected icon-only native edit actions. */
+html[data-cw-v4] body #chat>.mes:has(#curEditTextarea) .mes_edit_buttons{gap:4px!important}
+html[data-cw-v4] body #chat>.mes:has(#curEditTextarea) .mes_edit_buttons>.cw-edit-actions{display:flex;align-items:center;gap:2px;margin-right:auto;min-width:0}
+html[data-cw-v4] body #chat .cw-edit-action{display:grid;place-items:center;flex:none;width:28px;height:30px;margin:0;padding:0;border:0;border-radius:7px;background:none;color:var(--v4-muted);cursor:pointer}
+html[data-cw-v4] body #chat .cw-edit-action[hidden]{display:none!important}
+html[data-cw-v4] body #chat .cw-edit-action svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6}
+html[data-cw-v4] body #chat .cw-edit-action:hover{background:var(--v4-hover);color:var(--v4-text)}
+html[data-cw-v4] body #chat .cw-edit-action.cw-edit-danger{margin-left:8px;border-left:1px solid var(--v4-line);border-radius:0 7px 7px 0;color:#c8534b}
