@@ -1,4 +1,4 @@
-/* Claude Web public 2.0.140. Allowed runtime transplant; exclusions removed before generation. */
+/* Claude Web public 2.0.141. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,13 +13,14 @@
   } catch {}
 })();
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.140";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.141";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.140";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.141";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.140";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.141";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.140";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.141";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.141";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -370,7 +371,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.140-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.141-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -386,7 +387,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.140", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.141", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1031,6 +1032,20 @@ if (CLAUDE_ENABLED) {
       const next = {
         ...values
       };
+      // These are interaction/display preferences, not a day/night palette.
+      // Keep the initial CW defaults only when entering from a native theme.
+      if (isClaudeThemeName(settings?.theme) || Object.values(CLAUDE_THEMES).some(theme => theme.name === settings?.theme)) {
+        for (const key of [
+          'timer_enabled', 'timestamps_enabled', 'timestamp_model_icon',
+          'mesIDDisplay_enabled', 'message_token_count_enabled',
+          'hideChatAvatars_enabled', 'expand_message_actions',
+          'show_swipe_num_all_messages', 'click_to_edit', 'reasoning_auto_expand',
+          'compact_input_area', 'hotswap_enabled', 'enableZenSliders',
+          'enableLabMode', 'reduced_motion', 'media_display', 'toastr_position'
+        ]) {
+          if (Object.hasOwn(settings, key) && Object.hasOwn(next, key)) next[key] = settings[key];
+        }
+      }
       if (hostDocument.documentElement.dataset.claudeQuoteBodyColor !== "off") {
         next.quote_text_color = next.main_text_color ?? values.quote_text_color;
         return next;
@@ -1122,7 +1137,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.140", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.141", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -1343,6 +1358,8 @@ if (CLAUDE_ENABLED) {
     let destroyed = !1;
     const clawdEnabled = () => !destroyed && hostDocument.documentElement.dataset.claudeClawd !== "off";
     let clawdPileInstance = null;
+    // T8：打字时一字一蹲、生成时写字快慢跟出字速度（clawd-rhythm.js）
+    let clawdRhythm = null;
     const makeClawdPile = () => createClawdPile({
       doc: hostDocument,
       win: hostWindow,
@@ -1397,6 +1414,13 @@ if (CLAUDE_ENABLED) {
         clawdLastIdleTickAt = Date.now();
         clawdRuntimeTimer = hostWindow.setInterval(clawdRuntimeTick, 200);
         ensureComposerClawd();
+        clawdRhythm ??= installClawdRhythm({
+          doc: hostDocument,
+          win: hostWindow,
+          button: composerClawd,
+          enabled: clawdEnabled,
+          reducedMotion: clawdPrefersReducedMotion
+        });
         return;
       }
       hostWindow.clearInterval(clawdRuntimeTimer);
@@ -1406,6 +1430,8 @@ if (CLAUDE_ENABLED) {
       clawdFrames.clear();
       clawdTimers.clear();
       clawdPile.destroy();
+      clawdRhythm?.destroy();
+      clawdRhythm = null;
       cleanupClawdRigEffects();
       A2.flying++;
       A2.seqRun++;
@@ -6435,6 +6461,7 @@ if (CLAUDE_ENABLED) {
       mobileViewportMetricsDirty && applyMobileViewportMetrics();
       refreshMobileComposerInset();
       preserveStreamingReasoning(typingActive);
+      clawdRhythm?.sync();
       if (continuingGeneration) {
         refreshComposerPhrase(!0);
         return;

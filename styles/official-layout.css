@@ -3621,3 +3621,24 @@ html[data-cw-v4] body dialog.cwx-popup.cwx-popup{min-height:0!important}
  html[data-cw-v4] body #chat::-webkit-scrollbar-thumb{background:var(--cw-scrollbar,#d1cfc5)!important}
  html[data-cw-v4] body #chat::-webkit-scrollbar-thumb:hover{background:var(--cw-scrollbar-hover,#87867f)!important}
 }
+
+/* Approved compact information row: retain native nodes and their tooltips. */
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info{display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:flex-start!important;column-gap:12px!important;row-gap:3px!important;min-width:0!important;max-width:100%!important;margin:5px 0 13px!important;padding:0!important;font:400 12px/1.4 var(--cw-v4-font)!important;color:var(--v4-faint)!important;overflow-wrap:anywhere}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info[hidden]{display:none!important}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>:is(.mesIDDisplay,.timestamp,.mes_timer,.tokenCounterDisplay,.cw-v4-model){position:static!important;inset:auto!important;display:inline-flex!important;align-items:center!important;flex:0 1 auto!important;width:auto!important;min-width:0!important;max-width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;transform:none!important;scale:none!important;translate:none!important;background:none!important;color:inherit!important;font:inherit!important;opacity:1!important;line-height:1.4!important;white-space:normal!important;text-overflow:clip!important;overflow:visible!important}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>:is(.mes_timer,.tokenCounterDisplay,.cw-v4-model)::before{content:none!important;display:none!important}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.mesIDDisplay{order:0}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.timestamp{order:1}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.mes_timer{order:2}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.tokenCounterDisplay{order:3}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.timestamp-icon{order:4;display:inline-block!important;flex:none!important;width:12px!important;height:12px!important;margin:0 -8px 0 0!important;vertical-align:middle!important;color:inherit!important}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.cw-v4-model{order:5}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>:is(.mes_timer,.tokenCounterDisplay,.timestamp,.mesIDDisplay):empty{display:none!important}
+html[data-cw-v4] body.no-timer #chat#chat .cw-v4-message-info>.mes_timer,html[data-cw-v4] body.no-tokenCount #chat#chat .cw-v4-message-info>.tokenCounterDisplay,html[data-cw-v4] body.no-timestamps #chat#chat .cw-v4-message-info>.timestamp,html[data-cw-v4] body.no-mesIDDisplay #chat#chat .cw-v4-message-info>.mesIDDisplay,html[data-cw-v4] body.no-modelIcons #chat#chat .cw-v4-message-info>:is(.timestamp-icon,.cw-v4-model){display:none!important}
+html[data-cw-v4] body #chat#chat .mes[is_user="true"] .cw-v4-message-info{justify-content:flex-end!important}
+
+/* Only an actually overflowing ruby receives this wrapper. */
+html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll{display:inline-block!important;box-sizing:border-box!important;vertical-align:bottom!important;width:100%!important;max-width:100%!important;min-width:0!important;overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-x:contain!important;overscroll-behavior-y:auto!important;touch-action:pan-x pan-y pinch-zoom!important;padding:1em 0 .2em!important;white-space:normal!important;scrollbar-width:thin;scrollbar-color:var(--cw-scrollbar,#c9c5bc) transparent}
+html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll>ruby{white-space:nowrap!important;max-width:none!important;ruby-align:start!important}
+html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll:focus-visible{outline:1px solid var(--v4-muted);outline-offset:2px}
+html[data-cw-v4] body #chat#chat .mes .cw-v4-message-info>.timestamp-icon[hidden]{display:none!important}
