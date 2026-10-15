@@ -3656,3 +3656,9 @@ html[data-cw-v4] body #chat .cw-edit-action.cw-edit-danger{margin-left:8px;borde
    Keep native drawer transitions, which still use their actual transform. */
 html[data-cw-v4][data-claude-layout="mobile"] body #top-settings-holder#top-settings-holder #right-nav-panel{will-change:auto!important}
 @media(max-width:700px){html[data-cw-v4] body #top-settings-holder#top-settings-holder #right-nav-panel{will-change:auto!important}}
+
+/* iOS mobile layout: one visual-viewport coordinate system for chat and composer. */
+html[data-cw-ios-viewport] body #sheld{top:var(--cl-mobile-viewport-top,0px)!important;height:var(--cl-mobile-viewport-height)!important;min-height:var(--cl-mobile-viewport-height)!important;max-height:var(--cl-mobile-viewport-height)!important}
+html[data-cw-ios-viewport] body #top-bar,html[data-cw-ios-viewport] body .clawd-mobile-chrome{top:var(--cl-mobile-viewport-top,0px)!important}
+html[data-cw-v4][data-cw-ios-viewport] body #form_sheld#form_sheld{top:calc(var(--cl-mobile-viewport-top,0px) + var(--cl-mobile-viewport-height) - var(--cl-mobile-composer-height,132px))!important;bottom:auto!important;transform:none!important}
+html[data-cw-v4][data-cw-ios-viewport] body #chat#chat{height:calc(var(--cl-mobile-viewport-height) - var(--cl-mobile-top) - var(--cl-mobile-composer-height,132px))!important;min-height:0!important;max-height:calc(var(--cl-mobile-viewport-height) - var(--cl-mobile-top) - var(--cl-mobile-composer-height,132px))!important}

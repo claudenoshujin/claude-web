@@ -1,4 +1,6 @@
-/* Claude Web public 2.0.144. Allowed runtime transplant; exclusions removed before generation. */
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.145';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.145';
+/* Claude Web public 2.0.145. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -13,16 +15,16 @@
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.144";
+import { tr } from "./official-i18n.js?v=2.0.145";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.144";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.145";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.144";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.145";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.144";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.145";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.144";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.144";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.145";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.145";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -373,7 +375,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.144-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.145-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -389,7 +391,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.144", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.145", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1139,7 +1141,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.144", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.145", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -3884,14 +3886,57 @@ if (CLAUDE_ENABLED) {
         mobileViewportShrinkFrom && scheduleMobileViewportRecheck();
       }, 1500);
     }
+    let iosKeyboardScroll = null;
+    let stopIOSComposerFocus = null;
+    let iosRootResetBudget = 1;
+    let iosKeyboardClosing = false;
+    function resetIOSRoot(afterGesture = false) {
+      if (!afterGesture && iosKeyboardScroll?.active()) { iosKeyboardScroll.scheduleRecovery(); return; }
+      if (iosKeyboardScroll?.isTouching()) return;
+      if (!iosRootResetBudget || (!hostWindow.scrollX && !hostWindow.scrollY && !(Math.abs(hostWindow.visualViewport?.offsetTop || 0) > 1))) return;
+      iosRootResetBudget -= 1;
+      hostWindow.scrollTo({left:0, top:0, behavior:'instant'});
+    }
+    function handleIOSRootScroll() {
+      if (!destroyed && usesIOSVisualViewport()) resetIOSRoot();
+    }
+    function mobileVisibleHeight(viewport) {
+      const visible = Math.max(1, viewport?.height || hostWindow.innerHeight || 1);
+      const client = hostDocument.documentElement.clientHeight;
+      return Math.abs(client - visible) <= 2 ? Math.max(Math.ceil(visible), client) : Math.ceil(visible);
+    }
+    function usesIOSVisualViewport() {
+      const nav = hostWindow.navigator;
+      return isMobileLayout() && !!hostWindow.visualViewport && (/iP(?:hone|ad|od)/.test(nav?.userAgent || '') || nav?.platform === 'MacIntel' && nav?.maxTouchPoints > 1);
+    }
     function applyMobileViewportMetrics() {
       const root = hostDocument.documentElement;
       if (!isMobileLayout()) {
+        root.removeAttribute("data-cw-ios-viewport");
+        root.removeAttribute("data-cw-ios-viewport-mode");
         root.style.removeProperty("--cl-mobile-viewport-height");
         root.style.removeProperty("--cl-mobile-viewport-top");
         root.style.removeProperty("--cl-mobile-popup-height");
         return;
       }
+      if (usesIOSVisualViewport()) {
+        const viewport = hostWindow.visualViewport;
+        root.setAttribute('data-cw-ios-viewport', '');
+        root.dataset.cwIosViewportMode = 'reset';
+        mobileViewportMetricsDirty = !1;
+        clearMobileViewportRecheck();
+        if (Math.abs(root.clientHeight - viewport.height) <= 2) iosKeyboardClosing = false;
+        // Safari can report the old visual height until its close animation ends.
+        // Once focus leaves the keyboard, fill the already-restored layout viewport.
+        const height = iosKeyboardClosing ? Math.max(mobileVisibleHeight(viewport), Math.ceil(hostWindow.innerHeight || 1)) : mobileVisibleHeight(viewport);
+        root.style.setProperty('--cl-mobile-viewport-height', height + 'px');
+        root.style.setProperty('--cl-mobile-viewport-top', '0px');
+        root.style.setProperty('--cl-mobile-popup-height', height + 'px');
+        resetIOSRoot();
+        return;
+      }
+      root.removeAttribute('data-cw-ios-viewport');
+      root.removeAttribute('data-cw-ios-viewport-mode');
       if (keyboardBaselineMode) return;
       const keyboardClearedWhileFocused = mobileViewportShrinkFrom > 0 && Math.round(hostWindow.visualViewport?.height || hostWindow.innerHeight || 0) >= mobileViewportShrinkFrom - MOBILE_KEYBOARD_SHRINK_PX;
       if (isSoftKeyboardTarget(hostDocument.activeElement) && !keyboardClearedWhileFocused) return;
@@ -3924,6 +3969,11 @@ if (CLAUDE_ENABLED) {
       if (!shell) return;
       if (!isMobileLayout()) {
         shell.style.removeProperty("--cl-mobile-composer-translate-y");
+        return;
+      }
+      if (usesIOSVisualViewport()) {
+        mobileKeyboardRecoveryActive = !1;
+        shell.style.removeProperty('--cl-mobile-composer-translate-y');
         return;
       }
       if (usesNativeAndroidKeyboardLayout()) {
@@ -3963,11 +4013,18 @@ if (CLAUDE_ENABLED) {
       if (keyboardBaselineMode) return;
       applyMobileComposerTranslate();
     }
+    function handleViewportScroll() {
+      if (!usesIOSVisualViewport()) { handleViewportChange(); return; }
+      if (destroyed) return;
+      mobileViewportMetricsDirty = !0;
+      scheduleMobileViewportMetrics();
+      scheduleMobileComposerTranslate();
+    }
     function handleViewportChange() {
       if (destroyed) return;
       clawdReadingGate.reset();
       mobileViewportMetricsDirty = !0;
-      scheduleMobileViewportMetrics();
+      if (usesIOSVisualViewport()) applyMobileViewportMetrics(); else scheduleMobileViewportMetrics();
       scheduleMobileComposerTranslate();
       if (hostDocument.activeElement?.id === "send_textarea" || Date.now() < mobileKeyboardSettlingUntil) return;
       const width = Math.round(hostWindow.visualViewport?.width || hostWindow.innerWidth || 0);
@@ -4016,6 +4073,13 @@ if (CLAUDE_ENABLED) {
       hostDocument.activeElement?.id !== "send_textarea" && applyMobileViewportMetrics();
     }
     function scheduleMobileViewportSettle() {
+      if (usesIOSVisualViewport()) {
+        mobileKeyboardSettlingUntil = 0;
+        clearMobileViewportSettleTimers();
+        mobileViewportMetricsDirty = !0;
+        scheduleMobileViewportMetrics();
+        return;
+      }
       if (!isMobileLayout() || keyboardBaselineMode) return;
       clearMobileViewportSettleTimers();
       mobileKeyboardSettlingUntil = Date.now() + 8e3;
@@ -5862,6 +5926,11 @@ if (CLAUDE_ENABLED) {
       event.target?.closest?.("#send_textarea") && releaseMobileChatAutofocus();
     };
     const handleFocusIn = event => {
+      if (usesIOSVisualViewport() && isSoftKeyboardTarget(event.target)) {
+        iosRootResetBudget = 3;
+        iosKeyboardClosing = false;
+        applyMobileViewportMetrics();
+      }
       if (event.target === mobileChatAutofocusTarget) {
         event.target.blur();
         return;
@@ -5885,6 +5954,11 @@ if (CLAUDE_ENABLED) {
       syncCcComposerState();
     };
     const handleFocusOut = event => {
+      if (usesIOSVisualViewport() && isSoftKeyboardTarget(event.target)) {
+        iosRootResetBudget = 1;
+        iosKeyboardClosing = !isSoftKeyboardTarget(event.relatedTarget);
+        applyMobileViewportMetrics();
+      }
       if (event.target === mobileChatAutofocusTarget) return;
       isMobileLayout() && isSoftKeyboardTarget(event.target) && scheduleMobileViewportSettle();
       if (event.target?.id !== "send_textarea") return;
@@ -6816,6 +6890,9 @@ if (CLAUDE_ENABLED) {
       hostDocument.querySelectorAll(".clawd-character-switcher").forEach(button => button.remove());
       hostDocument.querySelectorAll(".clawd-fake-mic").forEach(mic => mic.remove());
       hostDocument.querySelectorAll(".clawd-mobile-new-chat").forEach(button => button.remove());
+      hostDocument.documentElement.removeAttribute("data-cw-ios-viewport");
+      hostDocument.documentElement.removeAttribute("data-cw-ios-viewport-mode");
+      hostWindow.removeEventListener("scroll", handleIOSRootScroll);
       hostWindow.removeEventListener("resize", handleViewportChange);
       hostDocument.removeEventListener("mousemove", handleLook);
       hostDocument.removeEventListener("keydown", noteActivity);
@@ -6828,6 +6905,8 @@ if (CLAUDE_ENABLED) {
       releaseMobileChatAutofocus();
       hostDocument.removeEventListener("pointerdown", handleComposerFocusGesture, !0);
       hostDocument.removeEventListener("touchstart", handleComposerFocusGesture, !0);
+      stopIOSComposerFocus?.(); stopIOSComposerFocus = null;
+      iosKeyboardScroll?.destroy(); iosKeyboardScroll = null;
       hostDocument.removeEventListener("focusin", handleFocusIn, !0);
       hostDocument.removeEventListener("focusout", handleFocusOut, !0);
       if (throttleTimer) {
@@ -6846,7 +6925,7 @@ if (CLAUDE_ENABLED) {
       typingExitGhosts.clear();
       lookRaf && hostWindow.cancelAnimationFrame(lookRaf);
       hostWindow.visualViewport?.removeEventListener("resize", handleViewportChange);
-      hostWindow.visualViewport?.removeEventListener("scroll", handleViewportChange);
+      hostWindow.visualViewport?.removeEventListener("scroll", handleViewportScroll);
       mobileComposerTranslateRaf && hostWindow.cancelAnimationFrame(mobileComposerTranslateRaf);
       mobileComposerTranslateRaf = 0;
       viewportSettleTimer && hostWindow.clearTimeout(viewportSettleTimer);
@@ -7026,6 +7105,7 @@ if (CLAUDE_ENABLED) {
       hostDocument.addEventListener("keydown", releaseDrawerGuard, !0);
       hostDocument.addEventListener("pointerdown", dismissCharacterMenu, !0);
       hostDocument.addEventListener("keydown", dismissCharacterMenu, !0);
+      if (usesIOSVisualViewport()) hostWindow.addEventListener("scroll", handleIOSRootScroll, { passive: !0 });
       hostWindow.addEventListener("resize", handleViewportChange, {
         passive: !0
       });
@@ -7049,12 +7129,16 @@ if (CLAUDE_ENABLED) {
         capture: !0,
         passive: !0
       });
+      if (usesIOSVisualViewport()) {
+        iosKeyboardScroll = installIOSKeyboardScroll({win:hostWindow, enabled:()=>!destroyed && usesIOSVisualViewport(), keyboardTarget:isSoftKeyboardTarget, reset:()=>resetIOSRoot(true)});
+        stopIOSComposerFocus = installIOSComposerFocus({win:hostWindow, enabled:()=>!destroyed && usesIOSVisualViewport(), prepare:releaseMobileChatAutofocus});
+      }
       hostDocument.addEventListener("focusin", handleFocusIn, !0);
       hostDocument.addEventListener("focusout", handleFocusOut, !0);
       hostWindow.visualViewport?.addEventListener("resize", handleViewportChange, {
         passive: !0
       });
-      hostWindow.visualViewport?.addEventListener("scroll", handleViewportChange, {
+      hostWindow.visualViewport?.addEventListener("scroll", handleViewportScroll, {
         passive: !0
       });
       startMobileKeyboardPoll();
