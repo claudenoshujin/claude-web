@@ -1,7 +1,7 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.145';
-import { officialIcons } from './official-icons.js?v=2.0.145';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.145';
-import { tr } from './official-i18n.js?v=2.0.145';
+import { installOfficialWeb } from './official-web.js?v=2.0.146';
+import { officialIcons } from './official-icons.js?v=2.0.146';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.146';
+import { tr } from './official-i18n.js?v=2.0.146';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1044,7 +1044,7 @@ export function installOfficialLayout(win = window) {
     // 下拉、⋯ 菜单、提示词编辑页、酒馆自己的弹窗开着时不接，让它们自己处理。
     on(win,'keydown', e => {
       if (e.key !== 'Escape' || e.defaultPrevented || mobile() || !current) return;
-      if (doc.querySelector('.select2-container--open,.cw-v4-more[open],#completion_prompt_manager_popup.openDrawer,dialog[open]:not(.cw-v4-editor)')) return;
+      if (doc.querySelector('.select2-container--open,.cw-v4-more[open],.cwx-chats .cwx-more-menu[open],#completion_prompt_manager_popup.openDrawer,dialog[open]:not(.cw-v4-editor)')) return;
       const top = [...dialogs].filter(d => d.open).at(-1);
       e.preventDefault(); e.stopImmediatePropagation();
       if (top) top._cwShut?.(); else closeSettings();
@@ -2078,7 +2078,7 @@ export function installOfficialLayout(win = window) {
     d.addEventListener('close', onClose, {once: true});
   }
   function onSheetEscape(e) {
-    if (externalModalOpen || e.key !== 'Escape' || e.defaultPrevented || doc.querySelector('dialog:modal,.select2-container--open')) return;
+    if (externalModalOpen || e.key !== 'Escape' || e.defaultPrevented || doc.querySelector('dialog:modal,.select2-container--open,.cwx-chats .cwx-more-menu[open]')) return;
     const top = openSheetLayers().reverse().find(el => el.matches?.('dialog[data-cw-lifted][open]'));
     if (!top) return;
     e.preventDefault(); e.stopImmediatePropagation();

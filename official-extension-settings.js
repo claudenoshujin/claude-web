@@ -13,6 +13,53 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
   const hiddenSelf=n=>n.hidden||n.style.display==='none'||n.classList.contains('displayNone');
   const shown=n=>!!n&&!hiddenSelf(n);
 
+  // Chat actions retain their original ancestry; lift only the menu surface.
+  let closeChatMenu = null;
+  function enhanceChatMenu(s, menu, list, summary) {
+    list.dataset.cwxChatMenu = '';
+    const popover = typeof list.showPopover === 'function';
+    if (popover) list.setAttribute('popover', 'manual');
+    let stop = null;
+    const close = () => {
+      menu.open = false;
+      stop?.(); stop = null;
+      try { if (popover && list.matches(':popover-open')) list.hidePopover(); } catch {}
+      if (closeChatMenu === close) closeChatMenu = null;
+    };
+    const toggle = () => {
+      if (!menu.open || !menu.isConnected) { close(); return; }
+      if (closeChatMenu === close) return;
+      closeChatMenu?.(); closeChatMenu = close;
+      if (popover) list.showPopover();
+      const a = summary.getBoundingClientRect(), b = list.getBoundingClientRect();
+      const width = win.innerWidth, height = win.innerHeight;
+      const left = Math.max(8, Math.min(a.right - b.width, width - b.width - 8));
+      const top = a.bottom + 4 + b.height <= height - 8 ? a.bottom + 4 : Math.max(8, a.top - b.height - 4);
+      let x = left, y = Math.min(top, Math.max(8, height - b.height - 8));
+      if (!popover) {
+        // Legacy native dialogs establish a containing block for fixed descendants.
+        const owner = list.closest('dialog'), area = owner?.querySelector('.cw-v4-editor-body,.popup-body')?.getBoundingClientRect();
+        if (area) y = a.bottom + 4 + b.height <= area.bottom - 4 ? a.bottom + 4 : Math.max(area.top + 4, a.top - b.height - 4);
+        const origin = menu.getBoundingClientRect(); x -= origin.x; y -= origin.y;
+        list.style.setProperty('position', 'absolute', 'important');
+      }
+      list.style.setProperty('left', x + 'px', 'important');
+      list.style.setProperty('top', y + 'px', 'important');
+      const outside = e => { if (!menu.contains(e.target)) close(); };
+      const key = e => { if (e.key === 'Escape') { close(); summary.focus({preventScroll:true}); e.preventDefault(); e.stopImmediatePropagation(); } };
+      const scroll = e => { if (!list.contains(e.target)) close(); };
+      const watch = new win.MutationObserver(() => { if (!menu.isConnected) close(); });
+      watch.observe(doc.body, {childList:true, subtree:true});
+      doc.addEventListener('pointerdown', outside, true);
+      doc.addEventListener('keydown', key, true);
+      doc.addEventListener('scroll', scroll, true);
+      win.addEventListener('resize', close);
+      stop = () => { watch.disconnect(); doc.removeEventListener('pointerdown', outside, true); doc.removeEventListener('keydown', key, true); doc.removeEventListener('scroll', scroll, true); win.removeEventListener('resize', close); };
+    };
+    menu.addEventListener('toggle', toggle);
+    s.undo.push(() => { close(); menu.removeEventListener('toggle', toggle); });
+  }
+
   /* ---------- 会话：记下搬动和新建的东西，关的时候还原 ---------- */
   function session(root,plan){
     const s={root,plan,moves:[],created:[],undo:[],units:[],rows:[],secs:[],page:null,observer:null,frame:0};
@@ -488,6 +535,7 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
             const b=blk.querySelector(sel);if(!b)continue;
             list.append(button(L(label),e=>{e.stopPropagation();m.open=false;b.click();},'cwx-more-item'+(red?' cwx-red':'')));
           }
+          enhanceChatMenu(s,m,list,sm);
           row.append(ic,t,m);blk.prepend(row);
         }
       }},
