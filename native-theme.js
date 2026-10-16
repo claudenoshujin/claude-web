@@ -1,4 +1,4 @@
-import { saveRestoredTheme, hostScriptLoads } from './theme-restore.js?v=2.0.146';
+import { saveRestoredTheme, hostScriptLoads } from './theme-restore.js?v=2.0.147';
 
 // Candidate (not published): CW no longer locks onto a fingerprint-verified
 // native preset. It applies its own bundled copy of the stock "Dark Lite"

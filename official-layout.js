@@ -1,7 +1,7 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.146';
-import { officialIcons } from './official-icons.js?v=2.0.146';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.146';
-import { tr } from './official-i18n.js?v=2.0.146';
+import { installOfficialWeb } from './official-web.js?v=2.0.147';
+import { officialIcons } from './official-icons.js?v=2.0.147';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.147';
+import { tr } from './official-i18n.js?v=2.0.147';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1934,7 +1934,8 @@ export function installOfficialLayout(win = window) {
     shieldMaybeDown();
   }
   // CW editors need to yield to third-party Teleports on desktop too.
-  const liftable = d => canPopover && enabled() && !doc.querySelector('dialog:modal') && (d.matches('dialog.cw-v4-editor') || (mobile() && d.matches(SHEET_POPUP)));
+  let preferNativeSheets = false;
+  const liftable = d => canPopover && !preferNativeSheets && enabled() && !doc.querySelector('dialog:modal') && (d.matches('dialog.cw-v4-editor') || (mobile() && d.matches(SHEET_POPUP)));
   function shieldUp() {
     if (!canPopover) return;
     if (!shield) {
@@ -2007,6 +2008,7 @@ export function installOfficialLayout(win = window) {
       try {
         top.hidePopover(); top.removeAttribute('popover'); top.removeAttribute('data-cw-lifted');
         top.removeAttribute('open'); nativeShowModal.call(top);
+        preferNativeSheets = true;
         sheetRecoveryWindows.delete(top); shieldMaybeDown();
         console.warn('[Claude Web] shield order remained blocked; using native modal');
         return true;

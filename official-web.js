@@ -370,7 +370,7 @@ export function installOfficialWeb(win = window) {
 
   if (!doc.getElementById('cw-web-style')) {
     const link = doc.createElement('link'); link.id = 'cw-web-style'; link.rel = 'stylesheet';
-    link.href = new URL('styles/official-web.css?v=2.0.146', import.meta.url).href; doc.head.append(link);
+    link.href = new URL('styles/official-web.css?v=2.0.147', import.meta.url).href; doc.head.append(link);
   }
   let raf = 0;
   const schedule = () => { if (!raf) raf = win.requestAnimationFrame(() => { raf = 0; ensure(); }); };

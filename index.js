@@ -1,6 +1,6 @@
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.146';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.146';
-/* Claude Web public 2.0.146. Allowed runtime transplant; exclusions removed before generation. */
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.147';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.147';
+/* Claude Web public 2.0.147. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -15,16 +15,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.146';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.146";
+import { tr } from "./official-i18n.js?v=2.0.147";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.146";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.147";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.146";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.147";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.146";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.147";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.146";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.146";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.147";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.147";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -375,7 +375,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.146-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.147-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -391,7 +391,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.146", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.147", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -807,6 +807,9 @@ if (CLAUDE_ENABLED) {
     let runnerPresenceObserver = null;
     let neutralizedHostRules = [];
     const runnerFrame = window.frameElement;
+    // A previous instance removes its options during destroy. Remember which controls
+    // were affected before the browser auto-selects a different native option.
+    const selectedMisplacedAtStart = new WeakSet([...hostDocument.querySelectorAll('select')].filter(select => select !== findThemeSelect() && [...select.selectedOptions].some(option => option.classList.contains(OPTION_CLASS))));
     hostWindow[INSTANCE_KEY]?.destroy?.({
       restore: !1
     });
@@ -975,15 +978,57 @@ if (CLAUDE_ENABLED) {
       if (!element) return;
       checked ? element.checked = Boolean(value) : element.value = String(value);
     }
-    function findThemeSelect(previousName) {
-      const direct = hostDocument.querySelector("#themes, #theme_select, #theme-select, #ui_theme, #ui-theme");
-      if (direct instanceof hostWindow.HTMLSelectElement) return direct;
-      return [ ...hostDocument.querySelectorAll("select") ].find(select => {
-        const options = [ ...select.options ];
-        return options.some(option => option.value === previousName || /Azure/i.test(option.textContent ?? ""));
-      }) ?? null;
+    function findThemeSelect() {
+      // Theme names also occur in provider lists. Never discover a theme by option text.
+      return [...hostDocument.querySelectorAll('#themes,#theme_select,#theme-select,#ui_theme,#ui-theme')]
+        .find(select => select instanceof hostWindow.HTMLSelectElement && !select.multiple) ?? null;
+    }
+    const warnedMisplacedThemeSelects = new WeakSet();
+    function cleanupMisplacedThemeOptions() {
+      const themeSelect = findThemeSelect(), context = getContext();
+      const ccs = context?.chatCompletionSettings, text = context?.textCompletionSettings;
+      const saved = {
+        chat_completion_source: ccs?.chat_completion_source,
+        openrouter_providers_chat: ccs?.openrouter_providers,
+        openrouter_providers_text: text?.openrouter_providers,
+        nanogpt_provider: ccs?.nanogpt_provider,
+        tts_provider: context?.extensionSettings?.tts?.currentProvider
+      };
+      const ownName = value => isClaudeThemeName(value) || Object.values(CLAUDE_THEMES).some(theme => theme.name === value);
+      const needsReselect = [];
+      for (const select of hostDocument.querySelectorAll('select')) {
+        if (select === themeSelect) continue;
+        const owned = [...select.options].filter(option => option.classList.contains(OPTION_CLASS));
+        const wasSelected = selectedMisplacedAtStart.has(select) || owned.some(option => option.selected) || Object.hasOwn(saved, select.id) && [...select.selectedOptions].some(option => ownName(option.value));
+        const value = saved[select.id], values = Array.isArray(value) ? value : value == null ? null : [value];
+        const corrupt = values?.some(ownName);
+        selectedMisplacedAtStart.delete(select);
+        owned.forEach(option => option.remove());
+        if (wasSelected || corrupt) {
+          const known = values && !corrupt && values.every(v => [...select.options].some(option => option.value === String(v)));
+          if (known && (select.multiple || values.length === 1)) {
+            for (const option of select.options) option.selected = values.some(v => String(v) === option.value);
+          } else {
+            // Removing a selected option otherwise silently picks the first native source.
+            for (const option of select.options) option.selected = false;
+            select.selectedIndex = -1;
+          }
+          if ((!known || corrupt) && !warnedMisplacedThemeSelects.has(select)) {
+            warnedMisplacedThemeSelects.add(select);
+            needsReselect.push(select.id);
+          }
+        }
+      }
+      if (needsReselect.length) {
+        const labels = {chat_completion_source:'对话补全来源',openrouter_providers_chat:'OpenRouter（对话补全）',openrouter_providers_text:'OpenRouter（文本补全）',nanogpt_provider:'NanoGPT 服务商',tts_provider:'TTS 服务商'};
+        const names = needsReselect.map(id => labels[id] || '其他下拉框').join('、');
+        const message = '旧版 CW 的主题选项影响了以下设置：' + names + '。已清除错误选项，请重新选择正确的来源或服务商。';
+        if (hostWindow.toastr?.warning) hostWindow.toastr.warning(message, '请重新选择受影响的设置');
+        else hostWindow.__claudeSafety?.notify?.(message);
+      }
     }
     function syncControls(settings, previousName, installThemeOption = !0) {
+      cleanupMisplacedThemeOptions();
       const controls = {
         "#blur_strength": settings.blur_strength,
         "#shadow_width": settings.shadow_width,
@@ -1018,7 +1063,7 @@ if (CLAUDE_ENABLED) {
       Object.entries(checks).forEach(([selector, value]) => setControl(selector, value, !0));
       const customCss = hostDocument.querySelector("#customCSS, #custom_css");
       customCss && (customCss.value = settings.custom_css);
-      const themeSelect = findThemeSelect(previousName);
+      const themeSelect = findThemeSelect();
       if (themeSelect) {
         let option = [ ...themeSelect.options ].find(item => item.value === THEME_NAME);
         if (!option && installThemeOption) {
@@ -1091,7 +1136,7 @@ if (CLAUDE_ENABLED) {
       const context = getContext();
       const settings = context?.powerUserSettings;
       const snapshot = readRestorePoint();
-      const themeSelect = findThemeSelect(THEME_NAME);
+      const themeSelect = findThemeSelect();
       let restored = !1;
       if (settings && snapshot && typeof snapshot === "object") {
         Object.assign(settings, snapshot);
@@ -1141,7 +1186,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.146", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.147", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
