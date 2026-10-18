@@ -1,12 +1,12 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.147';
-import { officialIcons } from './official-icons.js?v=2.0.147';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.147';
-import { tr } from './official-i18n.js?v=2.0.147';
+import { installOfficialWeb } from './official-web.js?v=2.0.148';
+import { officialIcons } from './official-icons.js?v=2.0.148';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.148';
+import { tr } from './official-i18n.js?v=2.0.148';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
  */
-export function installOfficialLayout(win = window) {
+export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = {}) {
   const doc = win.document, root = doc.documentElement;
   const stopOfficialWeb = installOfficialWeb(win);
   const ids = [
@@ -246,14 +246,16 @@ export function installOfficialLayout(win = window) {
   }
   function activate(id) {
     if (deskClosing) { win.clearTimeout(deskClosing); deskClosing = 0; deskAnim(null); }
-    requestedPanel = id;
     const p = panels.get(id);
+    if (!p) return false;
+    requestedPanel = id;
     if (p && !isOpen(p)) {
       // ST waits for its closing animation when another unpinned drawer is
       // open. Close it synchronously first, keeping our shared shell mounted.
       for (const old of panels.values()) if (old !== p && isOpen(old) && !old.classList.contains('pinnedOpen')) nativeToggle(old)?.click();
       nativeToggle(p)?.click();
     }
+    return true;
   }
   function buildShell() {
     shell = make('div', 'cw-v4-shell'); shell.id = 'cw-v4-settings'; shell.hidden = true;
@@ -881,15 +883,68 @@ export function installOfficialLayout(win = window) {
     const v = h > 0 ? (h + 8) + 'px' : '0px';
     if (sheld.style.getPropertyValue('--cw-qr-h') !== v) sheld.style.setProperty('--cw-qr-h', v);
   }
+  const externalDrawers=new Map();
+  function clearExternalDrawer(panel) {
+    const state=externalDrawers.get(panel);if(!state)return;
+    state.head.remove();panel.classList.remove('cw-v4-external-drawer');
+    externalDrawers.delete(panel);
+  }
+  function syncExternalDrawers() {
+    const eligible=enabled()&&mobile()&&!doc.body.classList.contains('clawd-tauritavern-host')&&!win.__TAURITAVERN__&&!win.__TAURI_INTERNALS__;
+    for(const panel of externalDrawers.keys())if(!eligible||!panel.isConnected)clearExternalDrawer(panel);
+    const externalOpen=eligible&&[...externalDrawers.keys()].some(isOpen);
+    if(root.hasAttribute('data-cw-external-open')!==externalOpen)root.toggleAttribute('data-cw-external-open',externalOpen);
+    if(!eligible)return;
+    for(const panel of doc.querySelectorAll('#top-settings-holder > .drawer > .drawer-content')){
+      if(ids.some(([id])=>id===panel.id)||!isOpen(panel))continue;
+      const state=externalDrawers.get(panel);
+      if(state){
+        if(state.head.parentElement!==panel)panel.prepend(state.head);
+        continue;
+      }
+      const toggle=nativeToggle(panel),glyph=toggle?.querySelector('.drawer-icon');
+      let title=(glyph?.getAttribute('title')||glyph?.getAttribute('data-tip')||panel.querySelector('h1,h2,h3,[class*="header-title"]')?.textContent||toggle?.textContent||panel.id).trim();
+      title=title.replace(/^(?:Open|打开)\s*/i,'').replace(/\s*(?:panel|面板)$/i,'').trim();
+      const head=make('header','cw-v4-external-head');
+      const nav=button('',e=>{e.stopPropagation();if(!doc.body.hasAttribute('data-clawd-menu'))doc.querySelector('.clawd-mobile-menu-button')?.click();},'cw-v4-external-nav');nav.append(icon('menu'));nav.setAttribute('aria-label',L('设置导航'));
+      const close=button('',e=>{e.stopPropagation();if(isOpen(panel))nativeToggle(panel)?.click();},'cw-v4-external-close');close.append(icon('close'));close.setAttribute('aria-label',L('关闭'));
+      head.append(nav,make('h1','cw-v4-external-title',title),close);
+      for(const type of ['mousedown','touchstart'])head.addEventListener(type,e=>e.stopPropagation(),{passive:true});
+      panel.classList.add('cw-v4-external-drawer');panel.prepend(head);externalDrawers.set(panel,{head});
+    }
+  }
+  disposers.push(()=>{for(const panel of externalDrawers.keys())clearExternalDrawer(panel);root.removeAttribute('data-cw-external-open');});
+  let chatWidthKey="";
+  function syncChatWidth() {
+    const value=Number(win.SillyTavern?.getContext?.().powerUserSettings?.chat_width);
+    const key=value+'|'+win.innerWidth+'|'+root.dataset.claudeLayout;
+    if(key===chatWidthKey)return;chatWidthKey=key;
+    const custom=Number.isFinite(value)&&value>0&&value!==Number(defaultChatWidth);
+    // The existing desktop chat has 38px side gutters inside the rail boundary.
+    // Use one viewport-based cap so welcome, messages, composer and title agree.
+    const next=custom?'min(calc(100vw - var(--cl-rail, 0px) - 76px), max(360px, var(--sheldWidth)))':'';
+    if(root.style.getPropertyValue('--cw-user-column')!==next){if(next)root.style.setProperty('--cw-user-column',next);else root.style.removeProperty('--cw-user-column');}
+    if(root.hasAttribute('data-cw-custom-width')!==custom)root.toggleAttribute('data-cw-custom-width',custom);
+  }
+  disposers.push(()=>{root.style.removeProperty('--cw-user-column');root.removeAttribute('data-cw-custom-width');});
+  function syncQrAutoShrink() {
+    const active=!!doc.getElementById('qrq-auto-shrink-style-tag');
+    if(root.hasAttribute('data-cw-qr-auto-shrink')!==active)root.toggleAttribute('data-cw-qr-auto-shrink',active);
+  }
+  disposers.push(()=>root.removeAttribute('data-cw-qr-auto-shrink'));
   function syncQrBar() {
+    syncQrAutoShrink();
     const q = doc.getElementById('qr--bar');
     if (q !== qrBar) { if (qrBar) qrRo?.unobserve(qrBar); qrBar = q; if (q) qrRo?.observe(q); }
     paintQrHeight();
   }
   function sync() {
     raf = 0; if (destroyed) return;
+    drawerLayouts.prunePromptTokens();
     syncQrBar();
+    syncChatWidth();
     root.toggleAttribute('data-cw-v4', enabled());
+    syncExternalDrawers();
     if (!enabled()) { if (shell) shell.hidden = true; for (const dialog of dialogs) dialog.close(); restoreAdaptedContainers(); root.removeAttribute('data-cw-v4-settings'); return; }
     if (!shell) buildShell();
     const settingsSearch=shell.querySelector('.cw-v4-search'),searchHost=mobile()?shell:shell.querySelector('.cw-v4-nav');
@@ -902,7 +957,7 @@ export function installOfficialLayout(win = window) {
       panelDecorations.set(p, { hadPanelClass, glyph, icon: glyph?.style.getPropertyValue('--cw-v4-nav-icon'), priority: glyph?.style.getPropertyPriority('--cw-v4-nav-icon'), installed: `var(--cw-v4-icon-${glyphName})` });
       glyph?.style.setProperty('--cw-v4-nav-icon',`var(--cw-v4-icon-${glyphName})`);
       // 打开旧聊天性能修复（20261001）：面板关着时里面的增删（表情列表、提示词管理器等重建）不排 sync；面板打开时自身 class 变化会排一次，enhance 那时再补。
-      observe(p, records => { if (records.some(r => r.target === p || (r.type === 'childList' && isOpen(p)))) schedule(); }, {childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+      observe(p, records => { if(id==='left-nav-panel'&&records.some(r=>r.type==='childList'))drawerLayouts.prunePromptTokens(); if (records.some(r => r.target === p || (r.type === 'childList' && isOpen(p)))) schedule(); }, {childList:true,subtree:true,attributes:true,attributeFilter:['class']});
     });
     const open = [...panels.values()].filter(isOpen);
     const p = open.find(n => n.id === requestedPanel) || (open.includes(current) ? current : open[0]);
@@ -964,6 +1019,29 @@ export function installOfficialLayout(win = window) {
     };
     keepStyleAfterTheme();
     observe(doc.head,keepStyleAfterTheme,{childList:true});
+    observe(doc.head,syncQrAutoShrink,{childList:true});
+    const drawerHolder=doc.getElementById('top-settings-holder');
+    if(drawerHolder){
+      // Watch structural boundaries, never class churn inside plugin/settings content.
+      const drawerWatchers=new Map();
+      const watchDrawers=()=>{
+        const drawers=[...drawerHolder.children].filter(n=>n.matches('.drawer'));
+        const contents=drawers.flatMap(n=>[...n.children].filter(c=>c.matches('.drawer-content')));
+        const targets=new Set([...drawers,...contents]);
+        for(const [node,mo] of drawerWatchers)if(!targets.has(node)){mo.disconnect();drawerWatchers.delete(node);}
+        for(const node of targets)if(!drawerWatchers.has(node)){
+          const mo=new win.MutationObserver(records=>{
+            if(node.matches('.drawer')&&records.some(r=>r.type==='childList'))watchDrawers();
+            schedule();
+          });
+          mo.observe(node,node.matches('.drawer-content')?{childList:true,attributes:true,attributeFilter:['class']}:{childList:true});
+          drawerWatchers.set(node,mo);
+        }
+      };
+      observe(drawerHolder,()=>{watchDrawers();schedule();},{childList:true});
+      watchDrawers();
+      disposers.push(()=>{for(const mo of drawerWatchers.values())mo.disconnect();drawerWatchers.clear();});
+    }
     sync();
     observe(root, schedule, {attributes:true,attributeFilter:['data-claude-structure','data-claude-skin','data-claude-ui']});
     observe(doc.body, schedule, {attributes:true,attributeFilter:['class','data-clawd-menu']});
@@ -975,7 +1053,7 @@ export function installOfficialLayout(win = window) {
     }
     // Typing only changes the filled state. syncChat() walks every assistant message and
     // reads layout, so it stays on the chat observer / schedule() path instead of every keystroke.
-    on(doc,'input', e => { if (e.target.id === 'send_textarea') setBodyClass('cw-v4-filled', Boolean(e.target.value.trim())); else if (e.target.type === 'range' && e.target.closest?.('.cw-v4-panel,.cw-v4-editor')) fill(e.target); });
+    on(doc,'input', e => { if (e.target.id === 'chat_width_slider') win.requestAnimationFrame(syncChatWidth); if (e.target.id === 'send_textarea') setBodyClass('cw-v4-filled', Boolean(e.target.value.trim())); else if (e.target.type === 'range' && e.target.closest?.('.cw-v4-panel,.cw-v4-editor')) fill(e.target); });
     on(doc,'change', e => { if (e.target.id === 'ui_language_select') schedule(); });
     // Switching pages from the Claude sidebar: SillyTavern closes the open drawer, waits animation_duration, then
     // opens the new one, so for that wait the old page shows half-closed over the sidebar. Close it synchronously
@@ -2206,7 +2284,7 @@ export function installOfficialLayout(win = window) {
     }
   }
   if (doc.readyState === 'loading') on(doc,'DOMContentLoaded',start,{once:true}); else start();
-  return { refresh: sync, activate, setExternalModals, destroy() {
+  return { refresh: sync, activate, has: id => panels.has(id), setExternalModals, destroy() {
     if (destroyed) return;
     destroyed = true;
     for (const d of yieldedSheets) if (d.hasAttribute('data-cw-sheet-yielded-native')) restoreYieldedNative(d);

@@ -1,6 +1,6 @@
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.147';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.147';
-/* Claude Web public 2.0.147. Allowed runtime transplant; exclusions removed before generation. */
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.148';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.148';
+/* Claude Web public 2.0.148. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -15,16 +15,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.147';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.147";
+import { tr } from "./official-i18n.js?v=2.0.148";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.147";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.148";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.147";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.148";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.147";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.148";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.147";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.147";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.148";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.148";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -375,7 +375,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.147-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.148-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -391,7 +391,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.147", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.148", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -399,7 +399,7 @@ const startOfficialLayout = () => {
   if (!CLAUDE_ENABLED) return;
   document.head.append(officialStyle);
   window.__claudeOfficialLayout?.destroy();
-  window.__claudeOfficialLayout = installOfficialLayout(window);
+  window.__claudeOfficialLayout = installOfficialLayout(window, { defaultChatWidth: CLAUDE_THEME.chat_width });
 };
 if (document.readyState === 'complete') window.setTimeout(startOfficialLayout, 0);
 else window.addEventListener('load', startOfficialLayout, { once: true });
@@ -1085,6 +1085,7 @@ if (CLAUDE_ENABLED) {
       // Keep the initial CW defaults only when entering from a native theme.
       if (isClaudeThemeName(settings?.theme) || Object.values(CLAUDE_THEMES).some(theme => theme.name === settings?.theme)) {
         for (const key of [
+          'font_scale', 'chat_width',
           'timer_enabled', 'timestamps_enabled', 'timestamp_model_icon',
           'mesIDDisplay_enabled', 'message_token_count_enabled',
           'hideChatAvatars_enabled', 'expand_message_actions',
@@ -1093,6 +1094,10 @@ if (CLAUDE_ENABLED) {
           'enableLabMode', 'reduced_motion', 'media_display', 'toastr_position'
         ]) {
           if (Object.hasOwn(settings, key) && Object.hasOwn(next, key)) next[key] = settings[key];
+        }
+        // Preserve user additions only when CW is already active.
+        if (Object.hasOwn(settings, 'custom_css') && !Object.values(CLAUDE_THEMES).some(theme => theme.custom_css === settings.custom_css)) {
+          next.custom_css = settings.custom_css;
         }
       }
       if (hostDocument.documentElement.dataset.claudeQuoteBodyColor !== "off") {
@@ -1186,7 +1191,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.147", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.148", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -2972,7 +2977,24 @@ if (CLAUDE_ENABLED) {
         actions || block.append(createUserEditAction(message));
       });
     }
+    const promptHandleState = new WeakMap();
     function refreshPromptManagerDragHandles() {
+      if (hostDocument.documentElement.hasAttribute('data-cw-v4')) {
+        hostDocument.querySelectorAll('#completion_prompt_manager_list .clawd-prompt-drag-handle').forEach(handle => {
+          const saved = promptHandleState.get(handle);
+          handle.classList.remove('clawd-prompt-drag-handle');
+          if (saved) {
+            saved.style == null ? handle.removeAttribute('style') : handle.setAttribute('style', saved.style);
+            handle.replaceChildren(...saved.children);
+            promptHandleState.delete(handle);
+          } else {
+            for (const key of ['position','display','align-items','justify-content','width','min-width','height','margin','padding','color','visibility','opacity','pointer-events','box-shadow','filter','text-shadow']) handle.style.removeProperty(key);
+            handle.querySelector(':scope > .clawd-prompt-drag-glyph')?.remove();
+            if (!handle.textContent.trim()) handle.textContent = '☰';
+          }
+        });
+        return;
+      }
       hostDocument.querySelectorAll("#completion_prompt_manager_list > li.completion_prompt_manager_prompt").forEach(row => {
         const existingHandle = row.querySelector(":scope > .drag-handle");
         if (existingHandle && !existingHandle.classList.contains("clawd-prompt-drag-handle") && !isTauriTavernHost()) return;
@@ -2983,6 +3005,7 @@ if (CLAUDE_ENABLED) {
           handle.setAttribute("aria-hidden", "true");
           row.prepend(handle);
         }
+        if (!promptHandleState.has(handle)) promptHandleState.set(handle, {style: handle.getAttribute('style'), children: [...handle.childNodes]});
         handle.classList.add("clawd-prompt-drag-handle");
         Object.entries({
           position: "static",
@@ -5567,6 +5590,12 @@ if (CLAUDE_ENABLED) {
       mobileChrome?.menu?.setAttribute("aria-expanded", "false");
     }
     function showPanelFromRail(panel) {
+      const layout = hostWindow.__claudeOfficialLayout;
+      if (!layout?.has?.(panel.id)) {
+        panel.parentElement?.querySelector(':scope > .drawer-toggle')?.click();
+        hostWindow.setTimeout(closeMobileMenu, 0);
+        return;
+      }
       const token = mobileMenuCloseToken;
       let raf = 0, shownFrames = 0, frames = 0;
       const cleanup = () => {
@@ -5689,6 +5718,13 @@ if (CLAUDE_ENABLED) {
         menu.setAttribute("aria-expanded", String(open));
         open ? openMobileMenuAfterKeyboard() : setMobileMenuOpen(!1);
       });
+      const keepExternalDrawer = event => {
+        if (!hostDocument.documentElement.hasAttribute('data-cw-v4')) return;
+        const external = [...hostDocument.querySelectorAll('#top-settings-holder > .drawer > .drawer-content.openDrawer')].some(panel => !hostWindow.__claudeOfficialLayout?.has?.(panel.id));
+        if (external) event.stopPropagation();
+      };
+      menu.addEventListener('touchstart', keepExternalDrawer, {passive:true});
+      menu.addEventListener('mousedown', keepExternalDrawer);
       const scrim = hostDocument.createElement("button");
       scrim.type = "button";
       scrim.className = "clawd-mobile-scrim";
@@ -5713,6 +5749,8 @@ if (CLAUDE_ENABLED) {
           if (!isMobileMenuOpen() || event.button > 0) return;
           const toggle = event.target?.closest?.(".drawer-toggle");
           if (!toggle || isTauriTavernHost() || !hostDocument.documentElement.hasAttribute("data-cw-v4")) return;
+          const panel = toggle.parentElement?.querySelector(':scope > .drawer-content');
+          if (!hostWindow.__claudeOfficialLayout?.has?.(panel?.id) && !panel?.classList.contains('openDrawer')) return;
           event.stopPropagation();
         };
         holder.addEventListener("touchstart", mobileNavPrepareHandler, {
@@ -5729,6 +5767,11 @@ if (CLAUDE_ENABLED) {
           if (!drawerToggle && !target.closest(".recentChat, .clawd-mobile-new-chat, .character_select")) return;
           const panel = drawerToggle?.parentElement?.querySelector(":scope > .drawer-content");
           if (panel && hostDocument.documentElement.hasAttribute("data-cw-v4")) {
+            if (!hostWindow.__claudeOfficialLayout?.has?.(panel.id)) {
+              // Let the native drawer handler finish before hiding the rail.
+              if (isMobileMenuOpen()) hostWindow.setTimeout(closeMobileMenu, 0);
+              return;
+            }
             if (!event.isTrusted && panel.classList.contains("openDrawer")) return;
             if (event.isTrusted && isMobileMenuOpen()) {
               event.stopImmediatePropagation();

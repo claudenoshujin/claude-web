@@ -395,12 +395,12 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
     qr:{match:has('#qr--isEnabled'),cls:'cwx-qr',content:root=>root,
       label:{'qr--isEnabled':'启用快速回复','qr--isCombined':'合并快速回复','qr--showPopoutButton':'电脑上显示弹出式按钮','qr--set':'集合','qr--disableSend':'禁用发送（插入输入框）','qr--placeBeforeInput':'放在输入框前面','qr--injectInput':'自动注入用户输入','qr--onlyBorderColor':'颜色只用在边框上',
         'qr--global-setListAdd':'添加全局集合','qr--chat-setListAdd':'添加聊天集合','qr--character-setListAdd':'添加角色集合','qr--set-new':'新建集合','qr--set-rename':'改名','qr--set-import':'导入','qr--set-export':'导出','qr--set-duplicate':'复制','qr--set-delete':'删除这个集合','qr--set-add':'新建按钮','qr--set-paste':'从剪贴板粘贴','qr--set-importQr':'从文件导入','qr--colorClear':'清除颜色','qr--color':'颜色'},
-      desc:{'qr--injectInput':'关掉时用 {{input}} 手动插入'},safe:['#qr--colorClear'],raw:['.qr--setList','#qr--set-qrList','#qr-assistant-settings'],
+      desc:{'qr--injectInput':'关掉时用 {{input}} 手动插入'},safe:['#qr--colorClear'],raw:['.qr--setList','#qr--set-qrList'],
       layout:[{items:['#qr--isEnabled','#qr--isCombined','#qr--showPopoutButton']},
         {title:'正在用的集合',items:[({emit,s})=>{for(const [id,name] of [['qr--global-setList','全局'],['qr--chat-setList','聊天'],['qr--character-setList','角色']]){const n=s.root.querySelector('#'+id);if(n){n.dataset.cwxTitle=L(name);s.undo.push(()=>delete n.dataset.cwxTitle);}}},
           '#qr--global-setList','#qr--chat-setList','#qr--character-setList'],card:true},{items:['#qr--global-setListAdd','#qr--chat-setListAdd','#qr--character-setListAdd']},
         {title:'编辑集合',items:['#qr--set']},{items:['#qr--set-qrList','#qr--set-add','#qr--set-paste','#qr--set-importQr','foot:点一个按钮进去改名字和内容；按住左边的把手拖动排序。'],card:true},
-        {title:'这个集合',items:['#qr--disableSend','#qr--placeBeforeInput','#qr--injectInput','#qr--color','#qr--colorClear','#qr--onlyBorderColor'],card:true},{items:['#qr--set-new','#qr--set-rename','#qr--set-import','#qr--set-export','#qr--set-duplicate','#qr--set-delete']},{items:['#qr-assistant-settings']}],
+        {title:'这个集合',items:['#qr--disableSend','#qr--placeBeforeInput','#qr--injectInput','#qr--color','#qr--colorClear','#qr--onlyBorderColor'],card:true},{items:['#qr--set-new','#qr--set-rename','#qr--set-import','#qr--set-export','#qr--set-duplicate','#qr--set-delete']}],
       rest:false,after:({s,page})=>qrList(s,page),sync:s=>qrList(s,s.page)},
     regex:{match:has('#saved_regex_scripts'),cls:'cwx-regex',
       label:{open_regex_editor:'新建全局正则',open_preset_editor:'新建预设正则',open_scoped_editor:'新建角色正则',import_regex:'导入正则',regex_bulk_edit:'批量编辑',open_regex_debugger:'调试工具',regex_presets:'预设',regex_preset_toggle:'启用预设正则',regex_scoped_toggle:'启用角色正则',
@@ -710,7 +710,7 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
     // 酒馆自带、我们有专门排法的（正则……）不算：柏宝箱会往 #regex_container 里挂一个藏着的 Vue 根（data-v-app），
     // 再把仿原生的行渲染进 #saved_regex_scripts；按「自画界面」原样放，藏着的勾选框全被画成大开关（2.0.314）。
     const plan=planFor(root,title);
-    if(root.id==='claude-web-settings'||root.querySelector('#claude-web-settings')||(plan===PLANS.generic&&root.querySelector('[data-v-app]'))||/酒馆助手|Tavern Helper|st-chatu8/i.test(title)){openEditor(root,title);return;}
+    if(root.id==='claude-web-settings'||root.querySelector('#claude-web-settings')||(plan===PLANS.generic&&(root.matches('[data-v-app]')||root.querySelector('[data-v-app]')))||/酒馆助手|Tavern Helper|st-chatu8/i.test(title)){openEditor(root,title);return;}
     const s=session(root,plan);
     try{build(s);}catch(e){console.error('[Claude Web] extension settings',e);teardown(s);sessions.delete(s);openEditor(root,title);return;}
     watchRoot(s);

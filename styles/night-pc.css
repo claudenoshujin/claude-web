@@ -397,9 +397,8 @@ hr {
   position:relative !important;
   padding-bottom:40px !important;
 }
-.mes[is_user="false"] .mes_buttons > .mes_button {
-  display:none !important;
-}
+/* Keep the native quick-bookmark shortcut hidden; plugin actions may be exposed. */
+.mes[is_user="false"] .mes_buttons > .mes_bookmark { display:none !important; }
 .mes[is_user="false"] .extraMesButtons > .mes_button {
   display:none !important;
   width:26px !important;
@@ -1325,7 +1324,7 @@ body.claude-generation-active #chat > .mes[is_user="false"] > .swipeRightBlock {
   display:none !important;
 }
 #chat > .mes[is_user="false"]:not([type="assistant_message"]) .mes_buttons > .mes_edit {
-  order:18 !important;
+  order:18;
   display:flex !important;
   align-items:center !important;
   justify-content:center !important;
@@ -2729,6 +2728,9 @@ html body #form_sheld {
 @media (min-width:701px) {
   html body #chat :is(.mes_text,.mes_reasoning) {
     
+    font-size:var(--cl-pc-font-size) !important;
+  }
+  html[data-cw-v4] body #chat :is(.mes_text,.mes_reasoning) {
     font-size:calc(var(--cl-pc-font-size) * var(--fontScale, 1)) !important;
   }
 

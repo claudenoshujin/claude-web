@@ -158,8 +158,8 @@ html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body.claude-generation-active #s
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8.6' fill='none' stroke='black' stroke-width='1.5'/%3E%3Crect x='8.9' y='8.9' width='6.2' height='6.2' rx='1.2'/%3E%3C/svg%3E") center / contain no-repeat !important; }
 
 /* F02 字号：正文 17.5 → 16、行高 1.65；侧栏 15。和侧栏只差 1px。 */
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat .mes_text { font-size: 16px !important; line-height: 1.65 !important; }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat .mes[is_user="true"] .mes_text { font-size: 15.5px !important; background: var(--w-bubble) !important; border-radius: 14px !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat .mes_text { font-size: calc(16px * var(--fontScale, 1)) !important; line-height: 1.65 !important; }
+html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat .mes[is_user="true"] .mes_text { font-size: calc(15.5px * var(--fontScale, 1)) !important; background: var(--w-bubble) !important; border-radius: 14px !important; }
 }
 
 
