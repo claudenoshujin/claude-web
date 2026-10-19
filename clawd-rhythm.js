@@ -6,7 +6,7 @@
      降档阈值 ×0.75，每档至少保持 0.8s；0.6s 没有新字回到慢速。
    只改大 Clawd 骨架部件的行内 translate 和动画倍速；不碰 html / body，不另开常驻定时器（只在这两种动画播放时跑 rAF）。 */
 const UPPER = ['body', 'eyes', 'clawL', 'clawR', 'sym'];
-const WRITE = /^(write|sitWrite|writeHeld)(-m)?$/;
+const WRITE = /^(write|sitWrite|writeHeld|writeSend|writeSendQuiet)(-m)?$/;
 const PIN_MS = 250;            // compose 进场 200ms 之后、第一下点头之前：低头看着输入框
 const DIP_PX = 3, DIP_MS = 100, DIP_MIN = 50, GAP_MS = 40, BURST_DIP = 60, BURST_GAP = 30, QUEUE_MAX = 8;
 const QUIET_MS = 600, HOLD_MS = 800, HYS = .75;
@@ -112,6 +112,10 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
       return;
     }
     if (WRITE.test(clip)) {
+      // The letter intro keeps its authored timing; only the writing loop follows output speed.
+      if (/^writeSend/.test(clip) && now - clipAt < 3300) {
+        raf = win.requestAnimationFrame(frame); return;
+      }
       if (now - sampleAt >= 100) {
         sampleAt = now;
         const len = lastMessageLength();
@@ -133,6 +137,11 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
   attach(); onClip();
 
   return {
+    freezeCompose() {
+      if (raf) win.cancelAnimationFrame(raf); raf = 0;
+      dipQueue = 0;
+      // Preserve current translate until the synchronous clip switch; do not return to idle.
+    },
     // index.js 每次刷新调用：按钮或 #send_form 重建后重新挂上
     sync() { if (destroyed) return; attach(); onClip(); },
     destroy() {

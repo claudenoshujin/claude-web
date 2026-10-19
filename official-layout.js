@@ -1,7 +1,7 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.149';
-import { officialIcons } from './official-icons.js?v=2.0.149';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.149';
-import { tr } from './official-i18n.js?v=2.0.149';
+import { installOfficialWeb } from './official-web.js?v=2.0.150';
+import { officialIcons } from './official-icons.js?v=2.0.150';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.150';
+import { tr } from './official-i18n.js?v=2.0.150';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1100,6 +1100,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       openSelMenu(t);
     }, {capture: true, passive: false});
     on(win, 'keydown', e => {
+      if(e.key==='Escape'&&drawerLayouts.closeCharacterExport()){e.preventDefault();e.stopImmediatePropagation();return;}
       if (!selMenu) {
         const a = doc.activeElement;
         if (selTarget(a) && (e.key === 'Enter' || e.key === ' ' || (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')))) { e.preventDefault(); e.stopImmediatePropagation(); openSelMenu(a); }

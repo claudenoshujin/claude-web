@@ -161,6 +161,8 @@ export function installStreamFollow({ win, doc, getContext, enabled }) {
   observer.observe(chat, { childList: true, subtree: true, characterData: true });
   updateVisibleRegion();
   return {
+    pause,
+    resume() { if (destroyed) return; gesture=null; if (!following) counts.resumes++; following=!!isEnabled(); requestNativeBottom(); },
     afterDecoration() { counts.decorations += 1; requestNativeBottom(); },
     stats: () => ({ active, following, ready: !!nativeBottom, visibleHeight, gesture: gesture ? { pressing: gesture.pressing, moved: gesture.moved, direction: gesture.direction } : null, ...counts }),
     destroy() {

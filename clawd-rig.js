@@ -117,6 +117,8 @@ export function buildClawdRig() {
       w8:  F(['hhhhhhhh'], 2),
     },
     prop: {
+      envS: F(['dddddd', 'ddwwdd', 'dwddwd', 'dwwwwd', 'dddddd']), // 小号信封（6 格宽），封着
+      envSOpen: F(['..dd..', '.dwwd.', 'dddddd', 'dwwwwd', 'dwwwwd', 'dddddd'], 0, -1), // 拆开：盖子翻上去，露出里面的信
       // 擦杯子
       mug:   F(['..DDDD', 'DDDbwD', 'D.DbbD', 'DDDbbD', '..DDDD']),
       cloth: F(['cw..', 'wccc', '.cwc', '..c.']),
@@ -1950,6 +1952,179 @@ export function buildClawdRig() {
       c.at(1600, 'clawL', { y: 1 }).at(1600, 'clawR', { y: 1 }).at(1900, 'clawL', { y: 0 }).at(1900, 'clawR', { y: 0 });
       c.at(2000, 'eyes', { f: 'open' });
     });
+
+  /* ════════════════════════════════════════════════════════════════════
+     第二批新动作（2026-10-16 审阅会话出稿，待 Lulu 看过）
+     写法和 clips.js 完全一样，落地时整段贴到 clips.js 末尾，再用 make-rig.js 重新生成 clawd-rig.js。
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* ── 2-1 出错以后蔫着（循环，带「坐下」进场）──────────────
+     接在现有的「出错」后面播，一直蔫到下一次生成成功（再播「恢复」）。
+     被戳 / 被拎照常反应，反应完回到这里。 */
+  const SLUMP_IN = 600;
+  const SLUMP_POSE = c => t => {
+    SIT_POSE(c)(t);
+    c.at(t, 'eyes', { f: 'half', x: 0, y: 1 });
+    c.at(t, 'clawL', { y: 1 }).at(t, 'clawR', { y: 1 });   // 钳子耷拉 1 格
+  };
+  {
+    const O = SLUMP_IN, L = 5200;
+    const c = def(new Clip('errorSlump', '出错后蔫着', O + L, { loop: true, intro: O, track: 'A', group: 'gen', smooth: ['clawL', 'clawR'] }));
+    c.beat(0, '出错收尾之后：眼皮耷拉').beat(200, '一屁股坐下，钳子耷拉').beat(O, '坐着发呆（循环）').beat(O + 1400, '叹口气：钳子再往下沉一下').beat(O + 2600, '「…」').beat(O + 4200, '慢慢眨一下眼');
+    c.at(100, 'eyes', { f: 'half' });
+    c.flex(100, {}).flex(200, { sx: 1.08, sy: .92 }).flex(300, { sx: .98, sy: 1.02 }).flex(400, {});
+    SLUMP_POSE(c)(200);
+    SLUMP_POSE(c)(O);
+    c.at(O + 1400, 'clawL', { y: 2 }, 'io').at(O + 1400, 'clawR', { y: 2 }, 'io');
+    c.at(O + 2000, 'clawL', { y: 1 }, 'io').at(O + 2000, 'clawR', { y: 1 }, 'io');
+    sym(c, O + 2600, 'dots', { x: 5, dur: 1200 });
+    c.at(O + 4200, 'eyes', { f: 'shut' }).at(O + 4500, 'eyes', { f: 'half' });
+    SLUMP_POSE(c)(O + L);
+  }
+
+  /* ── 2-1 恢复：下一次生成成功时，从蔫着的状态站起来 ────────
+     第一帧 = 蔫着的姿势（和「醒来」接在「睡着」后面一样，用 from 声明），最后一帧回到待机。 */
+  {
+    const c = def(new Clip('recover', '恢复（下一次成功后爬起来）', 1900, { from: 'errorSlump', track: 'A', group: 'gen', smooth: ['root', 'shadow'] }));
+    c.beat(0, '还蔫着').beat(100, '抬头：「！」').beat(300, '一下站起来（压扁 → 拉长）').beat(500, '拍拍身上：两只钳子轮流拍两下').beat(1000, '笑眼 + 闪光，蹦一下').beat(1600, '回到待机');
+    SLUMP_POSE(c)(0);
+    c.at(100, 'eyes', { f: 'open', y: -1 });
+    sym(c, 100, 'bang', { x: 6, y: 2, dur: 600 });
+    c.at(300, 'upper', { y: 0 }).at(300, 'legs', { f: 'stand' }).at(300, 'shadow', { f: 'w12' });
+    c.at(300, 'clawL', { y: 0 }).at(300, 'clawR', { y: 0 });
+    c.flex(200, { sx: 1.1, sy: .9 }).flex(300, { sx: .94, sy: 1.06 }).flex(400, { sx: 1.03, sy: .98 }).flex(500, {});
+    // 拍拍身上：钳子换到身前，轮流往下拍
+    c.at(500, 'eyes', { y: 1 });
+    c.at(500, 'clawL', { f: 'front', x: 2, y: 1 }).at(600, 'clawL', { y: 2 }).at(700, 'clawL', { y: 1 });
+    c.at(600, 'clawR', { f: 'front', x: -2, y: 1 }).at(700, 'clawR', { y: 2 }).at(800, 'clawR', { y: 1 });
+    c.at(800, 'clawL', { y: 2 }).at(900, 'clawL', { y: 1 });
+    c.at(900, 'clawL', { f: 'stub', x: 0, y: 0 }).at(900, 'clawR', { f: 'stub', x: 0, y: 0 });
+    c.at(1000, 'eyes', { f: 'happy', y: 0 });
+    sym(c, 1000, 'spark', { dur: 700 });
+    hop(c, 1100, 1);
+    c.at(1600, 'eyes', { f: 'open' });
+  }
+
+  /* ── 2-1 另一种出错（给 Lulu 对照选）：摔一跤，冒问号 ───────
+     现有「出错」是：「！」、笔飞出去、纸上画叉、冒汗、叹气。这一版换成：一哆嗦往前扑、摊平在地上，
+     撑起来坐着，头上冒「？」，左右看看。结尾回到待机，后面接「出错后蔫着」。 */
+  endClip('errorFall', '出错（摔一跤，Lulu 选定）', 'write', 2600,
+    [[0, '写着写着'], [100, '「！」一哆嗦，笔脱手往右上飞走、淡掉'], [300, '纸也被带飞，飞走、淡掉'], [300, '往前一扑，摔成一张饼（腿压没了，眼睛闭成两道）'], [500, '扁着扑腾两下'], [1000, '鼓起来'], [1100, '坐起来'], [1300, '头上冒「？」，左右看看'], [2200, '纸淡出，站起来回到待机']],
+    (c, O) => {
+      WRITE_POSE(c)(O);
+      c.at(O, 'propB', { f: 'sheet5' });
+      sym(c, O + 100, 'bang', { x: 6, y: 2, dur: 500 });
+      c.at(O + 100, 'eyes', { x: 0, y: -1 });
+      c.at(O + 100, 'clawR', { x: 0, y: -1 });
+      // 笔和纸直接飞走、一边飞一边淡掉（Lulu 2026-10-16）：不落地
+      c.at(O + 100, 'propA', { f: 'quillFly', x: 17, y: 5, att: null }).to(O + 100, O + 600, 'propA', { x: 30, y: -8 }, 'out');
+      c.seq(O + 200, 100, 'propA', [{ f: 'quill' }, { f: 'quillFly' }, { f: 'quill' }, { f: 'quillFly' }]);
+      fadeOut(c, 'propA', O + 250, O + 600);
+      c.at(O + 200, 'propB', { f: 'sheetErr' });
+      c.at(O + 300, 'propB', { f: 'sheetFly', x: 19, y: 7 }).to(O + 300, O + 800, 'propB', { x: 32, y: -4 }, 'out');
+      fadeOut(c, 'propB', O + 400, O + 800);
+      // 摊平：照「落地」的摔饼——身体换成 flat、腿压没、眼睛闭成两道贴在饼上、钳子贴地（不再额外下沉上半身）
+      const flat = t => c.at(t, 'body', { f: 'flat' }).at(t, 'legs', { f: null }).at(t, 'eyes', { f: 'shut', x: 0, y: 5 });
+      c.flex(O + 200, { sx: .95, sy: 1.06 }).flex(O + 300, { sx: 1.12, sy: .9 });
+      flat(O + 300);
+      c.at(O + 300, 'shadow', { f: 'w14' }).at(O + 300, 'clawL', { f: 'stub', x: 0, y: 3 }).at(O + 300, 'clawR', { f: 'stub', x: 0, y: 3 });
+      // 扁着扑腾两下
+      c.at(O + 500, 'clawL', { y: 2 }).at(O + 500, 'clawR', { y: 3 }).flex(O + 500, { sx: 1.05, sy: .97 });
+      c.at(O + 600, 'clawL', { y: 3 }).at(O + 600, 'clawR', { y: 2 }).flex(O + 600, { sx: 1.1, sy: .92 });
+      c.at(O + 700, 'clawL', { y: 3 }).at(O + 700, 'clawR', { y: 3 }).flex(O + 700, { sx: 1.08, sy: .93 });
+      // 鼓起来（半蹲）→ 坐起来
+      c.at(O + 1000, 'body', { f: 'squash2' }).at(O + 1000, 'legs', { f: 'crouch' }).at(O + 1000, 'eyes', { f: 'shut', y: 3 });
+      c.at(O + 1000, 'clawL', { y: 2 }).at(O + 1000, 'clawR', { y: 2 }).flex(O + 1000, { sx: 1.06, sy: .95 });
+      c.at(O + 1100, 'body', { f: 'stand' }).at(O + 1100, 'upper', { y: 1 }).at(O + 1100, 'legs', { f: 'tuck' });
+      c.at(O + 1100, 'clawL', { x: 0, y: 0 }).at(O + 1100, 'clawR', { x: 0, y: 0 }).flex(O + 1100, {});
+      c.at(O + 1100, 'eyes', { f: 'open', x: 0, y: 0 });
+      sym(c, O + 1300, 'q', { x: 6, y: 1, dur: 1000 });
+      c.at(O + 1400, 'eyes', { x: -1 }).at(O + 1700, 'eyes', { x: 1 }).at(O + 2000, 'eyes', { x: 0 });
+      sym(c, O + 1500, 'sweat', { x: 9, y: 4, dur: 800 });
+      // 站起来回到待机
+      c.at(O + 2200, 'upper', { y: 0 }).at(O + 2200, 'legs', { f: 'stand' }).at(O + 2200, 'shadow', { f: 'w12' });
+      c.flex(O + 2100, { sx: 1.06, sy: .94 }).flex(O + 2200, { sx: .97, sy: 1.03 }).flex(O + 2300, {});
+      blink(c, O + 2300);
+    });
+
+  /* ── 2-2 送信 + 写字（一整段）────────────────────────────
+     单独一段「送信」再接「写字」会在交界处跳一下（Lulu 2026-10-16：衔接不起来）。
+     所以把送信直接做成写字的进场：打字时低头看输入框 → 慢慢抬头、双钳把信从身前捧上来 → 往上一递、信飞走 →
+     目光跟着信、再落回右下方 → 纸从右边滑进来、摸出笔（和现有写字的进场一样）→ 进入写字循环（和现有写字逐帧一样）。
+     点发送时从 compose 直接切到这一段，代替原来的 write。 */
+  function writeFrom(c, S) {
+    // 现有「写字」的进场（相对 S）+ 循环（从 S + WRITE_IN 起），逐帧照抄 clips.js 里的 write
+    const O = S + WRITE_IN;
+    c.at(S + 100, 'eyes', { x: 1, y: 1 });
+    c.at(S + 100, 'propB', { f: 'sheet0', x: 21, y: 9, z: 6, a: 0 }).to(S + 100, S + 400, 'propB', { x: 17, a: 1 });
+    c.at(S + 200, 'clawR', { y: -1 });
+    c.at(S + 300, 'propA', { f: 'quill', x: 16, y: 5, att: 'clawR' });
+    const setPose = WRITE_POSE(c);
+    setPose(O);
+    const wig = [{ x: 1, y: 2 }, { x: 2, y: 2 }, { x: 2, y: 1 }, { x: 1, y: 1 }];
+    for (let i = 0; i < 15; i++) c.at(O + i * 200, 'clawR', wig[i % 4]);
+    for (let i = 1; i <= 10; i++) c.at(O + i * 300 - 200, 'propB', { f: 'sheet' + i });
+    c.at(O + 3000, 'propB', { f: 'sheet0' }).at(O + 3000, 'clawR', { x: 1, y: 2 });
+    c.at(O + 3000, 'eyes', { f: 'shut' }).at(O + 3000, 'upper', { y: 1 }).at(O + 3200, 'upper', { y: 0 });
+    c.at(O + 3300, 'eyes', { f: 'open' });
+    setPose(O + 3600);
+    return O;
+  }
+  /* ── 2-2（Lulu 2026-10-16 定）：打字照旧；点发送以后，一封信从上面掉下来，Clawd 接住（你的消息送到了），
+     拿到身前拆开看一眼，收好，然后才开始写（回信）。整段做成写字的进场，后面和现有写字逐帧一样。 */
+  function receive(c, quiet) {
+    // 0：打字的姿势（低头看输入框）
+    composeLoop(c, 0);
+    // 抬头，钳子举到身前准备接
+    c.at(100, 'upper', { y: 0 }).at(100, 'eyes', { f: 'open', x: 0, y: -1 });
+    sym(c, 100, 'bang', { x: 6, y: 1, dur: 500 });
+    c.at(100, 'clawL', { f: 'front', x: 2, y: -1 }).at(100, 'clawR', { f: 'front', x: -2, y: -1 });
+    // 信从头顶掉下来
+    c.at(100, 'propA', { f: 'envS', x: 5, y: -10, att: 'upper' }).to(100, 300, 'propA', { y: 0 }, 'in');
+    // 接住：身子一沉（安静版不沉）
+    if (!quiet) { c.at(300, 'upper', { y: 1 }).at(450, 'upper', { y: 0 }); c.flex(200, {}).flex(300, { sx: 1.06, sy: .94 }).flex(450, {}); }
+    c.at(300, 'eyes', { y: 0 });
+    // 拿到身前下面，拆开看
+    c.at(500, 'propA', { y: 4 }).at(500, 'clawL', { y: 1 }).at(500, 'clawR', { y: 1 });
+    c.at(500, 'eyes', { y: 1 });
+    c.at(600, 'propA', { f: 'envSOpen' });
+    // 慢慢看：两行，每行从左扫到右（Lulu 2026-10-16：看信慢一点）
+    c.at(700, 'eyes', { x: -1 }).at(900, 'eyes', { x: 0 }).at(1100, 'eyes', { x: 1 });
+    c.at(1250, 'eyes', { x: -1, y: 2 }).at(1400, 'eyes', { x: 0 }).at(1550, 'eyes', { x: 1 });
+    // 看完：笑一下，把信塞回信封，往身后一丢
+    c.at(1700, 'eyes', { f: 'happy', x: 0, y: 0 });
+    c.at(1800, 'propA', { f: 'envS' });
+    c.at(1900, 'eyes', { f: 'open', x: -1, y: -1 });
+    c.at(1900, 'clawL', { y: -1 }).at(1900, 'clawR', { y: -1 });
+    c.at(1950, 'propA', { x: 5, y: 2, att: null }).to(1950, 2250, 'propA', { x: -7, y: -9 }, 'out');
+    fadeOut(c, 'propA', 2050, 2250);
+    c.at(2050, 'clawL', { f: 'stub', x: 0, y: 0 }).at(2050, 'clawR', { f: 'stub', x: 0, y: 0 });
+    c.at(2100, 'eyes', { x: 0, y: 0 });
+    // 从兜里掏出笔：右钳伸到身侧往下摸，再拿着笔抬起来
+    c.at(2200, 'eyes', { x: 1, y: 1 });
+    c.at(2200, 'clawR', { y: 2 }).at(2300, 'clawR', { y: 3 });
+    c.at(2400, 'clawR', { y: 1 }).at(2400, 'propA', { f: 'quill', x: 16, y: 5, att: 'clawR', a: 1 });
+    c.at(2500, 'clawR', { y: -1 });
+    sym(c, 2500, 'spark', { x: 13, y: -1, dur: 500 });
+    c.at(2600, 'eyes', { x: 1, y: 0 });
+  }
+  {
+    const S = 2700;
+    const c = def(new Clip('writeSend', '点发送：接住信、拆开看 → 写字', S + WRITE_IN + 3600,
+      { loop: true, intro: S + WRITE_IN, from: 'compose', track: 'A', group: 'gen', smooth: ['propA'] }));
+    c.beat(0, '打字的姿势').beat(100, '「！」抬头，一封信从头顶掉下来').beat(300, '双钳接住，身子一沉').beat(500, '拿到身前')
+     .beat(600, '拆开，慢慢看两行（眼睛从左扫到右 ×2）').beat(1700, '笑一下，把信塞回信封').beat(1900, '往身后一丢，信飞走、淡掉').beat(2200, '右钳伸到身侧，从兜里掏出笔').beat(2500, '拿着笔抬起来，闪一下').beat(S, '纸从右边滑进来、摸出笔（同现有写字进场）').beat(S + WRITE_IN, '写字（循环，同现有写字）');
+    receive(c, false);
+    writeFrom(c, S);
+  }
+  {
+    const S = 2700;
+    const c = def(new Clip('writeSendQuiet', '点发送：接住信、拆开看 → 写字（安静版）', S + WRITE_IN + 3600,
+      { loop: true, intro: S + WRITE_IN, from: 'compose', track: 'A', group: 'gen', smooth: ['propA'] }));
+    c.beat(0, '打字的姿势').beat(100, '抬头，信掉下来').beat(300, '接住（身子不沉，头上有人）').beat(600, '拆开看').beat(1700, '塞回去，往身后一丢').beat(2200, '从兜里掏出笔').beat(S, '接写字');
+    receive(c, true);
+    writeFrom(c, S);
+  }
 
   const pool = {};
   for (const c of Object.values(CLIPS)) {

@@ -1,6 +1,7 @@
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.149';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.149';
-/* Claude Web public 2.0.149. Allowed runtime transplant; exclusions removed before generation. */
+import { installChatTools } from "./chat-tools.js?v=2.0.150";
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.150';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.150';
+/* Claude Web public 2.0.150. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -15,16 +16,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.149';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.149";
+import { tr } from "./official-i18n.js?v=2.0.150";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.149";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.150";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.149";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.150";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.149";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.150";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.149";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.149";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.150";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.150";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -375,7 +376,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.149-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.150-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -391,7 +392,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.149", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.150", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1191,7 +1192,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.149", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.150", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -1483,6 +1484,9 @@ if (CLAUDE_ENABLED) {
       for (const id of clawdTimers) hostWindow.clearTimeout(id);
       clawdFrames.clear();
       clawdTimers.clear();
+      clawdErrorPending = false;
+      clawdSendClip = ""; clawdSendPending = false;
+      clawdTracks.A = null; clawdTracks.aUntil = 0;
       clawdPile.destroy();
       clawdRhythm?.destroy();
       clawdRhythm = null;
@@ -1520,6 +1524,7 @@ if (CLAUDE_ENABLED) {
       });
     }
     let streamFollow = null;
+    let chatTools = null;
     let previousTypingActive = !1;
     let generationEventActive = !1;
     const generationSubscriptions = [];
@@ -1595,7 +1600,9 @@ if (CLAUDE_ENABLED) {
       sit: "sitWrite",
       done: "done",
       stopped: "stopped",
-      error: "error"
+      error: "errorFall",
+      errorSlump: "errorSlump",
+      recover: "recover"
     });
     const CLAWD_RIG_A_HELD = Object.freeze({
       think: "writeHeld",
@@ -1603,7 +1610,9 @@ if (CLAUDE_ENABLED) {
       sit: "writeHeld",
       done: "doneHeld",
       stopped: "stoppedHeld",
-      error: "errorHeld"
+      error: "errorHeld",
+      errorSlump: "errorSlump",
+      recover: "recover"
     });
     const CLAWD_RIG_B = Object.freeze({
       compose: "compose",
@@ -1871,13 +1880,22 @@ if (CLAUDE_ENABLED) {
       rig.append(root);
       button.append(rig);
     }
+    // Session-only state: a failed round remains sad until a confirmed reply.
+    let clawdErrorPending = false;
+    let clawdSendClip = "", clawdSendPending = false;
     function clawdRigClipFor(owner) {
       if (owner === "C") {
         if (clawdTracks.C === "t1") return clawdRigPokeT1;
         if (clawdTracks.C in clawdRigVariant) return clawdRigVariant[clawdTracks.C];
         return CLAWD_RIG_C[clawdTracks.C] || "";
       }
-      if (owner === "A") return (A2.floor ? CLAWD_RIG_A_HELD : CLAWD_RIG_A)[clawdTracks.A] || "";
+      if (owner === "A") {
+        if (!A2.floor && ["think", "stream"].includes(clawdTracks.A)) {
+          if (clawdSendPending) return "compose";
+          if (clawdSendClip) return clawdSendClip;
+        }
+        return (A2.floor ? CLAWD_RIG_A_HELD : CLAWD_RIG_A)[clawdTracks.A] || "";
+      }
       const b = clawdTracks.B || "idle";
       if (b.startsWith("rig:")) {
         const id = b.slice(4);
@@ -1888,6 +1906,8 @@ if (CLAUDE_ENABLED) {
     function clawdRigContinues(base, curBase) {
       const meta = CLAWD_RIG.clips[base], cur = CLAWD_RIG.clips[curBase];
       if (!meta || !cur) return !1;
+      // These clips become the ordinary write loop after their letter intro.
+      if (/^writeSend(?:Quiet)?$/.test(curBase) && meta.from === "write") return !0;
       return meta.from === curBase || meta.after === curBase || cur.next === base || cur.from === base || Boolean(meta.from && meta.from === cur.from);
     }
     const CLAWD_RIG_CELL = 3;
@@ -2154,7 +2174,7 @@ if (CLAUDE_ENABLED) {
       clawdTracks.B = "idle";
       clawdTracks.bUntil = 0;
     }
-    const CLAWD_QUIET_WITH_RIDERS = new Set([ "idle", "peek", "peekOut", "walkLoop", "around", "point", "scratch", "facepalm", "press", "neglected", "drowsy", "sleep", "compose", "think", "stream", "sit", "stopped", "error" ]);
+    const CLAWD_QUIET_WITH_RIDERS = new Set([ "idle", "peek", "peekOut", "walkLoop", "around", "point", "scratch", "facepalm", "press", "neglected", "drowsy", "sleep", "compose", "think", "stream", "sit", "stopped", "error", "errorSlump", "writeSendQuiet" ]);
     function clawdShakeRiders(value) {
       if (!value) return;
       const base = String(value).replace(/^rig:/, "").replace(/-m$/, "");
@@ -2223,17 +2243,44 @@ if (CLAUDE_ENABLED) {
       renderClawdTracks();
       if (!value && clawdTracks.B === 'idle') syncClawdBState();
     }
-    function beginClawdGeneration() {
+    function clawdClearSend() {
+      clawdSendPending = false; clawdSendClip = "";
+    }
+    function clawdOnMessageSent() {
+      if (!clawdEnabled() || hostDocument.documentElement.dataset.claudeMotion === "off" || clawdPrefersReducedMotion() || A2.floor || clawdSendClip) return;
+      if (!clawdSendPending && !/^compose(-m)?$/.test(composerClawd()?.dataset.clawdClip || "")) return;
+      clawdRhythm?.freezeCompose();
+      clawdSendPending = false;
+      clawdSendClip = clawdPile.riderCount() ? "writeSendQuiet" : "writeSend";
+      setClawdA("think");
+      clawdRhythm?.sync();
+    }
+    function beginClawdGeneration(type = "normal") {
       clawdTracks.round += 1;
       clawdTracks.activeRound = clawdTracks.round;
       clawdTracks.genStartedAt = Date.now();
+      if (!clawdEnabled() || hostDocument.documentElement.dataset.claudeMotion === "off" || clawdPrefersReducedMotion()) { clawdClearSend(); return; }
+      // Normal sends can await other listeners before MESSAGE_SENT. Preserve compose
+      // without a timing cutoff; regenerate/swipe/continue go straight to ordinary writing.
+      if (!clawdSendClip && type === "normal" && /^compose(-m)?$/.test(composerClawd()?.dataset.clawdClip || "")) {
+        clawdSendPending = true;
+      }
       setClawdA("think");
     }
-    function settleClawdGeneration(outcome = "done") {
+    function settleClawdGeneration(outcome = "done", replyArrived = false) {
       const round = clawdTracks.activeRound;
       if (!round || clawdTracks.settledRound === round) return;
       clawdTracks.settledRound = round;
-      setClawdA(outcome, CLAWD_RIG.clips[outcome]?.dur || 1400);
+      clawdClearSend();
+      if (!clawdEnabled() || hostDocument.documentElement.dataset.claudeMotion === "off" || clawdPrefersReducedMotion()) { clawdErrorPending = false; return; }
+      if (outcome === "error") clawdErrorPending = true;
+      if (outcome === "done" && replyArrived && clawdErrorPending) {
+        clawdErrorPending = false;
+        setClawdA("recover", CLAWD_RIG.clips.recover.dur);
+      } else {
+        const clip = (A2.floor ? CLAWD_RIG_A_HELD : CLAWD_RIG_A)[outcome];
+        setClawdA(outcome, CLAWD_RIG.clips[clip]?.dur || 1400);
+      }
     }
   function createClawdComposerReaction(duration, blocked, now = Date.now) {
     let before = null, composition = null, reaction = null, serial = 0;
@@ -2526,7 +2573,9 @@ if (CLAUDE_ENABLED) {
       if (inGeneration && generationEventActive && now - clawdTracks.genStartedAt >= CLAWD_GEN_MAX_MS) settleClawdGeneration("stopped"); else if (clawdTracks.A === "think" && generationEventActive && now - clawdTracks.aStartedAt >= 900) setClawdA("stream"); else if (clawdTracks.A === "stream" && generationEventActive && now - clawdTracks.aStartedAt >= CLAWD_TIRED_SIT_MS) {
         clawdTracks.A = "sit";
         renderClawdTracks();
-      } else clawdTracks.aUntil && now >= clawdTracks.aUntil && (clawdTracks.A === "think" || clawdTracks.A === "stream" || clawdTracks.A === "sit" ? generationEventActive || settleClawdGeneration("done") : setClawdA(null));
+      } else clawdTracks.aUntil && now >= clawdTracks.aUntil && (clawdTracks.A === "think" || clawdTracks.A === "stream" || clawdTracks.A === "sit" ? generationEventActive || settleClawdGeneration("done") : clawdTracks.A === "recover"
+        ? setClawdA("done", CLAWD_RIG.clips[A2.floor ? "doneHeld" : "done"].dur)
+        : setClawdA(clawdErrorPending ? "errorSlump" : null));
       if (clawdTracks.bUntil && now >= clawdTracks.bUntil) {
         clawdTracks.bUntil = 0;
         syncClawdBState();
@@ -2648,11 +2697,11 @@ if (CLAUDE_ENABLED) {
           if (!active || wasActive && clawdTracks.settledRound !== clawdTracks.activeRound) {
             if (!active) {
               const final = outcome === "done" && clawdGenSnapshot && !clawdReplyArrived(clawdGenSnapshot) ? "error" : outcome;
-              settleClawdGeneration(final);
+              settleClawdGeneration(final, outcome === "done" && !!clawdGenSnapshot && clawdReplyArrived(clawdGenSnapshot));
               clawdGenSnapshot = null;
             }
           } else {
-            beginClawdGeneration();
+            beginClawdGeneration(String(args[0] || "normal"));
             clawdGenSnapshot = snapshotChatForClawd(args[0]);
           }
           scheduleRefresh();
@@ -2664,6 +2713,9 @@ if (CLAUDE_ENABLED) {
           handler: handler
         });
       };
+      const sentType = types.MESSAGE_SENT || "message_sent";
+      source.on(sentType, clawdOnMessageSent);
+      generationSubscriptions.push({ source, type: sentType, handler: clawdOnMessageSent });
       const receivedType = types.MESSAGE_RECEIVED || "message_received";
       const onReceived = () => {
         hostDocument.hidden && (clawdLetterPending = !0);
@@ -4404,6 +4456,7 @@ if (CLAUDE_ENABLED) {
         });
         return b;
       };
+      if (chatTools?.isEnabled()) box.append(item("star", chatTools.isFavorite(entry.record) ? (cn ? "取消收藏" : "Unstar") : (cn ? "收藏" : "Star"), async()=>{ chatTools.toggleFavorite(entry.record); }));
       box.append(item("pin", pinned ? cn ? "取消置顶" : "Unpin" : cn ? "置顶" : "Pin", () => toggleRecentPin(entry)), item("pencil", cn ? "重命名" : "Rename", () => renameRecent(entry)));
       if (cwLook) {
         const sep = hostDocument.createElement("div");
@@ -4551,8 +4604,10 @@ if (CLAUDE_ENABLED) {
       const main = hostModulesSnapshot?.main ?? {};
       const settings = readRecentChatsSettings();
       const pinned = readPinnedChats();
-      const records = await fetchRecentChatRecords(main, settings.maxDisplayed, Object.values(pinned));
+      const favoriteRecords = chatTools?.favoriteRecords() || [];
+      const records = await fetchRecentChatRecords(main, settings.maxDisplayed, [...Object.values(pinned), ...favoriteRecords]);
       if (!records) return null;
+      chatTools?.reconcileFavorites(records, favoriteRecords);
       const context = getContext();
       const characters = Array.isArray(context?.characters) ? context.characters : [];
       const groups = Array.isArray(context?.groups) ? context.groups : [];
@@ -4573,6 +4628,7 @@ if (CLAUDE_ENABLED) {
           dateText: String(record?.last_mes ?? ""),
           preview: String(record?.mes ?? record?.preview_message ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160),
           count: Number(record?.chat_items ?? record?.message_count ?? NaN),
+          favorite: chatTools?.isFavorite(record) || false,
           pinned: Object.prototype.hasOwnProperty.call(pinned, pinnedKeyFor(record))
         });
       }
@@ -4586,6 +4642,7 @@ if (CLAUDE_ENABLED) {
         entry.actNo = i + 1;
       });
       entries.sort((a, b) => {
+        if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
         const diff = timeOf(b.dateText) - timeOf(a.dateText);
         if (diff) return diff;
@@ -4736,7 +4793,7 @@ if (CLAUDE_ENABLED) {
       scheduleChatReconcile();
     }
     function signatureOf(entries) {
-      return JSON.stringify(entries.map(entry => [ entry.fileName, entry.avatar, entry.group, entry.name, entry.pinned ? 1 : 0 ]));
+      return JSON.stringify(entries.map(entry => [ entry.fileName, entry.avatar, entry.group, entry.name, entry.pinned ? 1 : 0, entry.favorite ? 1 : 0 ]));
     }
     function renderRecentRows(slot, entries) {
       const existing = slot.querySelector(".recentChatList");
@@ -4759,8 +4816,10 @@ if (CLAUDE_ENABLED) {
         const n = String(entries.length);
         count.textContent !== n && (count.textContent = n);
       }
+      if (entries.some(e=>e.favorite)) { const label=hostDocument.createElement('div'); label.className='cw-b34-star-label'; label.textContent=ccPrefersChinese()?'已收藏':'Starred'; list.append(label); }
       for (const entry of entries) {
         const row = buildRecentRow(entry);
+        if(entry.favorite) row.dataset.cwFavorite='1';
         row.addEventListener("click", event => {
           if (event.target instanceof hostWindow.Element && event.target.closest(".chatActions")) return;
           if (Date.now() < recentLongPressUntil) return;
@@ -5234,6 +5293,7 @@ if (CLAUDE_ENABLED) {
         stillThere === null ? console.warn("[Claude-Clawd] 删除完成事件没来，且二次确认接口也查不了，按成功处理。") : console.info("[Claude-Clawd] 删除完成事件没来，但二次确认文件已消失，按成功处理。");
         await emitChatDeleted(eventKey, fileName).catch(() => {});
       }
+      chatTools?.removeChat({avatar:avatarId, group:groupId, file_name:fileName});
       dropRecentRow(fileName);
       recentSignature = null;
       recentDataVersion += 1;
@@ -6651,6 +6711,9 @@ if (CLAUDE_ENABLED) {
       refreshRailLabels();
       watchChatDeleted();
       watchUserSend();
+      chatTools ??= installChatTools({win:hostWindow, doc:hostDocument, getContext, enabled:()=>!destroyed && hostDocument.documentElement.dataset.claudeEnabled !== "off", follow:()=>streamFollow,
+        onFavoritesChange:()=>{ recentSignature=null; recentDataVersion++; refreshRailRecents({force:true}); }, openChat:openRecentChat});
+      chatTools.sync();
       refreshRailRecents();
       refreshWelcomeShortcuts();
       refreshCharacterSwitcher();
@@ -6910,6 +6973,8 @@ if (CLAUDE_ENABLED) {
         source?.removeListener?.(type, handler);
         source?.off?.(type, handler);
       } catch {}
+      chatTools?.destroy();
+      chatTools = null;
       streamFollow?.destroy();
       streamFollow = null;
       generationSubscriptions.length = 0;

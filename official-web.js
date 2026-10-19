@@ -269,7 +269,7 @@ export function installOfficialWeb(win = window) {
   const groupRecents = list => {
     const want = []; let last = null;
     for (const r of list.children) {
-      if (!r.classList.contains('recentChat') || r.classList.contains('cw-rec-rep')) continue;
+      if (!r.classList.contains('recentChat') || r.classList.contains('cw-rec-rep') || r.dataset.cwFavorite === '1') continue;
       const g = dayLabel(r.querySelector('.chatDate')?.title || ''); if (!g || g === last) continue;
       last = g; want.push([r, g]);
     }
@@ -370,7 +370,7 @@ export function installOfficialWeb(win = window) {
 
   if (!doc.getElementById('cw-web-style')) {
     const link = doc.createElement('link'); link.id = 'cw-web-style'; link.rel = 'stylesheet';
-    link.href = new URL('styles/official-web.css?v=2.0.149', import.meta.url).href; doc.head.append(link);
+    link.href = new URL('styles/official-web.css?v=2.0.150', import.meta.url).href; doc.head.append(link);
   }
   let raf = 0;
   const schedule = () => { if (!raf) raf = win.requestAnimationFrame(() => { raf = 0; ensure(); }); };
