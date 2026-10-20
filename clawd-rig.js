@@ -665,7 +665,7 @@ export function buildClawdRig() {
       if (tc.sc) emit('s', st => `scale:${st.sc}`, true);
       if (tc.r) emit('r', st => `rotate:${st.r}deg`, true);
       if (tc.a) emit('a', st => `opacity:${st.a}`, true);
-      const base = part === 'eyes' ? 'clr-blink 4400ms step-end infinite, ' : '';
+      const base = ''; // Blink is driven by createBlinkClock; action frame tracks retain priority.
       rules.push(`${RB}[data-clawd-clip="${clip.id}"] .clr-p-${part}{animation:${base}${anims.join(', ')}}`);
     }
     // 整体平移（走路）；没有平移也生成一条，用来接 animationend
@@ -714,20 +714,39 @@ export function buildClawdRig() {
     css += pxBeforeCSS();
     // 基础眨眼：4.4 秒一轮，不被动作占用眼睛帧的时候一直在跑
     const o = pxDecl('eyes', 'open'), h = pxDecl('eyes', 'half'), s = pxDecl('eyes', 'shut');
-    css += `@keyframes clr-blink{0%{${o}}${pct(4000, 4400)}{${h}}${pct(4100, 4400)}{${s}}${pct(4200, 4400)}{${h}}${pct(4300, 4400)}{${o}}100%{${o}}}\n`;
+    css += `${RB}[data-clr-eye="half"] .clr-p-eyes{${h}}\n${RB}[data-clr-eye="shut"] .clr-p-eyes{${s}}\n`;
     // 待机呼吸：只有两只钳子起伏，平滑地抬 1 格再放下，身体和眼睛不动（Lulu 2026-09-24 定）。
     //   整只上下沉一格像深蹲；整只细微缩放在输入框那个尺寸下不到 1 屏幕像素，看不出来，所以都不用。
     //   钳子以前是一格一格跳（step-end），看着卡，现在走平滑缓动；代价是中途落在半格上，边缘会略虚。
     const B = 3200, in0 = 1400, in1 = 2600;
     css += `@keyframes clr-breathe-claw{0%{transform:translate(0,0)}${pct(in0, B)}{transform:translate(0,-${PX}px)}${pct(in1, B)}{transform:translate(0,0)}100%{transform:translate(0,0)}}\n`;
-    css += `${RB} .clr-p-eyes{animation:clr-blink 4400ms step-end infinite}\n`;
+
     css += `${RB} .clr-p-sym{transform-origin:${(BOX[0] + ORIGIN.sym[0] + .5) * PX}px ${(BOX[1] + ORIGIN.sym[1] + 2.5) * PX}px}\n`;
     // z-index:2：影子（z 1）在弹性层外面（见 makeRig），弹性层自成一层压在影子上面
     css += `${RB} .clr-flex{position:absolute;left:0;top:0;z-index:2;transform-origin:${FLEX_ORIGIN[0]}px ${FLEX_ORIGIN[1]}px}\n`;
     css += `${RB} .clr-p-clawL,${RB} .clr-p-clawR{animation:clr-breathe-claw ${B}ms ease-in-out infinite}\n`;
     // 播动作时呼吸停掉（动作自己管身体），只留眨眼；动作规则写在后面，会覆盖这几条
-    css += `${RB}[data-clawd-clip] .clr-p-body,${RB}[data-clawd-clip] .clr-p-clawL,${RB}[data-clawd-clip] .clr-p-clawR,${RB}[data-clawd-clip] .clr-flex{animation:none}\n${RB}[data-clawd-clip] .clr-p-eyes{animation:clr-blink 4400ms step-end infinite}\n`;
+    css += `${RB}[data-clawd-clip] .clr-p-body,${RB}[data-clawd-clip] .clr-p-clawL,${RB}[data-clawd-clip] .clr-p-clawR,${RB}[data-clawd-clip] .clr-flex{animation:none}\n`;
     return css;
+  }
+
+  function createBlinkClock(element, options = {}) {
+    const doc=element.ownerDocument, win=doc.defaultView;
+    const enabled=options.enabled||(()=>true), now=options.now||(()=>win.performance.now());
+    const epoch=now(); let timer=0,disposed=false;
+    const cancel=()=>{if(timer)win.clearTimeout(timer);timer=0;};
+    function sync(){
+      if(disposed)return;
+      if(doc.hidden||!enabled()||!element.isConnected){cancel();return;}
+      if(timer)return;
+      const phase=((now()-epoch)%4400+4400)%4400;
+      const eye=phase<4000||phase>=4300?'open':phase<4100||phase>=4200?'half':'shut';
+      if(element.getAttribute('data-clr-eye')!==eye)element.setAttribute('data-clr-eye',eye);
+      const next=[4000,4100,4200,4300].find(t=>t>phase)??8400;
+      timer=win.setTimeout(()=>{timer=0;sync()},Math.max(1,next-phase));
+    }
+    doc.addEventListener('visibilitychange',sync);
+    return {sync,destroy(){if(disposed)return;disposed=true;cancel();doc.removeEventListener('visibilitychange',sync);element.removeAttribute('data-clr-eye');}};
   }
   /* ════════════════════════════════════════════════════════════════════
      6. 动作表
@@ -2146,7 +2165,7 @@ export function buildClawdRig() {
     if (!extents.has(id)) extents.set(id, clipExtent(CLIPS[id]));
     return extents.get(id);
   }
-  return { css: genRestCSS(), cssFor, extentFor, clips: pool, parts: PARTS.slice(), selfCheck };
+  return { css: genRestCSS(), createBlinkClock, cssFor, extentFor, clips: pool, parts: PARTS.slice(), selfCheck };
 
   /* 静止拼图 = 现网 open 帧，返回不一致的格数（0 才对） */
   function selfCheck() {

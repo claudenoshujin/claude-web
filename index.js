@@ -1,7 +1,7 @@
-import { installChatTools } from "./chat-tools.js?v=2.0.150";
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.150';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.150';
-/* Claude Web public 2.0.150. Allowed runtime transplant; exclusions removed before generation. */
+import { installChatTools } from "./chat-tools.js?v=2.0.151";
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.151';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.151';
+/* Claude Web public 2.0.151. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -16,16 +16,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.150';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.150";
+import { tr } from "./official-i18n.js?v=2.0.151";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.150";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.151";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.150";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.151";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.150";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.151";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.150";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.150";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.151";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.151";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -376,7 +376,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.150-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.151-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -392,7 +392,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.150", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.151", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1192,7 +1192,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.150", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.151", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -1862,7 +1862,10 @@ if (CLAUDE_ENABLED) {
       style.append(hostDocument.createTextNode(CLAWD_RIG.cssFor(id)));
       clawdRigInjected.add(id);
     }
+    const clawdBlinkClocks = new Map();
     function ensureClawdRig(button) {
+      if(!clawdBlinkClocks.has(button)){const clock=CLAWD_RIG.createBlinkClock(button,{enabled:()=>!destroyed&&hostDocument.documentElement.dataset.claudeEnabled!=="off"});clawdBlinkClocks.set(button,clock);hostWindow.queueMicrotask(()=>clock.sync());}
+      else clawdBlinkClocks.get(button).sync();
       if (button.querySelector(":scope > .clawd-rig")) return;
       const rig = hostDocument.createElement("span");
       rig.className = "clawd-rig";
@@ -1944,6 +1947,7 @@ if (CLAUDE_ENABLED) {
       layer.remove();
     }
     function cleanupClawdRigEffects() {
+      for(const clock of clawdBlinkClocks.values())clock.destroy();clawdBlinkClocks.clear();
       if (clawdRigPrewarmTimer) {
         clawdRigPrewarmIsIdle ? hostWindow.cancelIdleCallback?.(clawdRigPrewarmTimer) : cancelClawdLater(clawdRigPrewarmTimer);
         clawdRigPrewarmTimer = 0;
@@ -6551,6 +6555,21 @@ if (CLAUDE_ENABLED) {
         state.value ? state.element.style.setProperty("z-index", state.value, state.priority) : state.element.style.removeProperty("z-index");
       }
     }
+    const HOST_TOP_LEVEL_SELECTOR='#sheld,#top-settings-holder,#top-bar,#movingDivs,#bg1,#bg_custom,#bg_animation,#character_popup,#preloader,#extensionsMenu,#options,#export_format_popup,#dialogue_popup,dialog,.popup,.drawer-content,.clawd-mobile-chrome,.cw-v4-shell,.cw-pm-host,[id^="claude-"],[class*="cw-"],[class*="clawd-"]';
+    function isThirdPartyInterior(target){
+      let top=target;while(top.parentElement&&top.parentElement!==hostDocument.body)top=top.parentElement;
+      return top.parentElement===hostDocument.body&&target!==top&&!top.matches(HOST_TOP_LEVEL_SELECTOR)&&!nodeBelongsToClawd(top);
+    }
+    function mutationTouchesExternalModal(record){
+      if(record.type!=='childList'||insideClosedDrawer(record))return false;
+      for(const node of [...record.addedNodes,...record.removedNodes]){
+        if(!(node instanceof hostWindow.Element))continue;
+        if(node.matches(EXTERNAL_MODAL_SELECTOR)||node.querySelector(EXTERNAL_MODAL_SELECTOR)||extraExternalModalCandidates.has(node))return true;
+        for(const registered of externalModalSources.keys())if(node===registered||node.contains(registered))return true;
+        for(const registered of extraExternalModalCandidates)if(node.contains(registered))return true;
+      }
+      return false;
+    }
     function mutationNeedsFullRefresh(record) {
       const target = record.target instanceof hostWindow.Element ? record.target : record.target.parentElement;
       if (!(target instanceof hostWindow.Element)) return !0;
@@ -6569,6 +6588,8 @@ if (CLAUDE_ENABLED) {
       if (record.type === "attributes" && classMutationIsCosmetic(record, target)) return !1;
       if (record.type === "childList") {
         const nodes = [ ...record.addedNodes, ...record.removedNodes ];
+        if(!target.closest('#chat')&&nodes.length&&nodes.every(node=>node.nodeType===3))return false;
+        if(isThirdPartyInterior(target))return false;
         if (nodes.length && nodes.every(nodeBelongsToClawd)) return !1;
         if (isTypingActive() && target.closest('#chat > .mes[is_user="false"] :is(.mes_text,.mes_reasoning)')) return !1;
       }
@@ -6610,7 +6631,7 @@ if (CLAUDE_ENABLED) {
         records = records.filter(r => !inClawdPile(r));
         if (!records.length) return;
       }
-      records.some(record => record.type === "childList" && !insideClosedDrawer(record) && [ ...record.addedNodes, ...record.removedNodes ].some(node => node.nodeType === 1)) && scheduleExternalSurfaceIsolation();
+      records.some(mutationTouchesExternalModal) && scheduleExternalSurfaceIsolation();
       refreshStats.recordsSeen += records.length;
       trackDirtyMessages(records);
       ensureChatAttributeObserver();

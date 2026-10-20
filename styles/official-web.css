@@ -19,11 +19,11 @@ html[data-cw-web][data-claude-integrated-theme="night"] {
 }
 
 /* 底色：侧栏和正文分开，中间一条细线 */
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3), html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body,
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #sheld, html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat,
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #form_sheld, html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-v4-chat-head { background-color: var(--w-main) !important; }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #chat::before { background-color: var(--w-main) !important; }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder { background: var(--w-side) !important; border-right: 1px solid var(--w-line) !important; box-shadow: none !important; }
+html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3), html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) body,
+html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) #sheld, html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) #chat,
+html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) #form_sheld, html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) .cw-v4-chat-head { background-color: var(--w-main) !important; }
+html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) #chat::before { background-color: var(--w-main) !important; }
+html[data-cw-web]:not([data-claude-bg-transparent="on"]):not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder { background: var(--w-side) !important; border-right: 1px solid var(--w-line) !important; box-shadow: none !important; }
 
 /* 顶行：侧栏开关 · Claude · 对话/代码（去掉 ≡ 和前进后退） */
 html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-tool > svg:nth-of-type(1),
