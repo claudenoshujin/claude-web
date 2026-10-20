@@ -1,7 +1,8 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.151';
-import { officialIcons } from './official-icons.js?v=2.0.151';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.151';
-import { tr } from './official-i18n.js?v=2.0.151';
+import { installOfficialWeb } from './official-web.js?v=2.0.152';
+import { officialIcons } from './official-icons.js?v=2.0.152';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.152';
+import { tr } from './official-i18n.js?v=2.0.152';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.152';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -32,6 +33,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const mobile = () => root.dataset.claudeLayout === 'mobile' || win.innerWidth <= 700;
   let shell, current, requestedPanel, previousFocus, raf = 0, destroyed = false;
   const observers = [], disposers = [], dialogs = new Set(), panels = new Map();
+  const ttPanels = createTTPanelRuntime(win);
   const panelDecorations = new Map();
   const formattedForms = new WeakSet();
   const enhancedMenus = new WeakSet();
@@ -139,7 +141,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     color(id){const el=take(id);if(!el)return null;return prow(textOf(el.nextElementSibling),'',[el]);},
     area(id,label,desc,cls='cw-v4-area'){const el=take(id);if(!el)return null;addClass(el,...cls.split(' '));el.dataset.cwV4Text='1';let lab=el.previousElementSibling;while(lab&&!/^(SMALL|SPAN|LABEL)$/.test(lab.tagName))lab=lab.previousElementSibling;if(!lab)lab=el.parentElement?.previousElementSibling;return prow(label||textOf(lab),desc,[el],'cw-v4-stack');},
   };
-  const drawerLayouts=createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu});
+  const drawerLayouts=createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu,rememberTTMove:ttPanels.remember});
   function restorePrefs() {
     const panel = panels.get('user-settings-block'), pages = panel?.querySelector('.cw-v4-pref-pages');
     if (!pages) return;
@@ -249,6 +251,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const p = panels.get(id);
     if (!p) return false;
     requestedPanel = id;
+    if (enabled()) ttPanels.set('page', id);
     if (p && !isOpen(p)) {
       // ST waits for its closing animation when another unpinned drawer is
       // open. Close it synchronously first, keeping our shared shell mounted.
@@ -326,6 +329,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   // runs after the node is back in place (design openDialog).
   function openEditor(node, title, desc, opts = {}) {
     if (!node.isConnected || node.classList.contains('cw-v4-editing')) return;
+    const ttOwner = {};
+    ttPanels.set(ttOwner, node.closest('.drawer-content')?.id);
     // 2.0.222：扩展标题里带着帮助链接的「?」（图像生成 ?），弹窗标题不要它。
     if (typeof title === 'string') title = title.replace(/\s*[?？]$/, '');
     const anchor = doc.createComment('cw-v4-return'); node.before(anchor);
@@ -382,6 +387,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       standIn?.remove();
       try { opts.onClose?.(); } catch (error) { console.warn('[Claude Web] editor close', error); }
       dialog.remove(); dialogs.delete(dialog); if (!destroyed) { syncSheet(); focus?.isConnected && focus.focus({preventScroll: true}); schedule(); }
+      ttPanels.set(ttOwner, null);
     };
     dialog._cwRestore = restoreEditor;
     dialog.addEventListener('close', restoreEditor, {once:true});
@@ -945,7 +951,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     syncChatWidth();
     root.toggleAttribute('data-cw-v4', enabled());
     syncExternalDrawers();
-    if (!enabled()) { if (shell) shell.hidden = true; for (const dialog of dialogs) dialog.close(); restoreAdaptedContainers(); root.removeAttribute('data-cw-v4-settings'); return; }
+    if (!enabled()) { if (shell) shell.hidden = true; for (const dialog of dialogs) { dialog.close(); dialog._cwRestore?.(); } restoreAdaptedContainers(); ttPanels.destroy(); root.removeAttribute('data-cw-v4-settings'); return; }
     if (!shell) buildShell();
     const settingsSearch=shell.querySelector('.cw-v4-search'),searchHost=mobile()?shell:shell.querySelector('.cw-v4-nav');
     if(settingsSearch.parentElement!==searchHost)searchHost.prepend(settingsSearch);
@@ -961,6 +967,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     });
     const open = [...panels.values()].filter(isOpen);
     const p = open.find(n => n.id === requestedPanel) || (open.includes(current) ? current : open[0]);
+    ttPanels.set('page', p?.id);
     // 2.0.218：只在真的要变时才写 class。classList.toggle / add 就算状态没变也会重写 class 属性、产生一条变更记录——
     // 上面那个观察面板 class 的 observer 收到又排一次 sync，于是设置页开着时 sync 每帧都跑；每次还让酒馆 keyboard.js
     // 把整个面板（扩展页约 2800 个元素）用二十几个选择器重扫一遍。实测弹出页升起那 1.5 秒里转了 90 圈。
@@ -1064,6 +1071,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       // 手机侧栏开着时点入口由 index.js 接管（showPanelFromRail → activate），这里不重复处理。
       if (e.isTrusted && doc.body.hasAttribute('data-clawd-menu') && !doc.body.classList.contains('clawd-tauritavern-host')) return;
       requestedPanel=panel.id;
+      // TT's toggle capture restores native roots before our next layout frame.
+      if (enabled() && !isOpen(panel)) ttPanels.set('page', panel.id);
       if(!e.isTrusted || isOpen(panel)) return;
       for (const old of panels.values()) if (old !== panel && isOpen(old) && !old.classList.contains('pinnedOpen')) nativeToggle(old)?.click();
     },true);
@@ -2304,6 +2313,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     doc.getElementById('send_form')?.removeAttribute('data-cw-disclaimer');
     doc.querySelector('.cw-v4-disclaimer')?.remove();
     restoreAdaptedContainers();
+    ttPanels.destroy();
     for (const [panel, state] of panelDecorations) {
       if (!state.hadPanelClass) panel.classList.remove('cw-v4-panel');
       if (state.glyph?.style.getPropertyValue('--cw-v4-nav-icon') === state.installed) {
