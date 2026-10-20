@@ -1,6 +1,6 @@
 /* 大 Clawd 跟着节奏动（T8，Lulu 2026-10-15 定稿；预览 Claude outputs/移动端与滚动条待处理问题-20261013/T8预览/…-v6.html）。
-   · 你打字时（clawd-rig 的 compose）：原动画定在「低头看着输入框」那一帧；每上屏一个字，上半身沉 1 格（3px，和原来点头一样）
-     再起来，按格跳、不平滑。字来得越密蹲得越短（最短 50ms）。输入法拼写中不蹲，上屏时有几个字连蹲几下（最多排 8 下）；
+   · 你打字时（clawd-rig 的 compose）：原动画定在「低头看着输入框」那一帧；每次输入，上半身沉 1 格（3px，和原来点头一样）
+     再起来，按格跳、不平滑。输入越密蹲得越短（最短 50ms）。输入法拼写中不蹲，一次确认整个词组只蹲一下；
      删除不蹲；粘贴 / 拖入只蹲一下。停手时偶尔往右扫一眼（原动画里读字的那一下）。
    · 生成回复时（write / sitWrite / writeHeld）：动画倍速跟流式出字速度。不到 12 字/秒 0.6×、12～32 字/秒 1×、32 以上 1.6×；
      降档阈值 ×0.75，每档至少保持 0.8s；0.6s 没有新字回到慢速。
@@ -14,8 +14,8 @@ const RATE = [.6, 1, 1.6], CPS_UP = [12, 32];
 
 export function installClawdRhythm({ doc, win, button, enabled, reducedMotion }) {
   let raf = 0, destroyed = false, clip = '', clipAt = 0, form = null;
-  // —— 打字：上屏一个字蹲一下 ——
-  let prevLen = 0, compStart = -1, lastKeyAt = -1e9, lastDipKey = 0;
+  // —— 打字：一次输入蹲一下，不按上屏字数排队 ——
+  let prevValue = '', compStart = null, lastKeyAt = -1e9, lastDipKey = 0;
   let dipQueue = 0, dipDown = false, dipUntil = 0, dipDur = DIP_MS, dipGap = GAP_MS;
   // —— 生成：出字速度 ——
   let lastText = 0, sampleAt = 0, rateTier = 0, tierAt = 0, lastCharAt = -1e9;
@@ -27,31 +27,33 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
   const clipAnims = r => (r?.getAnimations?.({ subtree: true }) || []).filter(a => typeof a.animationName === 'string' && a.animationName.includes('-' + clip + '-'));
   const active = () => !destroyed && enabled() && !reducedMotion() && doc.documentElement.dataset.claudeMotion !== 'off';
 
-  function dip(n = 1) {
-    if (n <= 0 || !active()) return;
+  function dip() {
+    if (!active()) return;
     const now = win.performance.now(), interval = lastDipKey ? now - lastDipKey : 1e9; lastDipKey = now;
-    dipQueue = Math.min(QUEUE_MAX, dipQueue + n);
+    dipQueue = Math.min(QUEUE_MAX, dipQueue + 1);
     const burst = dipQueue > 1;
     dipDur = burst ? BURST_DIP : Math.max(DIP_MIN, Math.min(DIP_MS, interval * .6));
     dipGap = burst ? BURST_GAP : Math.min(GAP_MS, interval * .3);
     wake();
   }
-  const onBefore = e => { if (e.target === box() && /^(insert|delete)/.test(e.inputType || '')) lastKeyAt = win.performance.now(); };
-  const onCompStart = e => { if (e.target === box()) compStart = prevLen; };
+  const onBefore = e => { if (e.target === box() && /^(insert|delete)/.test(e.inputType || '')) { lastKeyAt = win.performance.now(); if (compStart === null) prevValue = e.target.value; } };
+  const onCompStart = e => { if (e.target === box()) compStart = prevValue = e.target.value; };
   const onCompEnd = e => {
     if (e.target !== box()) return;
-    const len = e.target.value.length, n = len - (compStart < 0 ? prevLen : compStart);
-    compStart = -1; prevLen = len; dip(n);
+    const value = e.target.value;
+    const committed = typeof e.data === 'string' ? e.data.length > 0 : value !== (compStart ?? prevValue);
+    compStart = null; prevValue = value;
+    if (committed) dip();
   };
   const onInput = e => {
     const b = box(); if (e.target !== b) return;
     const t = e.inputType || '';
-    if (e.isComposing || t === 'insertCompositionText' || compStart >= 0) return;   // 上屏由 compositionend 统一处理（Safari 会先 compositionend 再 input）
-    const added = b.value.length - prevLen; prevLen = b.value.length;
-    if (/^insertFrom(Paste|Drop)/.test(t)) dip(1); else if (t.startsWith('insert') && added > 0) dip(added);
+    if (e.isComposing || t === 'insertCompositionText' || compStart !== null) return;   // 上屏由 compositionend 统一处理；其后的同值 input 不重复计数
+    const changed = b.value !== prevValue; prevValue = b.value;
+    if (/^insertFrom(Paste|Drop)/.test(t)) dip(); else if (t.startsWith('insert') && changed) dip();
   };
   // 发送 / 程序清空输入框不会发 input，开始打字前对齐一次长度
-  const onFocus = e => { if (e.target === box()) { prevLen = e.target.value.length; compStart = -1; } };
+  const onFocus = e => { if (e.target === box()) { prevValue = e.target.value; compStart = null; } };
 
   function reset(r) {
     for (const n of parts(r)) n.style.removeProperty('translate');
