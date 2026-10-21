@@ -1,11 +1,12 @@
-import { parseRecentTime } from './recent-time.js?v=2.0.157';
-import { installChatTools } from "./chat-tools.js?v=2.0.157";
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.157';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.157';
-/* Claude Web public 2.0.157. Allowed runtime transplant; exclusions removed before generation. */
+import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.158';
+import { parseRecentTime } from './recent-time.js?v=2.0.158';
+import { installChatTools } from "./chat-tools.js?v=2.0.158";
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.158';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.158';
+/* Claude Web public 2.0.158. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
-    for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
+    for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) preferencesFor(window).setItem("claude-web:" + k, v);
     for (const k of [ "kbdDiag", "pbImage", "pbImageFit", "pbImagePos" ]) localStorage.removeItem("claude-web:" + k);
   } catch {}
   try {
@@ -17,16 +18,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.157';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.157";
+import { tr } from "./official-i18n.js?v=2.0.158";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.157";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.158";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.157";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.158";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.157";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.158";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.157";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.157";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.158";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.158";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -119,7 +120,7 @@ const CLAUDE_THEMES = {
 
 function claudeReadSetting(key, allowed, fallback) {
   try {
-    const raw = window.localStorage.getItem("claude-web:" + key);
+    const raw = key === "enabled" ? window.localStorage.getItem("claude-web:" + key) : preferencesFor(window).getItem("claude-web:" + key);
     return allowed.includes(raw) ? raw : fallback;
   } catch {
     return fallback;
@@ -134,7 +135,8 @@ try {
   for (const [param, key, allowed] of wanted) {
     const value = escapeQuery.get(param);
     if (value && allowed.includes(value)) {
-      window.localStorage.setItem("claude-web:" + key, value);
+      if (key === "enabled") window.localStorage.setItem("claude-web:" + key, value);
+      else preferencesFor(window).setItem("claude-web:" + key, value);
       escapeQuery.delete(param);
       consumedEscape = true;
     }
@@ -163,7 +165,7 @@ const CLAUDE_QUOTE_BODY_COLOR_ENABLED = claudeReadSetting("quoteBodyColor", [ "o
 const CLAUDE_BG_BLUR_OPACITY = (() => {
   let raw = null;
   try {
-    raw = window.localStorage.getItem("claude-web:bgBlurOpacity");
+    raw = preferencesFor(window).getItem("claude-web:bgBlurOpacity");
   } catch {}
   const num = Number(raw);
   if (!Number.isFinite(num)) return 22;
@@ -179,7 +181,7 @@ const CLAUDE_BG_IMAGE_BLUR_ENABLED = claudeReadSetting("bgImageBlur", [ "on", "o
 function claudeReadNumberSetting(key, fallback, min, max) {
   let raw = null;
   try {
-    raw = window.localStorage.getItem("claude-web:" + key);
+    raw = preferencesFor(window).getItem("claude-web:" + key);
   } catch {}
   const num = Number(raw);
   if (!Number.isFinite(num)) return fallback;
@@ -229,7 +231,7 @@ document.documentElement.dataset.claudeSideSwipe = "off";
 document.documentElement.dataset.claudeSkin = "classic";
 
 try {
-  const cf = window.localStorage.getItem("claude-web:fontCustom");
+  const cf = preferencesFor(window).getItem("claude-web:fontCustom");
   cf && document.documentElement.style.setProperty("--cw-font-custom", cf);
 } catch {}
 
@@ -241,7 +243,7 @@ document.documentElement.style.setProperty("--claude-bg-image-dim", String(CLAUD
 
 function claudeReadClockSetting(key, fallback) {
   try {
-    const value = window.localStorage.getItem("claude-web:" + key);
+    const value = preferencesFor(window).getItem("claude-web:" + key);
     return /^([01]\d|2[0-3]):[0-5]\d$/.test(value || "") ? value : fallback;
   } catch {
     return fallback;
@@ -274,7 +276,7 @@ const CLAUDE_THEME_VARIANT = function() {
 }();
 
 if (claudeReadSetting("theme-auto", [ "manual", "system", "time" ], "manual") !== "manual") try {
-  window.localStorage.setItem("claude-web:variant", CLAUDE_THEME_VARIANT);
+  preferencesFor(window).setItem("claude-web:variant", CLAUDE_THEME_VARIANT);
 } catch {}
 
 const CLAUDE_LAYOUT_CHOICE = claudeReadSetting("layout", [ "auto", "pc", "mobile" ], "auto");
@@ -377,7 +379,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.157-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.158-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -393,7 +395,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.157", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.158", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -539,7 +541,7 @@ if (CLAUDE_ENABLED) {
     function currentScheme() {
       let variant = null;
       try {
-        variant = window.localStorage.getItem("claude-web:variant");
+        variant = preferencesFor(window).getItem("claude-web:variant");
       } catch {
         variant = null;
       }
@@ -583,7 +585,7 @@ if (CLAUDE_ENABLED) {
     }
     function readJson(key) {
       try {
-        const raw = window.localStorage.getItem(key);
+        const raw = preferencesFor(window).getItem(key);
         return raw ? JSON.parse(raw) : null;
       } catch {
         return null;
@@ -591,7 +593,7 @@ if (CLAUDE_ENABLED) {
     }
     function currentPresetId() {
       try {
-        return window.localStorage.getItem("claude-web:preset") || "";
+        return preferencesFor(window).getItem("claude-web:preset") || "";
       } catch {
         return "";
       }
@@ -602,14 +604,14 @@ if (CLAUDE_ENABLED) {
     function currentFamilyId() {
       let stored = null;
       try {
-        stored = window.localStorage.getItem("claude-web:family");
+        stored = preferencesFor(window).getItem("claude-web:family");
       } catch {}
       if (stored === "custom") return stored;
       return FAMILIES.some(f => f.id === stored) ? stored : FAMILIES[0].id;
     }
     function writeJson(key, value) {
       try {
-        window.localStorage.setItem(key, JSON.stringify(value));
+        preferencesFor(window).setItem(key, JSON.stringify(value));
       } catch {}
     }
     function customStore() {
@@ -634,7 +636,7 @@ if (CLAUDE_ENABLED) {
     function baseFamily() {
       let id = null;
       try {
-        id = window.localStorage.getItem("claude-web:custom-base");
+        id = preferencesFor(window).getItem("claude-web:custom-base");
       } catch {
         id = null;
       }
@@ -659,7 +661,7 @@ if (CLAUDE_ENABLED) {
       const scheme = currentScheme();
       if (familyId === "custom") {
         if (persist) try {
-          window.localStorage.setItem("claude-web:family", "custom");
+          preferencesFor(window).setItem("claude-web:family", "custom");
         } catch {}
         const preset = customPreset(scheme);
         apply(resolve(preset));
@@ -667,8 +669,8 @@ if (CLAUDE_ENABLED) {
       }
       const family = FAMILIES.find(item => item.id === familyId) ?? FAMILIES[0];
       if (persist) try {
-        window.localStorage.setItem("claude-web:family", family.id);
-        window.localStorage.setItem("claude-web:custom-base", family.id);
+        preferencesFor(window).setItem("claude-web:family", family.id);
+        preferencesFor(window).setItem("claude-web:custom-base", family.id);
       } catch {}
       return activate(family[scheme].id, {
         persist: !1
@@ -693,7 +695,7 @@ if (CLAUDE_ENABLED) {
       if (!preset) return null;
       apply(resolve(preset), preset.id);
       if (persist) try {
-        window.localStorage.setItem("claude-web:preset", preset.id);
+        preferencesFor(window).setItem("claude-web:preset", preset.id);
       } catch {}
       return preset;
     }
@@ -759,7 +761,7 @@ if (CLAUDE_ENABLED) {
       },
       clearCustom: function() {
         try {
-          window.localStorage.removeItem("claude-web:custom");
+          preferencesFor(window).removeItem("claude-web:custom");
         } catch {}
         return activateFamily(baseFamily().id);
       },
@@ -1193,7 +1195,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.157", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.158", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -5359,12 +5361,12 @@ if (CLAUDE_ENABLED) {
       const value = String(name || "").trim();
       if (!value) return;
       try {
-        hostWindow.localStorage.setItem("clawd-last-character-name", value);
+        preferencesFor(hostWindow).setItem("clawd-last-character-name", value);
       } catch (error) {}
     }
     function rememberedCharacterName(characters) {
       try {
-        const saved = hostWindow.localStorage.getItem("clawd-last-character-name") || "";
+        const saved = preferencesFor(hostWindow).getItem("clawd-last-character-name") || "";
         if (saved) return saved;
       } catch (error) {}
       const recent = hostDocument.querySelector("." + RAIL_RECENTS_CLASS + " .recentChat[data-avatar]");
@@ -5936,7 +5938,7 @@ if (CLAUDE_ENABLED) {
         hostDocument.body.classList.remove("clawd-rail-resizing");
         const now = hostDocument.documentElement.style.getPropertyValue("--cl-rail");
         try {
-          hostWindow.localStorage.setItem(RAIL_KEY, now);
+          preferencesFor(hostWindow).setItem(RAIL_KEY, now);
         } catch (error) {}
         hostDocument.removeEventListener("mousemove", move);
         hostDocument.removeEventListener("mouseup", up);
@@ -5949,7 +5951,7 @@ if (CLAUDE_ENABLED) {
         hostDocument.addEventListener("mouseup", up);
       });
       try {
-        const saved = hostWindow.localStorage.getItem(RAIL_KEY);
+        const saved = preferencesFor(hostWindow).getItem(RAIL_KEY);
         if (saved) {
           const parsed = parseInt(saved, 10) || RAIL_MIN;
           applyRailWidth(parsed === 288 ? 280 : parsed);
@@ -7377,7 +7379,7 @@ if (CLAUDE_ENABLED) {
   } ];
   function read(key, allowed, fallback) {
     try {
-      const raw = window.localStorage.getItem("claude-web:" + key);
+      const raw = key === "enabled" ? window.localStorage.getItem("claude-web:" + key) : preferencesFor(window).getItem("claude-web:" + key);
       return allowed.includes(raw) ? raw : fallback;
     } catch {
       return fallback;
@@ -7385,7 +7387,8 @@ if (CLAUDE_ENABLED) {
   }
   function write(key, value) {
     try {
-      window.localStorage.setItem("claude-web:" + key, value);
+      if (key === "enabled") window.localStorage.setItem("claude-web:" + key, value);
+      else preferencesFor(window).setItem("claude-web:" + key, value);
       return !0;
     } catch (error) {
       console.warn("[Claude Web] 设置写入失败：", error);
@@ -7394,7 +7397,7 @@ if (CLAUDE_ENABLED) {
   }
   function readClock(key, fallback) {
     try {
-      const value = window.localStorage.getItem("claude-web:" + key);
+      const value = preferencesFor(window).getItem("claude-web:" + key);
       return /^([01]\d|2[0-3]):[0-5]\d$/.test(value || "") ? value : fallback;
     } catch {
       return fallback;
@@ -7402,7 +7405,7 @@ if (CLAUDE_ENABLED) {
   }
   function readNumber(key, fallback, min, max) {
     try {
-      const value = Number(window.localStorage.getItem("claude-web:" + key));
+      const value = Number(preferencesFor(window).getItem("claude-web:" + key));
       if (!Number.isFinite(value)) return fallback;
       return Math.min(max, Math.max(min, value));
     } catch {
@@ -7437,7 +7440,7 @@ if (CLAUDE_ENABLED) {
     delete root.dataset.claudeArchive;
     delete root.dataset.claudeArchiveGhost;
     try {
-      window.localStorage.getItem("claude-web:family") === "archive" && window.localStorage.setItem("claude-web:family", "anthropic");
+      preferencesFor(window).getItem("claude-web:family") === "archive" && preferencesFor(window).setItem("claude-web:family", "anthropic");
       window.localStorage.removeItem("claude-web:style");
       window.localStorage.removeItem("claude-web:ghost");
     } catch {}
@@ -7802,7 +7805,7 @@ if (CLAUDE_ENABLED) {
     mountEnabled(panel);
     const uiStyleSelect = panel.querySelector('#claude-web-ui-style');
     const uiPending = panel.querySelector('#claude-web-ui-style-pending');
-    const syncUiPending = () => { uiPending.hidden = uiStyleSelect.value === document.documentElement.dataset.claudeUi; };
+    const syncUiPending = () => { const saved = preferencesFor(window).isSaved('claude-web:ui-style'); uiPending.hidden = saved && uiStyleSelect.value === document.documentElement.dataset.claudeUi; uiPending.querySelector('span').textContent = saved ? tr((document.querySelector('#ui_language_select')?.value || navigator.language || 'en').startsWith('zh'), '已保存，刷新页面后生效。请先保存正在编辑的内容。') : RELOAD_STORAGE_HINT; uiPending.querySelector('button').disabled = !saved; };
     panel.querySelector('#claude-web-ui-style-reload').addEventListener('click', () => window.location.reload());
     const syncUiStyleLabels = () => {
       const zh = (document.querySelector('#ui_language_select')?.value || window.localStorage.getItem('language') || navigator.language || 'en').startsWith('zh');
@@ -7846,7 +7849,7 @@ if (CLAUDE_ENABLED) {
       const api = window.__claudeWebPresets;
       api && api.activateFamily(api.currentFamily());
       syncSwatchesRef();
-      hint.textContent = ok ? "" : "主题已保存，刷新后生效。";
+      hint.textContent = ok ? "" : preferencesFor(window).isSaved('claude-web:variant') ? "主题已保存，刷新后生效。" : RELOAD_STORAGE_HINT;
       ok && describe();
       syncPanelPresentationRef();
     };
@@ -7910,7 +7913,7 @@ if (CLAUDE_ENABLED) {
     };
     fillSelect(fontSelect, FONTS, read("font", FONT_VALUES, "follow"));
     try {
-      fontCustom.value = window.localStorage.getItem("claude-web:fontCustom") || "";
+      fontCustom.value = preferencesFor(window).getItem("claude-web:fontCustom") || "";
     } catch {}
     syncCustomBox();
     fontSelect.addEventListener("change", () => {
@@ -7923,7 +7926,7 @@ if (CLAUDE_ENABLED) {
     fontCustom.addEventListener("input", () => {
       const v = fontCustom.value.trim();
       try {
-        window.localStorage.setItem("claude-web:fontCustom", v);
+        preferencesFor(window).setItem("claude-web:fontCustom", v);
       } catch {}
       v ? document.documentElement.style.setProperty("--cw-font-custom", v) : document.documentElement.style.removeProperty("--cw-font-custom");
     });
@@ -7938,6 +7941,7 @@ if (CLAUDE_ENABLED) {
     });
     layoutSelect.addEventListener("change", () => {
       if (!write("layout", layoutSelect.value)) return;
+      if (!preferencesFor(window).isSaved('claude-web:layout')) { hint.textContent = RELOAD_STORAGE_HINT; return; }
       hint.textContent = "正在切换布局…";
       syncPanelPresentationRef();
       window.setTimeout(() => window.location.reload(), 120);

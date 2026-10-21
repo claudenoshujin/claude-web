@@ -1,16 +1,17 @@
-import { processBackground } from './background-pixels.js?v=2.0.157';
+import { preferencesFor } from './preferences.js?v=2.0.158';
+import { processBackground } from './background-pixels.js?v=2.0.158';
 
 // Own a foreground image inside native background layers; never replace ST's
 // background URL, style, selection handlers, or any chat attachment.
 export function createBackgroundFilters({win,enabled}) {
   const doc=win.document,key='claude-web:backgroundFilters',defaults={mode:'none',light:100,sat:100,pixel:12,levels:4,dots:2,ink:'#20232b'};
   const clamp=(n,min,max,fallback)=>Number.isFinite(Number(n))?Math.max(min,Math.min(max,Number(n))):fallback;
-  let saved={};try{saved=JSON.parse(win.localStorage.getItem(key)||'{}')||{}}catch{}
+  let saved={};try{saved=JSON.parse(preferencesFor(win).getItem(key)||'{}')||{}}catch{}
   const settings={mode:['none','dim','desat','pixel','bayer'].includes(saved.mode)?saved.mode:'none',light:clamp(saved.light,10,150,100),sat:clamp(saved.sat,0,150,100),pixel:clamp(saved.pixel,2,40,12),levels:Math.round(clamp(saved.levels,2,10,4)),dots:Math.round(clamp(saved.dots,1,8,2)),ink:/^#[a-f0-9]{6}$/i.test(saved.ink||'')?saved.ink:defaults.ink};
   const layers=new Map(),cache=new Map(),jobs=new Map();let controls=null,worker=null,workerTried=false,jobId=0,epoch=0,timer=0,bodyObserver=null,rootObserver=null,destroyed=false;
   const schedule=()=>{win.clearTimeout(timer);timer=win.setTimeout(()=>{timer=0;void render()},120)};
   const status=text=>{if(controls)controls.querySelector('[role=status]').textContent=text};
-  function persist(){try{win.localStorage.setItem(key,JSON.stringify(settings))}catch{} }
+  function persist(){try{preferencesFor(win).setItem(key,JSON.stringify(settings))}catch{} }
   function mount(){
     const host=doc.querySelector('#claude-web-section-background > .claude-web-section-body');if(!host||controls?.parentElement===host)return;
     controls?.remove();controls=doc.createElement('div');controls.className='cw-background-filter-controls';controls.id='cw-background-filter-controls';

@@ -1,3 +1,4 @@
+import { preferencesFor } from './preferences.js?v=2.0.158';
 /* 输入框上的三只小 Clawd（2.0.223 起；2.0.290 能拖、会自己走走停停）。
    Lulu 2026-10-01 看过原型 Claude outputs/clawd-pile-v1.html 后定的：一格 2px；巫师（星星帽 + 魔杖）躺在上面，
    牛仔帽在左下，墨镜在右下。替换原来那只不能点的装饰图（#send_form::after，icons/clawd.png）。
@@ -88,12 +89,12 @@ export function createClawdPile({ doc, win, big = null }) {
   function save(keepHome) {
     if (!keepHome) atHome = false;
     const w = width(); if (!w) return;
-    try { win.localStorage.setItem(STORE, JSON.stringify(Object.fromEntries(NAMES.map(n => [n, { dx: Math.round(K[n].x - w / 2), on: K[n].on }])))); } catch { /* 存不了就不记 */ }
+    try { preferencesFor(win).setItem(STORE, JSON.stringify(Object.fromEntries(NAMES.map(n => [n, { dx: Math.round(K[n].x - w / 2), on: K[n].on }])))); } catch { /* 存不了就不记 */ }
   }
   function load() {
     const w = width(); if (!w) return null;
     try {
-      const s = JSON.parse(win.localStorage.getItem(STORE) || 'null'); if (!s) return null;
+      const s = JSON.parse(preferencesFor(win).getItem(STORE) || 'null'); if (!s) return null;
       return Object.fromEntries(NAMES.map(n => [n, { x: clampX(w / 2 + (+s[n]?.dx || 0)), on: Array.isArray(s[n]?.on) ? s[n].on.filter(m => (NAMES.includes(m) || m === 'big') && m !== n) : [] }]));
     } catch { return null; }
   }
