@@ -2046,7 +2046,7 @@ html body #send_textarea {
   padding:10px 6px 8px !important;
   border-top-width:2px !important;
   resize:none !important;
-  font-size:16px !important;
+  font-size:calc(16px * var(--fontScale, 1)) !important;
   line-height:1.4 !important;
   box-sizing:border-box !important;
 }
@@ -2174,7 +2174,7 @@ html:not([data-claude-archive="on"]) body #chat > .mes:has(.edit_textarea) .mes_
 
 @supports (-webkit-touch-callout: none) {
   @media (max-width:700px) {
-    html body #send_textarea { font-size:16px !important; }
+    html body #send_textarea { font-size:max(16px,calc(16px * var(--fontScale, 1))) !important; }
   }
 }
 :is(button,.mes_button,.menu_button,.drawer-icon,a,select,.inline-drawer-toggle):focus-visible {
@@ -2735,7 +2735,7 @@ html body #form_sheld {
   }
 
   html body #send_textarea {
-    font-size:var(--cl-pc-composer-font-size) !important;
+    font-size:calc(var(--cl-pc-composer-font-size) * var(--fontScale, 1)) !important;
     line-height:1.45 !important;
   }
 }
@@ -2747,7 +2747,7 @@ html body #form_sheld {
 
   html body #send_textarea {
     
-    font-size:16px !important;
+    font-size:calc(16px * var(--fontScale, 1)) !important;
     line-height:1.4 !important;
   }
 }
@@ -2841,7 +2841,7 @@ button.clawd-signoff-button { transition:transform 240ms cubic-bezier(.34,1.6,.6
 
 
 @media (min-width:701px) {
-  html body #send_textarea { font-size:15px !important; }
+  html body #send_textarea { font-size:calc(15px * var(--fontScale, 1)) !important; }
 }
 
 
@@ -3753,7 +3753,7 @@ html body.clawd-welcome #send_form > :not(#nonQRFormItems) { display:none !impor
     min-height:50px !important;
     margin:0 !important;
     padding:7px !important;
-    font-size:16px !important;
+    font-size:calc(16px * var(--fontScale, 1)) !important;
     text-align:left !important;
     background:transparent !important;
   }
@@ -5661,3 +5661,11 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
 
 
 
+
+/* Mobile native baseline; iOS alone retains its focus-zoom floor below. */
+@media(max-width:700px){html body #send_textarea#send_textarea{font-size:calc(15px * var(--fontScale, 1))!important}}
+
+@supports (-webkit-touch-callout: none){
+ html[data-cw-v4][data-claude-layout="mobile"] body #form_sheld #send_form #send_textarea#send_textarea,
+ html[data-cw-web-phone] body #send_textarea#send_textarea{font-size:max(16px,calc(16px * var(--fontScale,1)))!important}
+}

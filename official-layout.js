@@ -1,8 +1,10 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.153';
-import { officialIcons } from './official-icons.js?v=2.0.153';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.153';
-import { tr } from './official-i18n.js?v=2.0.153';
-import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.153';
+import { installOfficialWeb } from './official-web.js?v=2.0.154';
+import { officialIcons } from './official-icons.js?v=2.0.154';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.154';
+import { tr } from './official-i18n.js?v=2.0.154';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.154';
+import { createBackgroundFilters } from './background-filters.js?v=2.0.154';
+import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.154';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -34,6 +36,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   let shell, current, requestedPanel, previousFocus, raf = 0, destroyed = false;
   const observers = [], disposers = [], dialogs = new Set(), panels = new Map();
   const ttPanels = createTTPanelRuntime(win);
+  const promptScroll = createPromptScroll({win,enabled,schedule});
+  const backgroundFilters = createBackgroundFilters({win,enabled});
   const panelDecorations = new Map();
   const formattedForms = new WeakSet();
   const enhancedMenus = new WeakSet();
@@ -926,13 +930,27 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const key=value+'|'+win.innerWidth+'|'+root.dataset.claudeLayout;
     if(key===chatWidthKey)return;chatWidthKey=key;
     const custom=Number.isFinite(value)&&value>0&&value!==Number(defaultChatWidth);
-    // The existing desktop chat has 38px side gutters inside the rail boundary.
-    // Use one viewport-based cap so welcome, messages, composer and title agree.
-    const next=custom?'min(calc(100vw - var(--cl-rail, 0px) - 76px), max(360px, var(--sheldWidth)))':'';
-    if(root.style.getPropertyValue('--cw-user-column')!==next){if(next)root.style.setProperty('--cw-user-column',next);else root.style.removeProperty('--cw-user-column');}
+    if(!custom){
+      for(const name of ['--cw-user-column','--cw-composer-column','--cw-welcome-column','--cw-title-column'])root.style.removeProperty(name);
+      root.removeAttribute('data-cw-custom-width');
+      return;
+    }
+    const ratio=Number.isFinite(value)&&value>0?value/Number(defaultChatWidth):1;
+    // Preserve each approved default: message 826, composer 847, welcome 706.
+    // The title spans its existing rail-to-window area and caps at that area.
+    for(const [name,base] of [['--cw-user-column',826],['--cw-composer-column',847],['--cw-welcome-column',706]]){
+      // Existing parent widths and CSS max-width retain their responsive gutters.
+      const next=`${base*ratio}px`;
+      if(root.style.getPropertyValue(name)!==next)root.style.setProperty(name,next);
+    }
+    const title=`min(calc(100vw - var(--cl-rail, 0px)), calc((100vw - var(--cl-rail, 0px)) * ${ratio}))`;
+    if(root.style.getPropertyValue('--cw-title-column')!==title)root.style.setProperty('--cw-title-column',title);
     if(root.hasAttribute('data-cw-custom-width')!==custom)root.toggleAttribute('data-cw-custom-width',custom);
   }
-  disposers.push(()=>{root.style.removeProperty('--cw-user-column');root.removeAttribute('data-cw-custom-width');});
+  disposers.push(()=>{for(const name of ['--cw-user-column','--cw-composer-column','--cw-welcome-column','--cw-title-column'])root.style.removeProperty(name);root.removeAttribute('data-cw-custom-width');});
+  let chatWidthTimer=0;
+  function deferChatWidth(){win.clearTimeout(chatWidthTimer);chatWidthTimer=win.setTimeout(()=>{chatWidthTimer=0;syncChatWidth();},0);}
+  disposers.push(()=>win.clearTimeout(chatWidthTimer));
   function syncQrAutoShrink() {
     const active=!!doc.getElementById('qrq-auto-shrink-style-tag');
     if(root.hasAttribute('data-cw-qr-auto-shrink')!==active)root.toggleAttribute('data-cw-qr-auto-shrink',active);
@@ -950,8 +968,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     syncQrBar();
     syncChatWidth();
     root.toggleAttribute('data-cw-v4', enabled());
+    backgroundFilters.sync();
     syncExternalDrawers();
-    if (!enabled()) { if (shell) shell.hidden = true; for (const dialog of dialogs) { dialog.close(); dialog._cwRestore?.(); } restoreAdaptedContainers(); ttPanels.destroy(); root.removeAttribute('data-cw-v4-settings'); return; }
+    if (!enabled()) { promptScroll.stop(); if (shell) shell.hidden = true; for (const dialog of dialogs) { dialog.close(); dialog._cwRestore?.(); } restoreAdaptedContainers(); ttPanels.destroy(); root.removeAttribute('data-cw-v4-settings'); return; }
     if (!shell) buildShell();
     const settingsSearch=shell.querySelector('.cw-v4-search'),searchHost=mobile()?shell:shell.querySelector('.cw-v4-nav');
     if(settingsSearch.parentElement!==searchHost)searchHost.prepend(settingsSearch);
@@ -1012,6 +1031,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       shell.hidden = true; root.removeAttribute('data-cw-v4-settings');
     }
     syncChat();
+    promptScroll.sync(p?.id === 'left-nav-panel' ? p : null);
   }
   // Sliders draw the travelled part with --fill (design native.css).
   const fill = r => { const min=+r.min||0, max=+r.max||100, v=((+r.value-min)/((max-min)||1)*100).toFixed(2)+'%'; if (r.style.getPropertyValue('--fill')!==v) r.style.setProperty('--fill',v); };
@@ -1060,8 +1080,10 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     }
     // Typing only changes the filled state. syncChat() walks every assistant message and
     // reads layout, so it stays on the chat observer / schedule() path instead of every keystroke.
-    on(doc,'input', e => { if (e.target.id === 'chat_width_slider') win.requestAnimationFrame(syncChatWidth); if (e.target.id === 'send_textarea') setBodyClass('cw-v4-filled', Boolean(e.target.value.trim())); else if (e.target.type === 'range' && e.target.closest?.('.cw-v4-panel,.cw-v4-editor')) fill(e.target); });
-    on(doc,'change', e => { if (e.target.id === 'ui_language_select') schedule(); });
+    on(doc,'input', e => { if (['chat_width_slider','chat_width_slider_counter'].includes(e.target.id)) deferChatWidth(); if (e.target.id === 'send_textarea') setBodyClass('cw-v4-filled', Boolean(e.target.value.trim())); else if (e.target.type === 'range' && e.target.closest?.('.cw-v4-panel,.cw-v4-editor')) fill(e.target); });
+    on(doc,'change', e => { if (['chat_width_slider','chat_width_slider_counter'].includes(e.target.id)) deferChatWidth(); if (e.target.id === 'ui_language_select') schedule(); });
+    on(doc,'focusout', e=>{if(e.target.id==='chat_width_slider_counter')deferChatWidth();});
+    on(doc,'mouseup', e=>{if(e.target.id==='chat_width_slider_counter')deferChatWidth();});
     // Switching pages from the Claude sidebar: SillyTavern closes the open drawer, waits animation_duration, then
     // opens the new one, so for that wait the old page shows half-closed over the sidebar. Close it synchronously
     // first (same as activate()), so SillyTavern opens the new page in the same click.
@@ -2314,6 +2336,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     doc.querySelector('.cw-v4-disclaimer')?.remove();
     restoreAdaptedContainers();
     ttPanels.destroy();
+    promptScroll.destroy();
+    backgroundFilters.destroy();
     for (const [panel, state] of panelDecorations) {
       if (!state.hadPanelClass) panel.classList.remove('cw-v4-panel');
       if (state.glyph?.style.getPropertyValue('--cw-v4-nav-icon') === state.installed) {

@@ -277,3 +277,13 @@ html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentCha
 html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar>img{visibility:hidden!important}
 html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{content:""!important;position:absolute!important;left:50%!important;top:50%!important;width:9px!important;height:9px!important;transform:translate(-50%,-50%)!important;box-sizing:border-box!important;border:1.3px solid #aaa89f!important;border-radius:50%!important;background:none!important}
 html[data-cw-web-phone][data-claude-integrated-theme="night"] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{border-color:#77756e!important}
+
+/* Composer follows native font scale; only iOS keeps a 16px floor. */
+html[data-cw-web] body:not(.clawd-welcome) #send_textarea{font-size:calc(15px * var(--fontScale,1))!important}
+html[data-cw-web] body.clawd-welcome #send_textarea{font-size:calc(16px * var(--fontScale,1))!important}
+html[data-cw-web-phone] body #send_textarea#send_textarea{font-size:calc(15px * var(--fontScale,1))!important}
+
+@supports (-webkit-touch-callout: none){
+ html[data-cw-v4][data-claude-layout="mobile"] body #form_sheld #send_form #send_textarea#send_textarea,
+ html[data-cw-web-phone] body #send_textarea#send_textarea{font-size:max(16px,calc(16px * var(--fontScale,1)))!important}
+}
