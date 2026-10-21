@@ -1,10 +1,10 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.154';
-import { officialIcons } from './official-icons.js?v=2.0.154';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.154';
-import { tr } from './official-i18n.js?v=2.0.154';
-import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.154';
-import { createBackgroundFilters } from './background-filters.js?v=2.0.154';
-import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.154';
+import { installOfficialWeb } from './official-web.js?v=2.0.155';
+import { officialIcons } from './official-icons.js?v=2.0.155';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.155';
+import { tr } from './official-i18n.js?v=2.0.155';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.155';
+import { createBackgroundFilters } from './background-filters.js?v=2.0.155';
+import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.155';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -1482,7 +1482,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 「最近」：同一个角色连着的几条只在第一条放头像，后面换成空心小点（稿 B）。
     const markRepeats = () => {
       let prev = null;
-      for (const r of doc.querySelectorAll('#top-settings-holder .clawd-rail-recents .recentChat')) {
+      for (const r of doc.querySelectorAll('#top-settings-holder .clawd-rail-recents .recentChatList > *')) {
+        if (r.classList.contains('cw-web-date') || !r.classList.contains('recentChat')) { prev = null; continue; }
         const key = (r.dataset.avatar || '') + '|' + (r.dataset.group || '');
         const rep = key !== '|' && key === prev;
         if (r.classList.contains('cw-rec-rep') !== rep) r.classList.toggle('cw-rec-rep', rep);

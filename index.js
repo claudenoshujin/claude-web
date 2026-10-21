@@ -1,7 +1,8 @@
-import { installChatTools } from "./chat-tools.js?v=2.0.154";
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.154';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.154';
-/* Claude Web public 2.0.154. Allowed runtime transplant; exclusions removed before generation. */
+import { parseRecentTime } from './recent-time.js?v=2.0.155';
+import { installChatTools } from "./chat-tools.js?v=2.0.155";
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.155';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.155';
+/* Claude Web public 2.0.155. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -16,16 +17,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.154';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.154";
+import { tr } from "./official-i18n.js?v=2.0.155";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.154";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.155";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.154";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.155";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.154";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.155";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.154";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.154";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.155";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.155";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -376,7 +377,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.154-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.155-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -392,7 +393,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.154", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.155", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1192,7 +1193,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.154", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.155", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -4636,19 +4637,20 @@ if (CLAUDE_ENABLED) {
           pinned: Object.prototype.hasOwnProperty.call(pinned, pinnedKeyFor(record))
         });
       }
-      const timeOf = value => {
-        const text = String(value ?? "").replace(/(\d)\s*(am|pm)\b/i, "$1 $2");
-        const parsed = Date.parse(text);
-        return Number.isFinite(parsed) ? parsed : 0;
+      const timeOf = parseRecentTime;
+      const compareAge = (a,b,descending=false) => {
+        const left=timeOf(a.dateText),right=timeOf(b.dateText);
+        if(left===null||right===null)return left===right?0:left===null?1:-1;
+        return descending?right-left:left-right;
       };
-      const byAge = entries.slice().sort((a, b) => timeOf(a.dateText) - timeOf(b.dateText));
+      const byAge = entries.slice().sort(compareAge);
       byAge.forEach((entry, i) => {
         entry.actNo = i + 1;
       });
       entries.sort((a, b) => {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        const diff = timeOf(b.dateText) - timeOf(a.dateText);
+        const diff = compareAge(a,b,true);
         if (diff) return diff;
         return String(b.dateText).localeCompare(String(a.dateText));
       });
@@ -4683,10 +4685,8 @@ if (CLAUDE_ENABLED) {
       return result || "I";
     }
     function recentDateLabel(value) {
-      const raw = String(value ?? "");
-      if (!raw) return "";
-      const parsed = Date.parse(raw.replace(/(\d)\s*(am|pm)\b/i, "$1 $2"));
-      if (!Number.isFinite(parsed)) return raw;
+      const parsed = parseRecentTime(value);
+      if (parsed === null) return "";
       const d = new Date(parsed);
       const now = new Date;
       const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();

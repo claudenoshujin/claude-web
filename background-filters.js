@@ -1,4 +1,4 @@
-import { processBackground } from './background-pixels.js?v=2.0.154';
+import { processBackground } from './background-pixels.js?v=2.0.155';
 
 // Own a foreground image inside native background layers; never replace ST's
 // background URL, style, selection handlers, or any chat attachment.

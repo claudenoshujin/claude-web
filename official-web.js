@@ -1,3 +1,4 @@
+import { parseRecentTime } from './recent-time.js?v=2.0.155';
 /* 2.0.315（Lulu 2026-10-11 定，预览 Claude outputs/design-web-v1/design-web-v3.html）：
  * 电脑端从 Claude Desktop 的样子改成照 claude.ai 网页版。只在 rail + classic 的电脑布局里生效，
  * 手机不动。这里只加装饰和入口，不碰酒馆原生节点；样式全在 styles/official-web.css，
@@ -65,21 +66,10 @@ export function installOfficialWeb(win = window) {
   };
   const toggleMore = () => { try { win.localStorage.setItem(MORE_KEY, moreOpen() ? 'closed' : 'open'); } catch {} syncMore(); };
 
-  // 最近对话按日期分组：一组「角色 + 它下面的重复行」跟着这组第一行的日期走，不拆开。
-  // 2.0.325：.chatDate 的 title 是服务端 last_mes 原样。新版酒馆给 ISO；旧版（1.14 前后，Lulu 的云酒馆）给
-  // 「October 12, 2026 9:01am」——am/pm 前没空格 Date 认不出，整列日期标题就全没了。也认数字时间戳和「2026-10-12@09h01m」。
-  const parseWhen = raw => {
-    const s = String(raw ?? '').trim(); if (!s) return null;
-    if (/^\d{10,13}$/.test(s)) return new Date(Number(s) * (s.length === 10 ? 1000 : 1));
-    let d = new Date(s.replace(/(\d)\s*(am|pm)\b/i, '$1 $2'));
-    if (!isNaN(d)) return d;
-    const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})(?:\s*@\s*(\d{1,2})h\s*(\d{1,2})m)?/);
-    if (m) { d = new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)); if (!isNaN(d)) return d; }
-    return null;
-  };
+  // Date boundaries apply to every non-favorite chat, including repeat rows.
   const dayLabel = raw => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const d = parseWhen(raw); if (!d) return null; d.setHours(0, 0, 0, 0);
+    const ms = parseRecentTime(raw); if (ms === null) return null; const d = new Date(ms); d.setHours(0, 0, 0, 0);
     const days = Math.round((today - d) / 864e5);
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
@@ -96,14 +86,16 @@ export function installOfficialWeb(win = window) {
   const filterRecents = list => {
     const q = query.trim().toLowerCase();
     const kids = [...list.children];
-    let header = null, headerHits = 0, head = null, headHit = false, groupHit = false;
+    let header = null, headerHits = 0, head = null, headHit = false, groupHit = false, previousKey = null;
     const flushGroup = () => { if (head) { const keep = headHit || groupHit; head.classList.toggle('cw-web-miss', !keep); if (keep) headerHits++; } head = null; headHit = groupHit = false; };
     const flushHeader = () => { flushGroup(); if (header) header.classList.toggle('cw-web-miss', !!q && !headerHits); header = null; headerHits = 0; };
     for (const n of kids) {
-      if (n.classList.contains('cw-web-date')) { flushHeader(); header = n; continue; }
-      if (!n.classList.contains('recentChat')) continue;
+      if (n.classList.contains('cw-web-date')) { flushHeader(); header = n; previousKey = null; continue; }
+      if (!n.classList.contains('recentChat')) { previousKey = null; continue; }
       const hit = !q || rowText(n).includes(q);
-      if (n.classList.contains('cw-rec-rep')) { n.classList.toggle('cw-web-miss', !hit); if (hit) groupHit = true; continue; }
+      const rowKey=(n.dataset.avatar || '')+'|'+(n.dataset.group || '');
+      const repeat=rowKey!=='|'&&rowKey===previousKey; previousKey=rowKey;
+      if (repeat) { n.classList.toggle('cw-web-miss', !hit); if (hit) groupHit = true; continue; }
       flushGroup(); head = n; headHit = hit;
     }
     flushHeader();
@@ -112,7 +104,7 @@ export function installOfficialWeb(win = window) {
   let searchGen = 0, searchTimer = 0, results = null;   // results: { q, items, done, total }
   const ctx = () => win.SillyTavern?.getContext?.();
   const stripExt = f => String(f || '').replace(/\.jsonl$/, '');
-  const stamp = v => { if (typeof v === 'number') return v; const n = Date.parse(v); return isNaN(n) ? 0 : n; };
+  const stamp = v => parseRecentTime(v) ?? 0;
   const recentsSlot = () => doc.querySelector('#top-settings-holder .clawd-rail-recents');
   const keyOf = i => (i.group ? 'g:' + i.group : 'c:' + i.avatar) + '|' + i.file;
   const shownKeys = () => new Set([...doc.querySelectorAll('#top-settings-holder .recentChatList > .recentChat:not(.cw-web-miss)')]
@@ -269,8 +261,8 @@ export function installOfficialWeb(win = window) {
   const groupRecents = list => {
     const want = []; let last = null;
     for (const r of list.children) {
-      if (!r.classList.contains('recentChat') || r.classList.contains('cw-rec-rep') || r.dataset.cwFavorite === '1') continue;
-      const g = dayLabel(r.querySelector('.chatDate')?.title || ''); if (!g || g === last) continue;
+      if (!r.classList.contains('recentChat') || r.dataset.cwFavorite === '1') continue;
+      const g = dayLabel(r.querySelector('.chatDate')?.title || '') || 'Unknown date'; if (g === last) continue;
       last = g; want.push([r, g]);
     }
     const have = [...list.querySelectorAll(':scope > .cw-web-date')];
@@ -370,7 +362,7 @@ export function installOfficialWeb(win = window) {
 
   if (!doc.getElementById('cw-web-style')) {
     const link = doc.createElement('link'); link.id = 'cw-web-style'; link.rel = 'stylesheet';
-    link.href = new URL('styles/official-web.css?v=2.0.154', import.meta.url).href; doc.head.append(link);
+    link.href = new URL('styles/official-web.css?v=2.0.155', import.meta.url).href; doc.head.append(link);
   }
   let raf = 0;
   const schedule = () => { if (!raf) raf = win.requestAnimationFrame(() => { raf = 0; ensure(); }); };
