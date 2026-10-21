@@ -5668,3 +5668,10 @@ html.cw-rail-dragging, html.cw-rail-dragging *{
  html[data-cw-v4][data-claude-layout="mobile"] body #form_sheld #send_form #send_textarea#send_textarea,
  html[data-cw-web-phone] body #send_textarea#send_textarea{font-size:max(16px,calc(16px * var(--fontScale,1)))!important}
 }
+
+/* Legacy CW: retain both native ST menu buttons on welcome and chat pages. */
+html[data-claude-ui="classic"] body.clawd-welcome #form_sheld #leftSendForm{width:auto!important;min-width:78px!important;gap:6px!important}
+html[data-claude-ui="classic"] body #form_sheld #leftSendForm #options_button{order:0!important}
+html[data-claude-ui="classic"] body #form_sheld #leftSendForm #extensionsMenuButton{display:grid!important;place-items:center!important;order:1!important}
+html[data-claude-ui="classic"] body.clawd-welcome #form_sheld #leftSendForm #extensionsMenuButton{width:36px!important;min-width:36px!important;height:36px!important;margin:0!important;padding:0!important;border-radius:var(--cw-radius-circle)!important;color:var(--cw-text-body)!important;background:var(--cw-surface-input)!important;font-size:0!important}
+html[data-claude-ui="classic"] body #form_sheld #leftSendForm #extensionsMenuButton::before{content:""!important;mask:none!important;-webkit-mask:none!important;background:transparent!important;font-family:"Font Awesome 6 Free"!important;font-weight:900!important;font-size:18px!important;line-height:20px!important;color:inherit!important;text-align:center!important;width:20px!important;height:20px!important}
