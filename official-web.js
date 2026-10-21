@@ -1,4 +1,4 @@
-import { parseRecentTime } from './recent-time.js?v=2.0.156';
+import { parseRecentTime } from './recent-time.js?v=2.0.157';
 /* 2.0.315（Lulu 2026-10-11 定，预览 Claude outputs/design-web-v1/design-web-v3.html）：
  * 电脑端从 Claude Desktop 的样子改成照 claude.ai 网页版。只在 rail + classic 的电脑布局里生效，
  * 手机不动。这里只加装饰和入口，不碰酒馆原生节点；样式全在 styles/official-web.css，
@@ -362,7 +362,7 @@ export function installOfficialWeb(win = window) {
 
   if (!doc.getElementById('cw-web-style')) {
     const link = doc.createElement('link'); link.id = 'cw-web-style'; link.rel = 'stylesheet';
-    link.href = new URL('styles/official-web.css?v=2.0.156', import.meta.url).href; doc.head.append(link);
+    link.href = new URL('styles/official-web.css?v=2.0.157', import.meta.url).href; doc.head.append(link);
   }
   let raf = 0;
   const schedule = () => { if (!raf) raf = win.requestAnimationFrame(() => { raf = 0; ensure(); }); };

@@ -1,8 +1,8 @@
-import { parseRecentTime } from './recent-time.js?v=2.0.156';
-import { installChatTools } from "./chat-tools.js?v=2.0.156";
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.156';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.156';
-/* Claude Web public 2.0.156. Allowed runtime transplant; exclusions removed before generation. */
+import { parseRecentTime } from './recent-time.js?v=2.0.157';
+import { installChatTools } from "./chat-tools.js?v=2.0.157";
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.157';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.157';
+/* Claude Web public 2.0.157. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) localStorage.setItem("claude-web:" + k, v);
@@ -17,16 +17,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.156';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.156";
+import { tr } from "./official-i18n.js?v=2.0.157";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.156";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.157";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.156";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.157";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.156";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.157";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.156";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.156";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.157";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.157";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -377,7 +377,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.156-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.157-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -393,7 +393,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.156", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.157", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1193,7 +1193,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.156", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.157", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
