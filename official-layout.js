@@ -1,10 +1,11 @@
-import { installOfficialWeb } from './official-web.js?v=2.0.158';
-import { officialIcons } from './official-icons.js?v=2.0.158';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.158';
-import { tr } from './official-i18n.js?v=2.0.158';
-import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.158';
-import { createBackgroundFilters } from './background-filters.js?v=2.0.158';
-import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.158';
+import { preferencesFor } from './preferences.js?v=2.0.159';
+import { installOfficialWeb } from './official-web.js?v=2.0.159';
+import { officialIcons } from './official-icons.js?v=2.0.159';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.159';
+import { tr } from './official-i18n.js?v=2.0.159';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.159';
+import { createBackgroundFilters } from './background-filters.js?v=2.0.159';
+import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.159';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -557,6 +558,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   disposers.push(() => { for (const [sel, seg] of segSel) { seg.remove(); sel.classList.remove('cw-v4-has-seg'); } segSel.clear(); });
   function enhance(panel) {
     drawerLayouts.mount(panel);
+    if (panel.id === 'AdvancedFormatting' && (panel.hasAttribute('data-tt-assistant') || panel.querySelector('#tt-assistant'))) return;
     if (panel.id === 'user-settings-block') buildPrefs(panel);
     if (panel.id === 'rm_api_block') {
       panel.querySelectorAll('#openai_api > form,#openai_api > [id$="_form"],#azure_openai_settings').forEach(form => {
@@ -871,7 +873,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     if (!last || doc.body.classList.contains('clawd-welcome') || !enabled()) { disclaimer?.remove(); setFormNote(''); return; }
     const name = last.querySelector('.name_text')?.textContent.trim() || ctx?.name2 || 'AI';
     const text = `${name} is AI and can make mistakes.`;
-    if (!mobile()) { disclaimer?.remove(); setFormNote(text); }
+    if (preferencesFor(win).getItem('claude-web:ai-disclaimer') === 'off') { disclaimer?.remove(); setFormNote(''); }
+    else if (!mobile()) { disclaimer?.remove(); setFormNote(text); }
     else {
       setFormNote('');
       if (!disclaimer) { disclaimer = make('div','cw-v4-disclaimer'); chat.append(disclaimer); }
@@ -1003,8 +1006,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       shell.querySelectorAll('[data-pref]').forEach(b => b.classList.toggle('cw-v4-selected', p.id === 'user-settings-block' && b.dataset.pref === prefPage));
       shell.querySelectorAll('[data-panel]').forEach(b => { const active = b.dataset.panel === p.id; if (active) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
       enhance(p);
-      if (mobile()) tagRows(p);
-      else { buildSegs(p); for (const sel of segSel.keys()) if (p.contains(sel)) paintSeg(sel); }
+      const nativeAssistant = p.id === 'AdvancedFormatting' && (p.hasAttribute('data-tt-assistant') || p.querySelector('#tt-assistant'));
+      if (mobile() && !nativeAssistant) tagRows(p);
+      else if (!nativeAssistant) { buildSegs(p); for (const sel of segSel.keys()) if (p.contains(sel)) paintSeg(sel); }
       if(p.id!=='user-settings-block'){
         let pageTitle=p.querySelector(':scope>.cw-v4-page-title');
         if(!pageTitle){pageTitle=make('h2','cw-v4-page-title');p.prepend(pageTitle);}
@@ -1061,7 +1065,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
             if(node.matches('.drawer')&&records.some(r=>r.type==='childList'))watchDrawers();
             schedule();
           });
-          mo.observe(node,node.matches('.drawer-content')?{childList:true,attributes:true,attributeFilter:['class']}:{childList:true});
+          mo.observe(node,node.matches('.drawer-content')?{childList:true,attributes:true,attributeFilter:['class','data-tt-assistant']}:{childList:true});
           drawerWatchers.set(node,mo);
         }
       };

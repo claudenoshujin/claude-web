@@ -1,9 +1,9 @@
-import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.158';
-import { parseRecentTime } from './recent-time.js?v=2.0.158';
-import { installChatTools } from "./chat-tools.js?v=2.0.158";
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.158';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.158';
-/* Claude Web public 2.0.158. Allowed runtime transplant; exclusions removed before generation. */
+import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.159';
+import { parseRecentTime } from './recent-time.js?v=2.0.159';
+import { installChatTools } from "./chat-tools.js?v=2.0.159";
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.159';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.159';
+/* Claude Web public 2.0.159. Allowed runtime transplant; exclusions removed before generation. */
 (function() {
   try {
     for (const [k, v] of [ [ "mode", "full" ], [ "structure", "rail" ], [ "skin", "classic" ] ]) preferencesFor(window).setItem("claude-web:" + k, v);
@@ -18,16 +18,16 @@ import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.158';
   } catch {}
 })();
 
-import { tr } from "./official-i18n.js?v=2.0.158";
+import { tr } from "./official-i18n.js?v=2.0.159";
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.158";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.159";
 
-import { installOfficialLayout } from "./official-layout.js?v=2.0.158";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.159";
 
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.158";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.159";
 
-import { createClawdPile } from "./clawd-pile.js?v=2.0.158";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.158";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.159";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.159";
 
 const CLAUDE_EXTENSION_BASE = new URL(".", import.meta.url).href;
 
@@ -379,7 +379,7 @@ const CLAUDE_FEATURES = {
 };
 
 const CLAUDE_KEYBOARD_BUILD = {
-  id: "2.0.158-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
+  id: "2.0.159-public-full-" + CLAUDE_THEME_VARIANT + "-" + CLAUDE_LAYOUT + "-ext",
   mode: "full"
 };
 
@@ -395,7 +395,7 @@ const officialStyle = document.createElement("link");
 
 officialStyle.rel = "stylesheet";
 
-officialStyle.href = new URL("styles/official-layout.css?v=2.0.158", import.meta.url).href;
+officialStyle.href = new URL("styles/official-layout.css?v=2.0.159", import.meta.url).href;
 
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
 if (CLAUDE_ENABLED) document.head.append(officialStyle);
@@ -1195,7 +1195,7 @@ if (CLAUDE_ENABLED) {
       else hostWindow.localStorage.setItem(RESTORE_KEY, record);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record) throw new Error("无法保留主题恢复记录");
       const safetyId = hostWindow.__claudeSafety?.state?.id;
-      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.158", CLAUDE_EXTENSION_BASE).href);
+      const {saveRestoredTheme} = await import(new URL("theme-restore.js?v=2.0.159", CLAUDE_EXTENSION_BASE).href);
       await saveRestoredTheme(hostWindow, context, expected);
       if (hostWindow.localStorage.getItem(RESTORE_KEY) !== record || hostWindow.localStorage.getItem("claude-web:enabled") !== "off") throw new Error("恢复状态已改变，请重新确认");
       await hostWindow.__claudeSafety?.confirmRestore(record, safetyId);
@@ -7945,6 +7945,29 @@ if (CLAUDE_ENABLED) {
       hint.textContent = "正在切换布局…";
       syncPanelPresentationRef();
       window.setTimeout(() => window.location.reload(), 120);
+    });
+    const disclaimerLabel = document.createElement("label");
+    disclaimerLabel.className = "checkbox_label claude-web-check";
+    const disclaimerBox = document.createElement("input");
+    disclaimerBox.id = "claude-web-ai-disclaimer"; disclaimerBox.type = "checkbox";
+    disclaimerBox.checked = read("ai-disclaimer", ["on", "off"], "on") !== "off";
+    const disclaimerText = document.createElement("span"); disclaimerText.textContent = "显示 AI 可能出错的提示";
+    disclaimerLabel.append(disclaimerBox, disclaimerText);
+    const componentsSection = document.createElement("details");
+    componentsSection.id = "claude-web-section-components";
+    componentsSection.className = "claude-web-section";
+    const componentsHeading = document.createElement("summary");
+    const componentsTitle = document.createElement("span");
+    componentsTitle.textContent = "组件开关";
+    componentsHeading.append(componentsTitle);
+    const componentsBody = document.createElement("div");
+    componentsBody.className = "claude-web-section-body";
+    componentsBody.append(disclaimerLabel);
+    componentsSection.append(componentsHeading, componentsBody);
+    panel.querySelector("#claude-web-section-clawd").after(componentsSection);
+    disclaimerBox.addEventListener("change", () => {
+      write("ai-disclaimer", disclaimerBox.checked ? "on" : "off");
+      window.__claudeOfficialLayout?.refresh?.();
     });
     const motionBox = panel.querySelector("#claude-web-motion");
     const decorationsBox = panel.querySelector("#claude-web-decorations");

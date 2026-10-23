@@ -3,7 +3,7 @@
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings } from './official-extension-settings.js?v=2.0.158';
+import { createExtensionSettings } from './official-extension-settings.js?v=2.0.159';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);
@@ -73,6 +73,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   }
   // asBtn(): a native control drawn as a text button.
   function act(s,n,label,plus,primary){if(!n)return n;n.classList.add('cw-v4-as-btn');if(primary)n.classList.add('cw-v4-primary');const text=make('span','cw-v4-action-label'+(plus?' cw-v4-plus':''),L(label));n.append(text);s.created.push(text);(s.buttons||=[]).push(n);return n;}
+  function restorePanel(s){s.cleanup?.();s.cleanups?.forEach(f=>f());s.gates?.forEach(stop=>stop());delete s.root.dataset.cwV4Sources;if(s.rest){for(const n of [...s.rest.childNodes])s.root.append(n);}for(const [node,mark] of [...s.moves].reverse())if(mark.parentNode)mark.replaceWith(node);s.created.forEach(n=>n.remove());s.buttons?.forEach(n=>n.classList.remove('cw-v4-as-btn','cw-v4-primary'));s.mapped?.forEach(n=>n.classList.remove('cw-v4-mapped-setting','cw-v4-row','cw-v4-range'));s.iconToggles?.forEach(n=>n.classList.remove('cw-v4-icon-toggle'));s.root.classList.remove('cw-v4-reflow');if(s.root.classList.contains('cw-v4-extension-item')){s.root.classList.remove('cw-v4-extension-item');delete s.root.dataset.cwV4Extension;}}
   function begin(root){const s=state(root);if(s.page)return null;const page=make('div','cw-v4-drawer-page');s.page=page;root.append(page);s.created.push(page);root.classList.add('cw-v4-reflow');return {s,page};}
   function finish(s){const root=s.root,page=s.page,more=make('div','cw-v4-leftovers'),rest=make('div','cw-v4-native-rest');for(const n of [...root.childNodes])if(n!==page)rest.append(n);// 2.0.281（稿 design-desk-align-v2）：原来只有一个孤零零的 ⋯，改成一行「其他设置 · 说明 · 打开」，点整行打开。
     const extra=button('',()=>openEditor(rest,t('其他设置','Additional settings')),'cw-v4-leftovers-row');extra.append(make('span','cw-lo-t',t('其他设置','Additional settings')),make('span','cw-lo-d',t('酒馆原来面板里还没排进上面分组的设置','Remaining native settings not placed above')),make('span','cw-lo-b',t('打开','Open')));extra.setAttribute('aria-label',t('其他设置','Additional settings'));extra.title=t('其他设置','Additional settings');more.append(extra,rest);page.append(more);s.rest=rest;s.more=more;refreshLeftovers(s);}
@@ -356,7 +357,11 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   }
 
   /* ---------------- 格式化 ---------------- */
-  function formatting(panel){const started=begin(panel);if(!started)return;const {s,page}=started;const g=get,root=panel;
+  function formatting(panel){
+    // TT 2.4 owns this panel's direct children and mode CSS. Keep its mount
+    // in place; undo an earlier CW layout if the assistant arrived later.
+    if(panel.hasAttribute('data-tt-assistant') || panel.querySelector('#tt-assistant')){const previous=states.get(panel);if(previous){restorePanel(previous);states.delete(panel);}return;}
+    const started=begin(panel);if(!started)return;const {s,page}=started;const g=get,root=panel;
     page.append(created(s,make('p','cw-v4-note',L('使用「对话补全」接口时，这一页的大部分设置不生效，酒馆会把它们变灰。'))));
     const top=section(page,'');row(s,top,'全部格式化设置','一次导入或导出本页所有模板',[act(s,g('af_master_import'),'导入'),act(s,g('af_master_export'),'导出')]);
     const context=section(page,'上下文模板');
@@ -956,6 +961,6 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     },
     closeCharacterExport(){if(!exportSession)return false;const anchor=exportSession.anchor;stopCharacterExport(true);anchor.focus({preventScroll:true});return true;},
     prunePromptTokens,
-    restore(){stopCharacterExport(true);exportStyle?.remove();exportStyle=null;for(const item of promptTokenWatches.keys())stopPromptTokens(item);extensionSettings.restore();paints.length=0;ctxCache.at=0;for(const s of [...states.values()].reverse()){s.cleanup?.();s.cleanups?.forEach(f=>f());s.gates?.forEach(stop=>stop());delete s.root.dataset.cwV4Sources;if(s.rest){for(const n of [...s.rest.childNodes])s.root.append(n);}for(const [node,mark] of [...s.moves].reverse())if(mark.parentNode)mark.replaceWith(node);s.created.forEach(n=>n.remove());s.buttons?.forEach(n=>n.classList.remove('cw-v4-as-btn','cw-v4-primary'));s.mapped?.forEach(n=>n.classList.remove('cw-v4-mapped-setting','cw-v4-row','cw-v4-range'));s.iconToggles?.forEach(n=>n.classList.remove('cw-v4-icon-toggle'));s.root.classList.remove('cw-v4-reflow');if(s.root.classList.contains('cw-v4-extension-item')){s.root.classList.remove('cw-v4-extension-item');delete s.root.dataset.cwV4Extension;}}states.clear();},
+    restore(){stopCharacterExport(true);exportStyle?.remove();exportStyle=null;for(const item of promptTokenWatches.keys())stopPromptTokens(item);extensionSettings.restore();paints.length=0;ctxCache.at=0;for(const s of [...states.values()].reverse())restorePanel(s);states.clear();},
   };
 }

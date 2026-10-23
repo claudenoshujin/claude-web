@@ -1,5 +1,5 @@
-import { preferencesFor } from './preferences.js?v=2.0.158';
-import { processBackground } from './background-pixels.js?v=2.0.158';
+import { preferencesFor } from './preferences.js?v=2.0.159';
+import { processBackground } from './background-pixels.js?v=2.0.159';
 
 // Own a foreground image inside native background layers; never replace ST's
 // background URL, style, selection handlers, or any chat attachment.
@@ -14,14 +14,14 @@ export function createBackgroundFilters({win,enabled}) {
   function persist(){try{preferencesFor(win).setItem(key,JSON.stringify(settings))}catch{} }
   function mount(){
     const host=doc.querySelector('#claude-web-section-background > .claude-web-section-body');if(!host||controls?.parentElement===host)return;
-    controls?.remove();controls=doc.createElement('div');controls.className='cw-background-filter-controls';controls.id='cw-background-filter-controls';
-    controls.innerHTML='<label for="cw-bg-effect">背景滤镜</label><select id="cw-bg-effect" class="text_pole"><option value="none">不处理</option><option value="dim">压暗</option><option value="desat">降低饱和度 / 灰度</option><option value="pixel">像素化</option><option value="bayer">Bayer 有序抖动</option></select><div data-cw-filter-params></div><button type="button" class="menu_button" data-cw-filter-reset>恢复滤镜默认</button><div class="claude-web-help">只处理背景，聊天图片保持原样。需要显示背景时，打开上方“背景透传”。滤镜先处理背景，再叠加现有模糊和透传；像素与抖动使用静态画面，关闭模糊可看清颗粒。</div><div class="claude-web-help" role="status" aria-live="polite"></div>';
+    controls?.remove();controls=doc.createElement('div');controls.className='cw-background-filter-controls claude-web-field';controls.id='cw-background-filter-controls';
+    controls.innerHTML='<div class="claude-web-field"><label for="cw-bg-effect">背景滤镜</label><select id="cw-bg-effect" class="text_pole"><option value="none">不处理</option><option value="dim">压暗</option><option value="desat">降低饱和度 / 灰度</option><option value="pixel">像素化</option><option value="bayer">Bayer 有序抖动</option></select></div><div data-cw-filter-params></div><div class="claude-web-actions"><button type="button" class="menu_button" data-cw-filter-reset>恢复滤镜默认</button></div><div class="claude-web-field"><div class="claude-web-help">只处理背景，聊天图片保持原样。需要显示背景时，打开上方“背景透传”。滤镜先处理背景，再叠加现有模糊和透传；像素与抖动使用静态画面，关闭模糊可看清颗粒。</div><div class="claude-web-help" role="status" aria-live="polite"></div></div>';
     const params=controls.querySelector('[data-cw-filter-params]');
     for(const [name,label,min,max] of [['light','明暗',10,150],['sat','饱和度',0,150],['pixel','像素块大小',2,40],['levels','色阶',2,10],['dots','网点大小',1,8]]){
-      const row=doc.createElement('label');row.dataset.param=name;row.htmlFor='cw-bg-'+name;row.innerHTML='<span>'+label+'</span><input type="range" id="cw-bg-'+name+'" min="'+min+'" max="'+max+'" step="1"><output></output>';params.append(row);
+      const row=doc.createElement('label');row.className='claude-web-range';row.dataset.param=name;row.htmlFor='cw-bg-'+name;row.innerHTML='<span>'+label+'</span><input type="range" id="cw-bg-'+name+'" min="'+min+'" max="'+max+'" step="1"><output></output>';params.append(row);
       row.querySelector('input').addEventListener('input',e=>{settings[name]=Number(e.target.value);present();persist();schedule()});
     }
-    const ink=doc.createElement('label');ink.dataset.param='ink';ink.htmlFor='cw-bg-ink';ink.innerHTML='<span>深色底</span><input type="color" id="cw-bg-ink">';params.append(ink);ink.querySelector('input').addEventListener('input',e=>{settings.ink=e.target.value;persist();schedule()});
+    const ink=doc.createElement('label');ink.className='claude-web-range';ink.dataset.param='ink';ink.htmlFor='cw-bg-ink';ink.innerHTML='<span>深色底</span><input type="color" id="cw-bg-ink">';params.append(ink);ink.querySelector('input').addEventListener('input',e=>{settings.ink=e.target.value;persist();schedule()});
     controls.querySelector('select').addEventListener('change',e=>{settings.mode=e.target.value;settings.light=settings.mode==='dim'?55:100;settings.sat=settings.mode==='desat'?15:100;present();persist();schedule()});
     controls.querySelector('[data-cw-filter-reset]').addEventListener('click',()=>{Object.assign(settings,defaults);persist();present();schedule()});host.append(controls);present();
   }
