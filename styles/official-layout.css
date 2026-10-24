@@ -1779,7 +1779,7 @@ html[data-cw-v4] body .cw-v4-shell.cw-v4-shell .cw-v4-nav{scrollbar-width:none!i
 .cw-v4-selmenu::backdrop{display:none}
 .cw-v4-selmenu>.cw-v4-selmenu-search{all:unset;box-sizing:border-box;flex:none;height:40px;padding:0 14px;border-bottom:1px solid #e6e6e6;font:inherit;color:inherit}
 .cw-v4-selmenu>.cw-v4-selmenu-search::placeholder{color:#a3a19b}
-.cw-v4-selmenu>.cw-v4-selmenu-list{flex:1;min-height:0;overflow:auto;padding:5px;scrollbar-width:thin;scrollbar-color:#aeaead transparent}
+.cw-v4-selmenu>.cw-v4-selmenu-list{flex:1 1 auto;min-height:0;overflow:auto;padding:5px;scrollbar-width:thin;scrollbar-color:#aeaead transparent}
 .cw-v4-selmenu .cw-v4-selmenu-item{display:flex;align-items:center;gap:12px;min-height:35px;padding:0 10px 0 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
 .cw-v4-selmenu .cw-v4-selmenu-item>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .cw-v4-selmenu .cw-v4-selmenu-item.cw-on,.cw-v4-selmenu .cw-v4-selmenu-item.cw-sel{background:#f3f3f3}
