@@ -283,7 +283,7 @@ html[data-cw-v4] body #top-settings-holder>.clawd-rail-brand{font-size:30px!impo
 html[data-cw-v4] body[data-clawd-menu] .clawd-mobile-menu-button{visibility:hidden!important}
 html[data-cw-v4] body[data-clawd-menu] #top-settings-holder>.clawd-rail-brand{padding-left:13px!important}
 
-html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder .cw-v4-panel:not(#user-settings-block):is(#left-nav-panel,#rm_api_block,#AdvancedFormatting,#WorldInfo,#Backgrounds,#rm_extensions_block,#right-nav-panel,#PersonaManagement).openDrawer:not(.closedDrawer){top:58px!important;height:calc(100dvh - 58px)!important}
+html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder .cw-v4-panel:not(#user-settings-block):is(#left-nav-panel,#rm_api_block,#AdvancedFormatting,#WorldInfo,#Backgrounds,#rm_extensions_block,#right-nav-panel,#PersonaManagement).openDrawer:not(.closedDrawer){top:calc(var(--cw-v4-y) + 58px)!important;height:calc(var(--cw-v4-h) - 58px)!important}
 html[data-cw-v4] .cw-v4-shell:not([data-panel="user-settings-block"]).cw-v4-show-nav>.cw-v4-nav{top:58px}
 html[data-cw-v4] .cw-v4-shell:not([data-panel="user-settings-block"])::before{content:none!important}
 html[data-cw-v4] .cw-v4-shell{border:0!important}
@@ -555,7 +555,14 @@ html[data-cw-v4] body #form_sheld #send_form #send_textarea::placeholder{text-al
   html[data-cw-v4] body .clawd-welcome-hero{font-size:clamp(22px,6.8vw,28px)!important;font-weight:420!important;white-space:nowrap!important}
   html[data-cw-v4] .cw-v4-shell>.cw-v4-search{position:absolute;top:60px;left:16px;width:calc(100% - 32px);box-sizing:border-box;background:var(--cw-v4-bg);pointer-events:auto;z-index:3}
   html[data-cw-v4] .cw-v4-shell.cw-v4-show-nav>.cw-v4-nav{top:112px}
-  html[data-cw-v4]{--cw-v4-x:0px!important;--cw-v4-y:0px!important;--cw-v4-w:100vw!important;--cw-v4-h:100dvh!important}
+  /* Remaining web safe area only. TT 2.4 consumes native insets before sizing
+     the viewport; its --tt-inset-* aliases resolve to zero in that case. */
+  html[data-cw-v4]{
+    --cw-v4-safe-top:max(0px,var(--tt-inset-top,env(safe-area-inset-top,0px)));
+    --cw-v4-safe-bottom:max(0px,var(--tt-inset-bottom,env(safe-area-inset-bottom,0px)));
+    --cw-v4-x:0px!important;--cw-v4-y:var(--cw-v4-safe-top)!important;--cw-v4-w:100vw!important;
+    --cw-v4-h:calc(100dvh - var(--cw-v4-safe-top) - var(--cw-v4-safe-bottom))!important;
+  }
   html[data-cw-v4] body #WorldInfo .cw-v4-entry-line{display:grid!important;grid-template-columns:34px minmax(0,1fr) auto;gap:8px}
   html[data-cw-v4] body #WorldInfo .cw-v4-entry-line>[name=position]{grid-column:2;grid-row:2}
   html[data-cw-v4] body #WorldInfo .cw-v4-entry-order{grid-column:2;grid-row:3}
@@ -567,7 +574,7 @@ html[data-cw-v4] body #form_sheld #send_form #send_textarea::placeholder{text-al
   .cw-v4-grip,.cw-v4-resize{display:none}
   html[data-cw-v4] .cw-v4-shell.cw-v4-show-nav{z-index:3002!important}
   .cw-v4-pref-page+.cw-v4-pref-page{margin-top:30px}
-  html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder .cw-v4-panel:is(#left-nav-panel,#rm_api_block,#AdvancedFormatting,#WorldInfo,#Backgrounds,#rm_extensions_block,#right-nav-panel,#PersonaManagement,#user-settings-block).openDrawer:not(.closedDrawer){left:0!important;top:112px!important;width:100vw!important;height:calc(100dvh - 112px)!important;border-radius:0!important;padding:18px!important}
+  html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder .cw-v4-panel:is(#left-nav-panel,#rm_api_block,#AdvancedFormatting,#WorldInfo,#Backgrounds,#rm_extensions_block,#right-nav-panel,#PersonaManagement,#user-settings-block).openDrawer:not(.closedDrawer){left:0!important;top:calc(var(--cw-v4-y) + 112px)!important;width:100vw!important;height:calc(var(--cw-v4-h) - 112px)!important;border-radius:0!important;padding:18px!important}
   html[data-cw-v4] .cw-v4-panel .cw-v4-setting-row{font-size:15.5px;min-height:56px}
   html[data-cw-v4] .cw-v4-panel .cw-v4-range-row{flex-wrap:wrap!important;width:100%!important}
   html[data-cw-v4] .cw-v4-panel .cw-v4-range-row input[type=range]{width:100%!important}
@@ -1875,7 +1882,7 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit-head>
 html[data-cw-v4] body #top-settings-holder#top-settings-holder .cw-v4-wi-dialog .cw-v4-wi-edit-head>select.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel.cw-v4-state-sel{padding-left:28px!important;min-width:132px!important}
 
 
-html body img[src*="default_Assistant.png" i][src],html body .claude-welcome-clawd-assistant .mesAvatarWrapper .avatar img[src]{content:url("../icons/assistant-clawd.png?v=2.0.159")!important;image-rendering:auto!important;object-fit:contain!important;object-position:50% 55%!important;box-sizing:border-box!important;padding:4%!important;background-color:transparent!important}
+html body img[src*="default_Assistant.png" i][src],html body .claude-welcome-clawd-assistant .mesAvatarWrapper .avatar img[src]{content:url("../icons/assistant-clawd.png?v=2.0.160")!important;image-rendering:auto!important;object-fit:contain!important;object-position:50% 55%!important;box-sizing:border-box!important;padding:4%!important;background-color:transparent!important}
 
 
 @media all{

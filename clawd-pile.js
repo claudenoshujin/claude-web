@@ -1,4 +1,4 @@
-import { preferencesFor } from './preferences.js?v=2.0.159';
+import { preferencesFor } from './preferences.js?v=2.0.160';
 /* 输入框上的三只小 Clawd（2.0.223 起；2.0.290 能拖、会自己走走停停）。
    Lulu 2026-10-01 看过原型 Claude outputs/clawd-pile-v1.html 后定的：一格 2px；巫师（星星帽 + 魔杖）躺在上面，
    牛仔帽在左下，墨镜在右下。替换原来那只不能点的装饰图（#send_form::after，icons/clawd.png）。
