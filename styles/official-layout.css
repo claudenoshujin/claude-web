@@ -3772,3 +3772,11 @@ html[data-cw-v4][data-claude-integrated-theme="night"]{--cw-chat-surface:44,44,4
 html[data-cw-v4] body :is(#bg1,#bg_custom,#bg_animation)>img.cw-background-filter{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;border:0!important;border-radius:0!important;pointer-events:none!important}
 .cw-background-filter-controls{margin-top:14px;padding-top:12px;border-top:1px solid var(--cw-v4-line,#8883)}
 .cw-background-filter-controls label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0}.cw-background-filter-controls input[type=range]{flex:1;min-width:70px}.cw-background-filter-controls output{min-width:34px;text-align:right}.cw-background-filter-controls select{width:100%}.cw-background-filter-controls [hidden]{display:none!important}
+
+/* Keep the native history loader above #chat::before.
+   Messages already establish a stacking layer; this sibling must do so too. */
+html[data-cw-v4] body #chat > #show_more_messages {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
