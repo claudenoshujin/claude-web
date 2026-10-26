@@ -24,7 +24,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const t = (cn, en) => zh() ? cn : en;
   const make = (tag, cls, text) => { const n = doc.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
   const button = (text, fn, cls = 'cw-v4-button') => { const n = make('button', cls, text); n.type = 'button'; n.addEventListener('click', fn); return n; };
-  const icon = name => { const n=make('span','cw-v4-icon'); n.setAttribute('aria-hidden','true'); n.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${officialIcons[name] || officialIcons.gear}</svg>`; return n; };
+  const icon = name => { const n=make('span','cw-v4-icon'); n.setAttribute('aria-hidden','true'); n.dataset.cwIcon=name; n.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${officialIcons[name] || officialIcons.gear}</svg>`; return n; };
   const iconProperties = Object.keys(officialIcons).map(name => { const key = '--cw-v4-icon-' + name; return [key, root.style.getPropertyValue(key), root.style.getPropertyPriority(key)]; });
   for (const [name,path] of Object.entries(officialIcons)) root.style.setProperty('--cw-v4-icon-'+name,`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`)}")`);
   const installedIconValues = new Map(iconProperties.map(([key]) => [key, root.style.getPropertyValue(key)]));
@@ -872,7 +872,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const setFormNote = v => { if (!sendForm) return; if (v) { if (sendForm.getAttribute('data-cw-disclaimer') !== v) sendForm.setAttribute('data-cw-disclaimer', v); } else if (sendForm.hasAttribute('data-cw-disclaimer')) sendForm.removeAttribute('data-cw-disclaimer'); };
     if (!last || doc.body.classList.contains('clawd-welcome') || !enabled()) { disclaimer?.remove(); setFormNote(''); return; }
     const name = last.querySelector('.name_text')?.textContent.trim() || ctx?.name2 || 'AI';
-    const text = `${name} is AI and can make mistakes.`;
+    const text = `${name} is AI and can make ${root.dataset.cwHalloween === "on" ? "mischief" : "mistakes"}.`;
     if (preferencesFor(win).getItem('claude-web:ai-disclaimer') === 'off') { disclaimer?.remove(); setFormNote(''); }
     else if (!mobile()) { disclaimer?.remove(); setFormNote(text); }
     else {
@@ -883,7 +883,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       const offset=Math.max(0,last.getBoundingClientRect().left-chat.getBoundingClientRect().left-parseFloat(win.getComputedStyle(chat).paddingLeft||0));
       const inset=`${offset}px`;if(disclaimer.style.marginLeft!==inset)disclaimer.style.marginLeft=inset;
     }
-    if (input) { const placeholder = t(`回复 ${name}`,`Reply to ${name}`); if (input.placeholder !== placeholder) input.placeholder = placeholder; }
+    if (input && !(root.dataset.cwHalloween === "on" && root.dataset.cwGenerating === "1")) { const placeholder = t(`回复 ${name}`,`Reply to ${name}`); if (input.placeholder !== placeholder) input.placeholder = placeholder; }
   }
   /* 2.0.248 电脑聊天页：快捷回复那排（#qr--bar，预设 / 插件加的按钮）照 Claude 放到输入框正上方（CSS ㉘，绝对定位、可以换行）。
      它不占位置了，所以量它的实际高度写到 #form_sheld 的 --cw-qr-h，输入区整体往上让出这么高，按钮多到几排也不会盖住聊天。 */

@@ -24,6 +24,8 @@ import { installStreamFollow } from "./stream-follow.js?v=2.0.160";
 
 import { installOfficialLayout } from "./official-layout.js?v=2.0.160";
 
+import { installHalloween } from "./halloween.js?v=2.0.160-halloween2";
+
 import { buildClawdRig } from "./clawd-rig.js?v=2.0.160";
 
 import { createClawdPile } from "./clawd-pile.js?v=2.0.160";
@@ -1429,14 +1431,14 @@ if (CLAUDE_ENABLED) {
         lower: () => clawdBigLower()
       }
     });
-    const clawdPile = Object.fromEntries([ "ensure", "left", "destroy", "hush", "peek", "seats", "trackSeats", "seatLive", "bigSat", "blocks", "riderCount", "unloadBig", "follow", "followEnd", "restack" ].map(key => [ key, (...args) => {
+    const clawdPile = Object.fromEntries([ "setCostume", "ensure", "left", "destroy", "hush", "peek", "seats", "trackSeats", "seatLive", "bigSat", "blocks", "riderCount", "unloadBig", "follow", "followEnd", "restack" ].map(key => [ key, (...args) => {
       if (key === "destroy") {
         clawdPileInstance?.destroy();
         clawdPileInstance = null;
         return;
       }
       clawdEnabled() && key === "ensure" && !clawdPileInstance && (clawdPileInstance = makeClawdPile());
-      if (clawdEnabled() && clawdPileInstance) return clawdPileInstance[key](...args);
+      if (clawdEnabled() && clawdPileInstance) { if(key === "ensure")clawdPileInstance.setCostume(CLAWD_RIG.pileCells || null); return clawdPileInstance[key](...args); }
       if (key === "trackSeats") return () => [];
       return [ "seats", "blocks" ].includes(key) ? [] : key === "riderCount" ? 0 : null;
     } ]));
@@ -1544,7 +1546,23 @@ if (CLAUDE_ENABLED) {
       settledRound: 0,
       genStartedAt: 0
     };
-    const CLAWD_RIG = buildClawdRig();
+    const NORMAL_CLAWD_RIG = buildClawdRig();
+    let CLAWD_RIG = NORMAL_CLAWD_RIG, halloween = null;
+    function switchHalloweenRig(next) {
+      const rig = next || NORMAL_CLAWD_RIG;
+      if (CLAWD_RIG === rig || destroyed) return;
+      cleanupClawdRigEffects();
+      for (const clock of clawdBlinkClocks.values()) clock.destroy();
+      clawdBlinkClocks.clear();
+      CLAWD_RIG = rig;
+      clawdPile.setCostume(rig.pileCells || null);
+      for (const button of hostDocument.querySelectorAll(".clawd-composer-clawd")) {
+        button.querySelector(":scope > .clawd-rig")?.remove();
+        button.removeAttribute("data-clawd-clip");
+      }
+      installClawdRigStyle();
+      renderClawdTracks();
+    }
     const CLAWD_RIG_STYLE_ID = "claude-clawd-rig-style";
     const CLAWD_RIG_POOL = Object.freeze([ {
       id: "polish",
@@ -2137,7 +2155,8 @@ if (CLAUDE_ENABLED) {
         clip = mirror ? base + "-m" : base;
       }
       if (clip === current) return;
-      current && !continues && clawdRigDropProps(button, curBase);
+      const brewingTransition = halloween?.enabled && /^(write|sitWrite|writeHeld|writeSend|writeSendQuiet|done|stopped|error|doneHeld|stoppedHeld|errorHeld|errorFall|recover)$/.test(curBase);
+      current && !continues && !brewingTransition && clawdRigDropProps(button, curBase);
       button.removeAttribute("data-clawd-clip");
       if (clip) {
         base.startsWith("glowstick") && clawdRigPickStickColors(button);
@@ -2945,6 +2964,7 @@ if (CLAUDE_ENABLED) {
       return Number.isInteger(id) && id >= 0 ? id : null;
     }
     async function safelyDeleteMessage(message) {
+      const halloweenDelete = halloween?.captureDelete(message);
       const id = getMessageId(message);
       if (id === null) return;
       const context = getContext();
@@ -2952,7 +2972,7 @@ if (CLAUDE_ENABLED) {
       if (typeof context?.deleteMessage === "function") {
         const selectedSwipe = data?.swipe_id ?? void 0;
         const canDeleteSwipe = !data?.is_user && Array.isArray(data?.swipes) && data.swipes.length > 1 && id === context.chat.length - 1 && selectedSwipe !== void 0;
-        await context.deleteMessage(id, canDeleteSwipe ? selectedSwipe : void 0, !0);
+        try { await context.deleteMessage(id, canDeleteSwipe ? selectedSwipe : void 0, !0); } finally { halloween?.finishDelete(halloweenDelete); }
         return;
       }
       const confirmed = hostWindow.confirm("确定删除这条消息吗？此操作无法撤销。");
@@ -3149,6 +3169,7 @@ if (CLAUDE_ENABLED) {
       A2.rot && (value += ` rotate(${A2.rot.toFixed(1)}deg)`);
       A2.sqx === 1 && A2.sqy === 1 || (value += ` scale(${A2.sqx.toFixed(3)}, ${A2.sqy.toFixed(3)})`);
       button.style.setProperty("transform", value, "important");
+      if (halloween?.enabled) halloween.positionClawd();
     }
     function a2CancelSeq() {
       if (!A2.lockUntil) {
@@ -4259,6 +4280,11 @@ if (CLAUDE_ENABLED) {
       return pick;
     }
     function heroText() {
+      if (halloween?.enabled) {
+        const name = (getContext()?.name1 || "").trim();
+        const lines = ccPrefersChinese() ? [`不给糖就捣蛋${name ? "，" + name : ""}？`, `${name ? name + "，" : ""}今晚想变点什么戏法？`, `万圣夜好${name ? "，" + name : ""}`, "今晚有点闹鬼，一起查查？", `南瓜灯点好了${name ? "，" + name : ""}，进来坐？`, "今晚 Claude 能帮你变点什么？"] : [`Trick or treat${name ? ", " + name : ""}?`, "What magic shall we make tonight?", `Happy Halloween${name ? ", " + name : ""}.`];
+        return lines[Math.max(0,heroPick) % lines.length];
+      }
       const list = heroCandidates((getContext()?.name1 || "").trim(), ccPrefersChinese());
       return list[heroPick] ?? list[0];
     }
@@ -6176,9 +6202,11 @@ if (CLAUDE_ENABLED) {
       const box = hostDocument.querySelector("#send_textarea");
       if (!box) return;
       if (active) {
-        if (box.dataset.ccPh === void 0) {
-          box.dataset.ccPh = box.getAttribute("placeholder") ?? "";
-          const phrase = ccPickPhrase();
+        const hwPhrase = halloween?.enabled === true;
+        if (box.dataset.ccPh === void 0 || hwPhrase !== (box.dataset.cwHalloweenPhrase === "on")) {
+          if(box.dataset.ccPh === void 0)box.dataset.ccPh = box.getAttribute("placeholder") ?? "";
+          const phrase = hwPhrase ? {cn:"熬魔药…",en:"brewing a potion…"} : ccPickPhrase();
+          if(hwPhrase)box.dataset.cwHalloweenPhrase = "on"; else delete box.dataset.cwHalloweenPhrase;
           box.setAttribute("placeholder", ccPrefersChinese() ? "Clawd 正在" + phrase.cn : "Clawd is " + phrase.en);
         }
         return;
@@ -6186,6 +6214,7 @@ if (CLAUDE_ENABLED) {
       if (box.dataset.ccPh !== void 0) {
         box.setAttribute("placeholder", box.dataset.ccPh);
         delete box.dataset.ccPh;
+        delete box.dataset.cwHalloweenPhrase;
       }
     }
     async function runSwipeProxy(message, direction, event) {
@@ -6390,7 +6419,7 @@ if (CLAUDE_ENABLED) {
       subtree: !0
     };
     const OBSERVER_COSMETIC_CLASSES = new Set([ READY_CLASS, EMPTY_CLASS, GENERATING_CLASS, "claude-has-preset-reasoning", SWIPE_VIEW_CLASS, "claude-welcome-clawd-assistant", "claude-welcome-prompt", MOBILE_LAYOUT_CLASS, "clawd-tauritavern-host", "clawd-welcome", "clawd-has-recents", "clawd-wobble-sway", "clawd-wobble-tilt", "clawd-typing-enter", "clawd-typing-ready", "clawd-typing-native-suppressed", "clawd-typing-click", "clawd-typing-press" ]);
-    const OWNED_MUTATION_SELECTOR = [ `button.${BUTTON_CLASS}`, `button.${LEFT_SWIPE_PROXY_CLASS}`, `button.${SWIPE_PROXY_CLASS}`, `button.${REROLL_CLASS}`, `.${USER_ACTIONS_CLASS}`, ".clawd-typing-hit", ".clawd-typing-exit-ghost", ".clawd-mobile-chrome", ".clawd-mobile-scrim", ".clawd-mobile-new-chat", ".clawd-android-keyboard-pan-anchor", ".clawd-character-menu", ".clawd-character-switcher", ".clawd-rail-brand", ".clawd-rail-label", ".clawd-rail-grip", ".clawd-welcome-hero", ".clawd-welcome-shortcuts", ".clawd-surface-backing", ".clawd-gen-timer", ".clr-ghost-host" ].join(",");
+    const OWNED_MUTATION_SELECTOR = [ "[data-cw-halloween-owned]", `button.${BUTTON_CLASS}`, `button.${LEFT_SWIPE_PROXY_CLASS}`, `button.${SWIPE_PROXY_CLASS}`, `button.${REROLL_CLASS}`, `.${USER_ACTIONS_CLASS}`, ".clawd-typing-hit", ".clawd-typing-exit-ghost", ".clawd-mobile-chrome", ".clawd-mobile-scrim", ".clawd-mobile-new-chat", ".clawd-android-keyboard-pan-anchor", ".clawd-character-menu", ".clawd-character-switcher", ".clawd-rail-brand", ".clawd-rail-label", ".clawd-rail-grip", ".clawd-welcome-hero", ".clawd-welcome-shortcuts", ".clawd-surface-backing", ".clawd-gen-timer", ".clr-ghost-host" ].join(",");
     function classMutationIsCosmetic(record, target) {
       if (record.attributeName !== "class") return !1;
       const before = new Set(String(record.oldValue || "").split(/\s+/).filter(Boolean));
@@ -6737,6 +6766,7 @@ if (CLAUDE_ENABLED) {
       chatTools ??= installChatTools({win:hostWindow, doc:hostDocument, getContext, enabled:()=>!destroyed && hostDocument.documentElement.dataset.claudeEnabled !== "off", follow:()=>streamFollow,
         onFavoritesChange:()=>{ recentSignature=null; recentDataVersion++; refreshRailRecents({force:true}); }, openChat:openRecentChat});
       chatTools.sync();
+      halloween?.sync();
       refreshRailRecents();
       refreshWelcomeShortcuts();
       refreshCharacterSwitcher();
@@ -6962,6 +6992,7 @@ if (CLAUDE_ENABLED) {
       reconcileTimer = 0;
       if (destroyed) return;
       destroyed = !0;
+      halloween?.destroy(); halloween = null;
       syncClawdRuntime();
       clawdPile.destroy();
       hostWindow.clearTimeout(pushLiveTimer);
@@ -7152,6 +7183,7 @@ if (CLAUDE_ENABLED) {
     }
     const api = {
       destroy: destroy,
+      halloween: () => halloween,
       refresh: () => {
         syncClawdRuntime();
         scheduleRefresh();
@@ -7229,6 +7261,8 @@ if (CLAUDE_ENABLED) {
       installAutoCompleteResizeGuard();
       installStyle();
       installClawdRigStyle();
+      halloween = installHalloween({win:hostWindow, getContext, setRig:switchHalloweenRig, refresh:scheduleRefresh});
+      halloween.sync();
       hostWindow.console?.info?.("[Claude-Clawd] build:", KEYBOARD_BUILD.id);
       setBodyClass(READY_CLASS, !0);
       hostDocument.body.classList.toggle(MOBILE_LAYOUT_CLASS, mobileEnabled);

@@ -45,8 +45,14 @@ export function createClawdPile({ doc, win, big = null }) {
 
   /* eyes: shut / half / open；pose: crouch / stand / raised（站起来、腿另外画）/ dangleA / dangleB；face: 0 正面 / 1 朝右 / -1 朝左。
      转向照大 Clawd（clawd-rig.js 的 turnL / turnR）：不镜像，背光那一侧暗一列，眼睛（墨镜）往要去的方向偏一格。 */
+  let costume = null;
+  function setCostume(next) {
+    if(costume === next)return; costume=next; imgCache.clear();
+    for(const k of Object.values(K)) look(k);
+  }
   function cells(name, eyes, pose, face) {
     const up = pose === 'crouch' ? 0 : pose.startsWith('dangle') ? 3 : 2, by = TOP + 7 - up;
+    if(costume)return costume(name,eyes,pose,face,by);
     let c = [];
     if (name === 'cowboy') c = c.concat(grid(COWBOY, 0, by - 4));
     if (name === 'wizard') c = c.concat(grid(WIZARD, 0, by - 7));
@@ -63,12 +69,12 @@ export function createClawdPile({ doc, win, big = null }) {
      被拎着蹬腿的两帧横着拼成一条，Web Animations 换帧，不改 DOM。 */
   const imgCache = new Map();
   function sheet(frames) {
-    const key = JSON.stringify(frames);
+    const key = (costume ? "hw:" : "normal:") + JSON.stringify(frames);
     let url = imgCache.get(key); if (url) return url;
-    const cv = doc.createElement('canvas'); cv.width = W * frames.length; cv.height = H;
+    const cv = doc.createElement('canvas'); cv.width = W * frames.length; cv.height = H + (costume ? 8 : 0);
     const g = cv.getContext?.('2d');
     if (!g) { imgCache.set(key, 'none'); return 'none'; }   // 没有 canvas 的环境（测试用的 jsdom）：不画，也不抛错
-    frames.forEach((f, i) => { for (const [x, y, ch] of f) { if (y < 0 || y >= H) continue; g.fillStyle = PAL[ch]; g.fillRect(x + i * W, y, 1, 1); } });
+    frames.forEach((f, i) => { for (const [x, y, ch] of f) { if (y < (costume ? -8 : 0) || y >= H) continue; g.fillStyle = PAL[ch] || ch; g.fillRect(x + i * W, y + (costume ? 8 : 0), 1, 1); } });
     url = `url("${cv.toDataURL()}")`; imgCache.set(key, url); return url;
   }
 
@@ -139,6 +145,8 @@ export function createClawdPile({ doc, win, big = null }) {
     const frames = walking ? ['raised'] : dangle ? ['dangleA', 'dangleB'] : [k.pose];
     el.classList.toggle('clawd-pile-sleep', k.mode === 'sleep' && k.pose === 'crouch');
     el.classList.toggle('clawd-pile-walking', walking);
+    ps.style.top = costume ? '-16px' : '';
+    ps.style.height = costume ? '52px' : '';
     ps.style.backgroundSize = `${frames.length * 100}% 100%`;
     const url = sheet(frames.map(p => cells(k.name, k.eyes, p, k.face)));
     if (ps.style.backgroundImage !== url) ps.style.backgroundImage = url;
@@ -666,5 +674,5 @@ html[data-claude-motion="off"] .clawd-pile *{animation:none!important}
     for (const n of NAMES) if (K[n]) K[n].el.style.translate = '';
     stackX(); for (const n of NAMES) place(K[n]); save(true);
   }
-  return { ensure, left, destroy, hush, peek, seats, trackSeats, seatLive, bigSat, blocks, riderCount, unloadBig, follow, followEnd, restack };
+  return { setCostume, ensure, left, destroy, hush, peek, seats, trackSeats, seatLive, bigSat, blocks, riderCount, unloadBig, follow, followEnd, restack };
 }
