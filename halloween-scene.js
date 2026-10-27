@@ -14,6 +14,11 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   const visible=()=>!dead&&!doc.hidden;
   const moving=()=>visible()&&!calm();
   const modal=()=>[...doc.querySelectorAll('dialog[open],.cw-v4-editor-dialog[open],.cw-menu:not([hidden]),#options,#extensionsMenu')].some(n=>n.getClientRects().length>0&&win.getComputedStyle(n).visibility!=='hidden');
+  let spiderModalValid=false,spiderModalValue=false,spiderModalFrame=0;
+  function spiderModal(){
+    if(!spiderModalValid){spiderModalValue=modal();spiderModalValid=true;spiderModalFrame=win.requestAnimationFrame(()=>{spiderModalFrame=0;spiderModalValid=false;});}
+    return spiderModalValue;
+  }
   const panel=()=>doc.querySelector('.cw-v4-shell:not([hidden])');
   const later=(fn,ms)=>{const token=epoch,id=win.setTimeout(()=>{timers.delete(id);if(!dead&&token===epoch)fn();},ms);timers.add(id);return id;};
   const cancel=id=>{win.clearTimeout(id);timers.delete(id);};
@@ -203,12 +208,13 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     }
     for(const [hand,sgn]of [[left,-1],[right,1]])animate(hand,[{transform:'translate(0,0)',background:'#fbf8f1'},{offset:.24,transform:`translate(${sgn*5}px,-14px)`,background:'#fbf8f1'},{offset:.46,transform:`translate(${sgn*5}px,-14px)`,background:success?'#fbf8f1':'#d97757'},{offset:.65,transform:`translate(${sgn*5}px,-14px)`,background:success?'#fbf8f1':'#d97757'},{offset:.74,transform:'translate(0,6px)',background:success?'#fbf8f1':'#d97757'},{offset:.85,transform:'translate(0,-12px)',background:'#fbf8f1'},{transform:'translate(0,0)',background:'#fbf8f1'}],{duration:success?2200:2400,fill:'forwards'});
   }
-  function clearSpider(){remove(spider);spider=null;}
+  function clearSpider(){if(!spider)return;remove(spider);spider=null;}
   function trackSpider(e,tap=false){
-    if(!moving()||!ambient()||modal()||(!tap&&(e.buttons||e.pointerType==='touch')))return clearSpider();
+    if((!tap&&(e.buttons||e.pointerType==='touch'))||root.dataset.cwV4Settings!=='open')return clearSpider();
+    if(!moving()||!ambient())return clearSpider();
     // Native panels deliberately keep their original drawer ancestry. Use the
     // real shell boundary, rather than assuming controls are shell descendants.
-    const host=panel();if(!host)return clearSpider();
+    const host=panel();if(!host||spiderModal())return clearSpider();
     const r=host.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return clearSpider();
     if(!spider){spider=node('span','hw-spider hw-fx',host);const witch=picture(art.witch({awake:true}),spider,2);witch.classList.add('hw-puppet');spider.insertAdjacentHTML('beforeend','<i class="hw-puppet-eyes"></i><i class="hw-puppet-paw"></i><i class="hw-puppet-paw hw-puppet-paw-r"></i><i class="hw-spider-thread"></i><i class="hw-spider-body"></i>');}
     spider.style.left=Math.max(r.left+50,Math.min(r.right-38,e.clientX))+'px';spider.style.top=Math.max(root.dataset.claudeLayout==='mobile'?60:42,r.top)+'px';
@@ -223,6 +229,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   function tick(){scheduler=0;if(dead)return;appear();scheduler=later(tick,(7+Math.random()*5)*1000);}
   function schedule(){if(scheduler||!visible()||calm()||!ambient())return;scheduler=later(tick,3000);}
   function reset(){
+    win.cancelAnimationFrame(spiderModalFrame);spiderModalFrame=0;spiderModalValid=false;
     epoch++;validAfter=win.performance.now();for(const id of timers)win.clearTimeout(id);timers.clear();scheduler=0;
     for(const a of animations)a.cancel();animations.clear();clearGhost();clearSpider();
     for(const [b,state]of copies){delete b.dataset.cwHalloweenCopy;remove(state.status);}copies.clear();
