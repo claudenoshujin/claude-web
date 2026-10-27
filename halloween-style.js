@@ -157,6 +157,9 @@ export const iconRules=[
  ]
 ];
 export const halloweenCSS=String.raw`
+@keyframes hw-web-sway{0%,100%{transform:rotate(0deg)}25%{transform:rotate(1.15deg)}75%{transform:rotate(-1.15deg)}}
+@keyframes hw-signature{0%,100%{opacity:.95}50%{opacity:.45}}
+.hw-live-web,.hw-live-web *,.hw-chat-deco,.hw-chat-deco *{pointer-events:none!important;user-select:none}.hw-web-thread{transform-origin:top;transition:height .2s}.hw-web-star{transition:top .2s}.hw-chat-deco{position:fixed!important}
 .hw-node-spider,.hw-node-thread,.hw-node-body,.hw-node-ripple,.hw-prank,.hw-prank *{pointer-events:none!important;user-select:none}
 .hw-flight-char,.hw-flight-spark,.hw-delete-spark,.hw-delete-asterisk,.hw-delete-puff,.hw-delete-moth{display:block;pointer-events:none;user-select:none;transform-origin:center}
 .hw-flight-layer{position:fixed;inset:0;pointer-events:none}.hw-deletion-layer{pointer-events:none;isolation:isolate}.hw-delete-puff{border-radius:50%}.hw-delete-moth svg{overflow:visible}
