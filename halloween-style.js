@@ -50,8 +50,9 @@ export const iconRules=[
   "self"
  ],
  [
-  "#option_impersonate",
-  "ghost"
+  "#option_impersonate>i",
+  "ghost",
+  "native"
  ],
  [
   ".cw-v4-navitem[data-panel=\"right-nav-panel\"] .cw-v4-icon",
@@ -104,44 +105,37 @@ export const iconRules=[
   "cauldron"
  ],
  [
-  "#option_delete_mes",
-  "cauldron"
- ],
- [
-  "#option_delete_mes .fa-solid",
-  "cauldron"
+  "#option_delete_mes>i",
+  "cauldron",
+  "native"
  ],
  [
   "#ui-preset-delete-button",
   "cauldron"
  ],
  [
-  "#option_continue",
-  "cont"
+  "#option_continue>i",
+  "cont",
+  "native"
  ],
  [
-  "#option_continue .fa-solid",
-  "cont"
+  "#option_new_bookmark>i",
+  "flag",
+  "native"
  ],
  [
-  "#option_new_bookmark",
-  "flag"
- ],
- [
-  "#option_convert_to_group",
-  "ghosts"
+  "#option_convert_to_group>i",
+  "ghosts",
+  "native"
  ],
  [
   "#option_start_new_chat .fa-solid",
   "bubble"
  ],
  [
-  "#option_close_chat",
-  "bones"
- ],
- [
-  "#option_close_chat .fa-solid",
-  "bones"
+  "#option_close_chat>i",
+  "bones",
+  "native"
  ],
  [
   "#ui_preset_import_button",

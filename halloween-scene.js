@@ -62,6 +62,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     const scope='html[data-cw-halloween="on"]'+Array.from({length:8},(_,i)=>`:not(#cw-hw-${i})`).join('');
     let css=halloweenCSS.replaceAll('html[data-cw-halloween="on"]',scope)+`\n${scope}{--cw-hw-skull:${url('tombs')};}`;
     for(const [selector,key,kind='before']of iconRules){
+      if(kind==='native'){css+=`${scope} ${selector}{background-color:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important}${scope} ${selector}::before{visibility:hidden!important}`;continue;}
       if(kind==='self'){css+=`${scope} ${selector}{background:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important;font-size:0!important}${scope} ${selector}>svg{visibility:hidden!important}${scope}[data-claude-ui="classic"] ${selector}{display:inline-block!important;width:20px!important;height:20px!important}`;continue;}
       if(kind==='svg')continue;
       else if(['#options_button','#extensionsMenuButton','body.cw-v4-filled:not(.claude-generation-active) #send_but','body:not(.cw-v4-filled):not(.claude-generation-active) #send_but','.clawd-fake-mic'].includes(selector))css+=`${scope} ${selector}::${kind}{mask-image:${url(key)}!important;-webkit-mask-image:${url(key)}!important}`;
