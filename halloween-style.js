@@ -68,7 +68,6 @@ html[data-cw-halloween="on"] .hw-footer{display:block!important;height:auto!impo
 html[data-cw-halloween="on"] :is(.cw-v4-panel,.cw-v4-editor) select:not([multiple]){background-image:var(--cw-hw-select)!important}
 html[data-cw-halloween="on"] .cw-v4-segsel-item[aria-pressed="true"]{clip-path:polygon(0 0,100% 0,100% 91%,92% 100%,84% 91%,76% 100%,68% 91%,60% 100%,52% 91%,44% 100%,36% 91%,28% 100%,20% 91%,12% 100%,4% 91%,0 95%)}
 html[data-cw-halloween="on"] :is(.cw-v4-panel,.cw-v4-editor) input[type=checkbox]:checked:not(.sr-only):not([data-v-app] *)::after{border-radius:0!important;background:var(--cw-hw-pumpkin) center/contain no-repeat!important;box-shadow:none!important}
-html[data-cw-halloween="on"][data-claude-layout="mobile"] body #send_but::before{background:#fff!important}
 html[data-cw-halloween="on"] .clawd-mobile-menu-button>span{visibility:hidden!important}
 html[data-cw-halloween="on"] .clawd-mobile-menu-button::before{content:''!important;position:absolute!important;left:0!important;top:0!important;display:block!important;width:100%!important;height:100%!important;mask-size:22px 22px!important;-webkit-mask-size:22px 22px!important}
 html[data-cw-halloween="on"][data-claude-motion="off"] .clawd-welcome-hero>.asterisk{transition:none!important}
