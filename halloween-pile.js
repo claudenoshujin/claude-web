@@ -5,7 +5,8 @@ const CAPE=['C..............C','CR............RC','CR.KKKKKKKKKK.RC','CC.KWKKKKK
 const HAT=['....PPPP........','...PP..PP.......','...P....PP......','.......KK.......','......KKKK......','......KKDK......','.....KKKKKK.....','.....KDKKKK.....','....KKKKKDKK....','....KKDKKKKK....','...KKKKKKKKKK...','.KKKKKKKKKKKKKK.'];
 export function halloweenPileCells(name,eyes,pose,face,by){
   let c=[];const grid=(rows,x,y)=>rows.forEach((row,j)=>[...row].forEach((ch,i)=>{if(ch!=='.')c.push([i+x,j+y,PAL[ch]||ch]);}));
-  grid(BODY,0,by);
+  // The sheet glides at a fixed height; native pose changes must not reveal a body or feet.
+  if(name==='cowboy')by=8;else grid(BODY,0,by);
   if(name==='cowboy'){
     grid(['......kkkkkk......','....kkwwwwwwkk....','...kwwwwwwwwwwk...','..kwwwwwwwwwwwek..','.kwwwwwwwwwwwwwek.',eyes==='open'?'.kwwwowwwwwwowwek.':'.kwwwwwwwwwwwwwek.',eyes==='open'?'.kwwwowwwwwwowwek.':'.kwwoowwwwwwoowek.','kwwwwwwwwwwwwwwwek','kwwwwwwwwwwwwwwwek','.kwwwwwwwwwwwwwek.','.kwwwkwwwwwkwwwek.','.kkkk.kkkkk.kkkkk.'], -1,by-4);
   }else{
@@ -16,8 +17,10 @@ export function halloweenPileCells(name,eyes,pose,face,by){
     else grid(['....o......o....','....o......o....'],face,by+1);
   }
   c=c.filter(([,y])=>y<=by+7);
-  if(pose==='stand')grid(['...#.#....#.#...','...#.#....#.#...'],0,by+8);
-  if(pose==='dangleA')grid(['...#.#....#.#...','...#.#..........','...#.#..........'],0,by+8);
-  if(pose==='dangleB')grid(['...#.#....#.#...','..........#.#...','..........#.#...'],0,by+8);
+  if(name!=='cowboy'){
+    if(pose==='stand')grid(['...#.#....#.#...','...#.#....#.#...'],0,by+8);
+    if(pose==='dangleA')grid(['...#.#....#.#...','...#.#..........','...#.#..........'],0,by+8);
+    if(pose==='dangleB')grid(['...#.#....#.#...','..........#.#...','..........#.#...'],0,by+8);
+  }
   return c;
 }

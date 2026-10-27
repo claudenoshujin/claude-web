@@ -331,12 +331,12 @@ function nodeSpider(P, size) {
     const r=box.getBoundingClientRect(),cs=win.getComputedStyle(box),formCS=win.getComputedStyle(doc.getElementById('send_form')),layer=at(node('div','hw-prank hw-fx'),r.left,r.top,r.width,r.height);
     Object.assign(layer.style,{background:cs.backgroundColor==='rgba(0, 0, 0, 0)'?formCS.backgroundColor:cs.backgroundColor,overflow:'hidden'});
     const line=node('span','hw-prank-line',layer);Object.assign(line.style,{position:'absolute',inset:'0',padding:cs.padding,font:cs.font,lineHeight:cs.lineHeight,letterSpacing:cs.letterSpacing,color:cs.color,display:'flex',alignItems:'flex-start',boxSizing:'border-box'});
-    const text=node('span','hw-prank-text',line),cursor=node('span','hw-prank-cursor',line);picture(art.sheet({awake:true}),cursor,1.2);Object.assign(cursor.style,{display:'inline-block',marginLeft:'3px',transform:'translateY(-1px)'});
+    const text=node('span','hw-prank-text',line),cursor=node('span','hw-prank-cursor',line);picture(art.sheet({awake:true}),cursor,1.2);Object.assign(cursor.style,{display:'inline-block',marginLeft:'3px',transform:'translateY(-4px)'});
     const current=ghost={node:layer,timers:[],anims:[]},word='boo～';lastPrank=Date.now();let i=0;
     const wait=(fn,ms)=>current.timers.push(later(()=>{if(ghost===current)fn();},ms));
     const play=(frames,opts)=>current.anims.push(animate(cursor,frames,opts));
-    const erase=()=>{if(i){text.textContent=word.slice(0,--i);wait(erase,110);}else{play([{transform:'translateY(-1px) rotate(0deg)',opacity:1},{offset:.3,transform:'translateY(-3px) rotate(-12deg)',opacity:1},{offset:.6,transform:'translateY(-1px) rotate(10deg)',opacity:1},{transform:'translateY(-14px) rotate(0deg)',opacity:0}],{duration:700,fill:'forwards'});wait(clearPrank,760);}};
-    const type=()=>{if(i<word.length){text.textContent=word.slice(0,++i);play([{transform:'translateY(-1px)'},{transform:'translateY(-4px)'},{transform:'translateY(-1px)'}],{duration:160});wait(type,rnd(160,230));}else wait(erase,800);};wait(type,300);return true;
+    const erase=()=>{if(i){text.textContent=word.slice(0,--i);wait(erase,110);}else{play([{transform:'translateY(-4px) rotate(0deg)',opacity:1},{offset:.3,transform:'translateY(-6px) rotate(-12deg)',opacity:1},{offset:.6,transform:'translateY(-4px) rotate(10deg)',opacity:1},{transform:'translateY(-14px) rotate(0deg)',opacity:0}],{duration:700,fill:'forwards'});wait(clearPrank,760);}};
+    const type=()=>{if(i<word.length){text.textContent=word.slice(0,++i);wait(type,rnd(160,230));}else wait(erase,800);};wait(type,300);return true;
   }
   function clearDrawerSpider(){if(!spider)return;win.cancelAnimationFrame(spider.frame);for(const id of spider.timers)cancel(id);remove(spider.node);spider=null;}
   function runDrawerSpider(){
