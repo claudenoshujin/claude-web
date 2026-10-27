@@ -14,13 +14,13 @@ export function installHalloween({win, getContext, setRig, refresh, getClawdStat
     if(!settings){
       settings=doc.createElement('div');settings.className='cw-halloween-settings claude-web-field';
       settings.setAttribute('role','group');settings.setAttribute('aria-labelledby','cw-halloween-title');
-      settings.innerHTML='<div class="claude-web-field"><div class="claude-web-section-summary" id="cw-halloween-title">万圣节</div></div><label class="checkbox_label claude-web-check"><input type="checkbox" id="claude-web-halloween"><span>万圣节装饰</span></label><label class="checkbox_label claude-web-check"><input type="checkbox" id="claude-web-halloween-ambient" aria-describedby="cw-halloween-ambient-help"><span>环境小动作</span></label><div class="claude-web-help" id="cw-halloween-ambient-help">随机床单 Clawd 和闲置装饰；系统减少动态效果优先。</div><small class="claude-web-help cw-halloween-status" role="status"></small>';
+      settings.innerHTML='<div class="claude-web-field"><div class="claude-web-section-summary" id="cw-halloween-title">万圣节</div></div><label class="checkbox_label claude-web-check"><input type="checkbox" id="claude-web-halloween"><span>万圣节装饰</span></label><label class="checkbox_label claude-web-check"><input type="checkbox" id="claude-web-halloween-ambient" aria-describedby="cw-halloween-ambient-help"><span>环境小动作</span></label><div class="claude-web-help" id="cw-halloween-ambient-help">幽灵 Clawd 偶尔在空输入框里打个招呼，装饰偶尔动一下；系统“减少动态效果”优先。</div><small class="claude-web-help cw-halloween-status" role="status"></small>';
       on(settings,'change',e=>{const key=e.target.id==='claude-web-halloween'?'halloween':e.target.id==='claude-web-halloween-ambient'?'halloween-ambient':null;if(!key)return;prefs.setItem('claude-web:'+key,e.target.checked?'on':'off');sync();});
     }
     if(settings.parentNode!==host)host.append(settings);
     settings.querySelector('#claude-web-halloween').checked=prefs.getItem('claude-web:halloween')==='on';
     const small=settings.querySelector('#claude-web-halloween-ambient');small.checked=ambient();small.disabled=!wanted();
-    const help=settings.querySelector('#cw-halloween-ambient-help'),hint=wanted()?'随机床单 Clawd 和闲置装饰；系统减少动态效果优先。':'先开启万圣节装饰，才能使用环境小动作。';if(help.textContent!==hint)help.textContent=hint;
+    const help=settings.querySelector('#cw-halloween-ambient-help'),hint=wanted()?'幽灵 Clawd 偶尔在空输入框里打个招呼，装饰偶尔动一下；系统“减少动态效果”优先。':'先开启万圣节装饰，才能使用环境小动作。';if(help.textContent!==hint)help.textContent=hint;
     const note=settings.querySelector('.cw-halloween-status'),message=failed?'万圣节资源暂未加载成功，已使用普通外观；刷新后可重试。':'';if(note.textContent!==message)note.textContent=message;
   }
   function subscribe() {
