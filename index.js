@@ -5349,8 +5349,8 @@ if (CLAUDE_ENABLED) {
         src: img?.src || ""
       };
     }
-    function refreshRailUser() {
-      if (!railEnabled) return;
+    function refreshRailUser(retryBad = false) {
+      if (destroyed || !railEnabled) return;
       const holder = hostDocument.querySelector("#top-settings-holder");
       if (!holder) return;
       const row = holder.querySelector("#persona-management-button > .drawer-toggle");
@@ -5362,15 +5362,104 @@ if (CLAUDE_ENABLED) {
       name && name.textContent !== persona.name && (name.textContent = persona.name || "User");
       const face = row.querySelector(".clawd-user-face");
       if (!face) return;
+      const previous = refreshRailUser.avatar;
+      if (previous && previous.img !== face.querySelector("img")) {
+        previous.cleanup();
+        refreshRailUser.avatar = null;
+      }
       if (persona.src) {
         let img = face.querySelector("img");
+        let created = false;
         if (!img) {
           img = hostDocument.createElement("img");
+          img.dataset.cwWant = persona.src;
+          created = true;
           face.textContent = "";
           face.append(img);
         }
-        img.src !== persona.src && (img.src = persona.src);
+        let state = refreshRailUser.avatar;
+        if (!state) {
+          state = {img, timer: 0, retries: 0, lastImmediate: 0, initials: null, name: ""};
+          const cancel = () => {
+            hostWindow.clearTimeout(state.timer);
+            state.timer = 0;
+          };
+          const valid = () => !destroyed && img.isConnected && img.parentElement === face;
+          const showInitials = () => {
+            img.hidden = true;
+            img.style.setProperty("display", "none", "important");
+            state.initials ??= hostDocument.createTextNode("");
+            state.initials.textContent = state.name;
+            if (state.initials.parentNode !== face) face.append(state.initials);
+          };
+          const request = () => {
+            if (!valid() || !img.dataset.cwWant) return;
+            const url = new hostWindow.URL(img.dataset.cwWant, hostDocument.baseURI);
+            url.searchParams.set("cw-retry", String(Date.now()));
+            img.src = url.href;
+          };
+          const loaded = () => {
+            cancel();
+            state.retries = 0;
+            if (img.hidden) img.hidden = false;
+            if (img.style.getPropertyValue("display")) img.style.removeProperty("display");
+            state.initials?.remove();
+          };
+          const failed = () => {
+            if (!valid() || state.timer) return;
+            if (state.retries >= 3) return showInitials();
+            const wanted = img.dataset.cwWant, delay = [1000, 3000, 10000][state.retries++];
+            state.timer = hostWindow.setTimeout(() => {
+              state.timer = 0;
+              if (valid() && img.dataset.cwWant === wanted) request();
+            }, delay);
+          };
+          // Passive refreshes must not restart an exhausted retry budget.
+          const recover = event => {
+            if (!img.complete || img.naturalWidth > 0 || state.timer) return;
+            if (!event.target?.closest?.('.clawd-mobile-menu-button, #persona-management-button, .recentChat, .cw-v4-newchat-top, #option_start_new_chat, .clawd-mobile-new-chat')) return;
+            hostWindow.queueMicrotask(() => !destroyed && refreshRailUser(true));
+          };
+          const removal = new hostWindow.MutationObserver(() => {
+            if (!valid()) state.cleanup();
+          });
+          removal.observe(face, {childList: true});
+          removal.observe(row, {childList: true});
+          removal.observe(row.parentElement, {childList: true});
+          removal.observe(holder, {childList: true});
+          state.cleanup = () => {
+            cancel();
+            removal.disconnect();
+            img.removeEventListener("error", failed);
+            img.removeEventListener("load", loaded);
+            hostDocument.removeEventListener("click", recover, true);
+            if (refreshRailUser.avatar === state) refreshRailUser.avatar = null;
+          };
+          state.request = request;
+          state.cancel = cancel;
+          img.addEventListener("error", failed);
+          img.addEventListener("load", loaded);
+          hostDocument.addEventListener("click", recover, true);
+          refreshRailUser.avatar = state;
+        }
+        state.name = (persona.name || "U").trim().slice(0, 2);
+        if (state.initials?.isConnected && state.initials.textContent !== state.name) state.initials.textContent = state.name;
+        if (created || img.dataset.cwWant !== persona.src) {
+          state.cancel();
+          state.retries = 0;
+          state.lastImmediate = 0;
+          if (img.dataset.cwWant !== persona.src) img.dataset.cwWant = persona.src;
+          if (img.hidden) img.hidden = false;
+          if (img.style.getPropertyValue("display")) img.style.removeProperty("display");
+          state.initials?.remove();
+          img.src = persona.src;
+        } else if (img.complete && img.naturalWidth === 0 && !state.timer &&
+          (state.retries < 3 || retryBad) && Date.now() - state.lastImmediate >= 5000) {
+          state.lastImmediate = Date.now();
+          state.request();
+        }
       } else {
+        refreshRailUser.avatar?.cleanup();
         face.querySelector("img")?.remove();
         const initial = (persona.name || "U").trim().slice(0, 2);
         face.textContent !== initial && (face.textContent = initial);
@@ -6995,6 +7084,7 @@ if (CLAUDE_ENABLED) {
       if (destroyed) return;
       destroyed = !0;
       halloween?.destroy(); halloween = null;
+      refreshRailUser.avatar?.cleanup();
       syncClawdRuntime();
       clawdPile.destroy();
       hostWindow.clearTimeout(pushLiveTimer);
