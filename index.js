@@ -5343,10 +5343,19 @@ if (CLAUDE_ENABLED) {
     function currentPersona() {
       const context = getContext();
       const name = context?.name1 || "";
-      const img = hostDocument.querySelector('#user_avatar_block .avatar.selected img, #user_avatar_block [class*="selected"] img') || hostDocument.querySelector('#chat .mes[is_user="true"] .avatar img');
+      const selected = hostDocument.querySelector('#user_avatar_block .avatar-container.selected, #user_avatar_block .avatar.selected');
+      const avatar = selected?.matches('.avatar') ? selected : selected?.querySelector('.avatar');
+      const img = selected?.querySelector('img');
+      const id = selected?.getAttribute('data-avatar-id') || avatar?.getAttribute('data-avatar-id') || avatar?.getAttribute('imgfile');
+      let src = id ? '/thumbnail?type=persona&file=' + encodeURIComponent(id) : "";
+      if (!src) {
+        const fallback = hostDocument.querySelector('#chat .mes[is_user="true"] .avatar img');
+        src = [img?.getAttribute('data-bai-bai-toolkit-lazy-avatar-src'), img?.getAttribute('src'), fallback?.getAttribute('src')]
+          .map(value => String(value || "").trim()).find(value => value && !/^data:/i.test(value)) || "";
+      }
       return {
         name: name,
-        src: img?.src || ""
+        src: src
       };
     }
     function refreshRailUser(retryBad = false) {
