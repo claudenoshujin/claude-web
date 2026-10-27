@@ -51,7 +51,7 @@ export function installHalloween({win, getContext, setRig, refresh, getClawdStat
       if(disposed||serial!==ticket||!wanted())return;
       // Start only after all dependencies loaded; failed setup is fully reversible.
       root.dataset.cwHalloween='on';
-      const next=module.createHalloweenScene({win,getContext,ambient,getClawdState});
+      const next=module.createHalloweenScene({win,getContext,ambient,getClawdState,prefs});
       scene=next;
       try{next.install();setRig(next.rig);refresh();}
       catch(error){next.destroy();scene=null;root.removeAttribute('data-cw-halloween');setRig(null);throw error;}

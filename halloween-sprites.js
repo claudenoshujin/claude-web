@@ -89,18 +89,18 @@ export function createHalloweenSprites(document) {
     return { url: cv.toDataURL(), w: 7, h: 8 };
   }
 
-  // ── 糖（一格 2px）：扭结糖、棒棒糖、玉米糖。颜色每次随机；绿的、土黄的做成棒棒糖像小树，只给扭结糖
+  // ── 定稿糖：扭结糖、圆硬糖、玉米糖；几何照 candy 预览 ROWS。
   const CANDY_PAIRS = [['1', '!'], ['2', '@'], ['3', '$'], ['4', '%'], ['5', '^'], ['6', '&']];
-  const LOLLY_OK = ['1', '3', '5'];
+  const candyCache=new Map();
   function candy(kind, pair) {
-    if (kind === 1 && !LOLLY_OK.includes(pair[0])) kind = 0;
+    const key=kind+':'+pair.join('');if(candyCache.has(key))return candyCache.get(key);
     const [C, E] = pair;
-    const rows = kind === 0 ? [E + '.' + C + C + C + '.' + E, E + E + C + E + C + E + E, E + '.' + C + C + C + '.' + E]
-      : kind === 1 ? ['.' + C + C + '.', C + E + C + C, C + C + E + C, '.' + C + C + '.', '..n.', '..n.']
+    const rows = kind === 0 ? [E + '.' + C + C + C + '.' + E, E + E + C + 'w' + C + E + E, E + '.' + C + C + C + '.' + E]
+      : kind === 1 ? ['.' + C + C + C + '.', C + 'w' + E + C + C, C + E + C + C + C, C + C + C + C + C, '.' + C + C + C + '.']
       : ['.Y.', 'yyy', 'QQQ', '.Q.'];
     const w = rows[0].length, h = rows.length, cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d');
-    rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch !== '.') { g.fillStyle = PAL[ch]; g.fillRect(i, j, 1, 1); } }));
-    return { url: cv.toDataURL(), w, h };
+    rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch !== '.') { g.fillStyle = ch==='w'?'#ffffff':PAL[ch]; g.fillRect(i, j, 1, 1); } }));
+    const result={ url: cv.toDataURL(), w, h };candyCache.set(key,result);return result;
   }
 
   // ── 睡觉的 Z（照 clawd-pile.js 的两种大小，墨色 #6b6560）

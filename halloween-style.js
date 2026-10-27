@@ -166,7 +166,7 @@ html[data-cw-halloween="on"] .clawd-welcome-hero{position:relative}
 html.hw-typing .hw-welcome{opacity:0;transform:translate(-50%,-15px)}
 .hw-web{top:0;left:0;width:76px;height:62px;color:#d97757;opacity:.45;overflow:hidden}.hw-web svg{width:100%;height:100%}
 .hw-footer{left:10px;top:calc(100% + 8px);font-size:11px;color:var(--cl-muted,#7b7974);white-space:nowrap}
-html[data-cw-halloween="on"] button.hw-pail{all:unset;box-sizing:border-box!important;position:fixed!important;display:block!important;width:21px!important;height:24px!important;margin:0!important;padding:0!important;border:0!important;bottom:auto!important;pointer-events:auto!important;cursor:pointer!important;z-index:2999!important;touch-action:manipulation!important}
+html[data-cw-halloween="on"] button.hw-pail{all:unset;box-sizing:border-box!important;position:fixed!important;display:block!important;width:21px!important;height:24px!important;margin:0!important;padding:0!important;border:0!important;bottom:auto!important;pointer-events:auto!important;cursor:pointer!important;z-index:2999!important;touch-action:none!important}
 html[data-cw-halloween="on"] button.hw-pail:focus-visible{outline:2px solid var(--cl-accent,#d97757)!important;outline-offset:3px!important}
 html[data-cw-halloween="on"] button.hw-pail:disabled{cursor:default!important}
 .hw-pixels{display:block!important;max-width:none!important;image-rendering:pixelated;pointer-events:none;object-fit:fill}
