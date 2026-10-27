@@ -1,34 +1,160 @@
-// Each native selector is mapped by function. Unmapped icons retain their shape.
+// Approved v31 icon selectors; unmapped controls retain native icons.
 export const iconRules=[
- ['.cw-web-new','newchat','svg'],['.cw-web-more','more','svg'],['.cw-web-search','search','svg'],
- ['.clawd-mobile-new-chat','newchat'],
- ['.cw-v4-chat-more','p3','svg'],['.cw-b34-paper-button','scroll','svg'],
- ['.clawd-rail-toggle','sidetoggle'],['.clawd-mobile-menu-button','hamburger'],
- ['#leftNavDrawerIcon','potion','self'],['#API-status-top','batplug','self'],
- ['#advanced-formatting-button .drawer-icon','hatA','self'],['#WIDrawerIcon','crystal','self'],
- ['#user-settings-button .drawer-icon','mirror','self'],['#backgrounds-button .drawer-icon','moonpic','self'],
- ['#extensions-settings-button .drawer-icon','candy','self'],['#rightNavDrawerIcon','ghost','self'],
- ['#persona-management-button .drawer-icon','witchuser','self'],
- ['.cw-v4-navitem[data-panel="left-nav-panel"] .cw-v4-icon','potion','self'],
- ['.cw-v4-navitem[data-panel="WorldInfo"] .cw-v4-icon','spellbook','self'],
- ['.cw-v4-navitem[data-panel="right-nav-panel"] .cw-v4-icon','gcard','self'],
- ['.cw-v4-navitem[data-pref="char"] .cw-v4-icon','maskcard','self'],
- ['.cw-v4-navitem[data-pref="acct"] .cw-v4-icon','pumpkinhead','self'],
- ['#options_button','clist'],['#extensionsMenuButton','wand'],['body.cw-v4-filled:not(.claude-generation-active) #send_but','send'],
- ['body:not(.cw-v4-filled):not(.claude-generation-active) #send_but','candles'],
- ['#microphone_button','gmic'],
- ['.clawd-fake-mic','gmic'],
- ['.mes_copy:not([data-cw-copy]):not([data-cw-halloween-copy])','tombs'],
- ['.mes_edit','quill'],['.mes_narrate','candycorn'],['.mes_edit_delete','cauldron'],
- ['.claude-user-message-edit','quill'],['.claude-user-message-delete','cauldron'],
- ['.mes_buttons .mes_button.fa-ellipsis-h','p3'],['.clawd-reroll-button','reroll'],
- ['#option_regenerate','reroll'],['#option_continue','broom'],['#option_impersonate','ghost'],
- ['#option_delete_mes','cauldron'],['#option_new_bookmark','batflag'],['#option_convert_to_group','ghosts'],
- ['#option_close_chat','bones'],['#option_close_chat .fa-solid','bones'],['#option_select_chat','coffin'],
- ['#option_select_chat .fa-solid','coffin'],['#option_continue .fa-solid','broom'],
- ['#option_start_new_chat .fa-solid','gbubble'],['#option_delete_mes .fa-solid','cauldron'],
- ['#ui-preset-update-button','floppyMoon'],['#ui-preset-save-button','floppyStar'],
- ['#ui_preset_import_button','pailIn'],['#ui_preset_export_button','pailOut'],['#ui-preset-delete-button','cauldron'],
+ [
+  ".cw-web-new",
+  "newchat",
+  "svg"
+ ],
+ [
+  ".clawd-mobile-new-chat",
+  "newchat"
+ ],
+ [
+  ".cw-desk-seg>.cw-on>svg",
+  "chattab",
+  "svg"
+ ],
+ [
+  ".cw-b34-paper-button",
+  "paper",
+  "svg"
+ ],
+ [
+  ".clawd-mobile-menu-button",
+  "hamburger"
+ ],
+ [
+  "#leftNavDrawerIcon",
+  "potion",
+  "self"
+ ],
+ [
+  ".cw-v4-navitem[data-panel=\"left-nav-panel\"] .cw-v4-icon",
+  "potion",
+  "self"
+ ],
+ [
+  "#API-status-top",
+  "plug",
+  "self"
+ ],
+ [
+  "#WIDrawerIcon",
+  "crystal",
+  "self"
+ ],
+ [
+  ".cw-v4-navitem[data-panel=\"WorldInfo\"] .cw-v4-icon",
+  "spellbook",
+  "self"
+ ],
+ [
+  "#rightNavDrawerIcon",
+  "ghost",
+  "self"
+ ],
+ [
+  "#option_impersonate",
+  "ghost"
+ ],
+ [
+  ".cw-v4-navitem[data-panel=\"right-nav-panel\"] .cw-v4-icon",
+  "gcard",
+  "self"
+ ],
+ [
+  "#advanced-formatting-button .drawer-icon",
+  "hatA",
+  "self"
+ ],
+ [
+  "#user-settings-button .drawer-icon",
+  "mirror",
+  "self"
+ ],
+ [
+  "#backgrounds-button .drawer-icon",
+  "moonpic",
+  "self"
+ ],
+ [
+  "#extensions-settings-button .drawer-icon",
+  "candy",
+  "self"
+ ],
+ [
+  ".cw-v4-navitem[data-pref=\"acct\"] .cw-v4-icon",
+  "jack",
+  "self"
+ ],
+ [
+  "#extensionsMenuButton",
+  "wand"
+ ],
+ [
+  "body:not(.cw-v4-filled):not(.claude-generation-active) #send_but",
+  "candles"
+ ],
+ [
+  ".mes_copy:not([data-cw-copy]):not([data-cw-halloween-copy])",
+  "tombs"
+ ],
+ [
+  ".mes_edit_delete",
+  "cauldron"
+ ],
+ [
+  ".claude-user-message-delete",
+  "cauldron"
+ ],
+ [
+  "#option_delete_mes",
+  "cauldron"
+ ],
+ [
+  "#option_delete_mes .fa-solid",
+  "cauldron"
+ ],
+ [
+  "#ui-preset-delete-button",
+  "cauldron"
+ ],
+ [
+  "#option_continue",
+  "cont"
+ ],
+ [
+  "#option_continue .fa-solid",
+  "cont"
+ ],
+ [
+  "#option_new_bookmark",
+  "flag"
+ ],
+ [
+  "#option_convert_to_group",
+  "ghosts"
+ ],
+ [
+  "#option_start_new_chat .fa-solid",
+  "bubble"
+ ],
+ [
+  "#option_close_chat",
+  "bones"
+ ],
+ [
+  "#option_close_chat .fa-solid",
+  "bones"
+ ],
+ [
+  "#ui_preset_import_button",
+  "pailIn"
+ ],
+ [
+  "#ui_preset_export_button",
+  "pailOut"
+ ]
 ];
 export const halloweenCSS=String.raw`
 html[data-cw-halloween="on"] .hw-anchor{pointer-events:none;position:absolute;display:block;line-height:1;user-select:none}
