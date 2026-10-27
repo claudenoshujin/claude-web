@@ -51,7 +51,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     const scope='html[data-cw-halloween="on"]'+Array.from({length:8},(_,i)=>`:not(#cw-hw-${i})`).join('');
     let css=halloweenCSS.replaceAll('html[data-cw-halloween="on"]',scope)+`\n${scope}{--cw-hw-skull:${url('tombs')};}`;
     for(const [selector,key,kind='before']of iconRules){
-      if(kind==='self'){css+=`${scope}[data-claude-ui="classic"] ${selector}::before{content:""!important;display:inline-block!important;width:20px!important;height:20px!important;background:var(--cl-icon,currentColor)!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important}`;continue;}
+      if(kind==='self'){css+=`${scope} ${selector}{background:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important;font-size:0!important}${scope} ${selector}>svg{visibility:hidden!important}${scope}[data-claude-ui="classic"] ${selector}{display:inline-block!important;width:20px!important;height:20px!important}`;continue;}
       if(kind==='svg')continue;
       else if(['#options_button','#extensionsMenuButton','body.cw-v4-filled:not(.claude-generation-active) #send_but','body:not(.cw-v4-filled):not(.claude-generation-active) #send_but','.clawd-fake-mic'].includes(selector))css+=`${scope} ${selector}::${kind}{mask-image:${url(key)}!important;-webkit-mask-image:${url(key)}!important}`;
       else css+=`${scope} ${selector}::${kind}{content:""!important;background:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important}`;
@@ -76,10 +76,6 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
       let old=icons.get(n);if(old?.kind==='svg'&&n.innerHTML===old.installed)continue;
       if(!old){old={kind:'svg',html:n.innerHTML,box:n.getAttribute('viewBox'),stroke:n.getAttribute('stroke-width')};icons.set(n,old);}
       n.setAttribute('viewBox','0 0 20 20');n.setAttribute('stroke-width',String(1.35*(IW[key]||1)));n.innerHTML=I[key].replaceAll('class="t"','stroke-width="1"').replaceAll('class="e"','stroke-width="1.8"').replaceAll('class="k"','stroke-width="2.7"').replaceAll('class="kb"','fill="var(--cl-surface,#fff)"');old.installed=n.innerHTML;
-    }
-    for(const [selector,key,kind]of iconRules)if(kind==='self'&&root.dataset.claudeUi!=='classic')for(const n of doc.querySelectorAll(selector)){
-      if(!icons.has(n))icons.set(n,{kind:'mask',mask:n.style.getPropertyValue('mask-image'),maskP:n.style.getPropertyPriority('mask-image'),webkit:n.style.getPropertyValue('-webkit-mask-image'),webkitP:n.style.getPropertyPriority('-webkit-mask-image')});
-      const value=url(key);if(n.style.getPropertyValue('mask-image')!==value)n.style.setProperty('mask-image',value,'important');
     }
     for(const [n]of icons)if(!n.isConnected)icons.delete(n);
   }
