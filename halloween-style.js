@@ -157,6 +157,7 @@ export const iconRules=[
  ]
 ];
 export const halloweenCSS=String.raw`
+html[data-cw-halloween="on"] #send_form>.clawd-composer-clawd>.clawd-rig{translate:0 var(--cw-hw-rig-lift,0px)}
 html[data-cw-halloween="on"] .hw-anchor{pointer-events:none;position:absolute;display:block;line-height:1;user-select:none}
 html[data-cw-halloween="on"] .clawd-welcome-hero{position:relative}
 .hw-welcome{left:50%;bottom:calc(100% + 10px);width:min(310px,70vw);height:75px;transform:translateX(-50%);color:#d97757;opacity:.62;transition:opacity .2s,transform .2s}

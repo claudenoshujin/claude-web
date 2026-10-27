@@ -21,6 +21,19 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     return spiderModalValue;
   }
   const panel=()=>doc.querySelector('.cw-v4-shell:not([hidden])');
+  let generationSafeKey='';
+  function quickReplyRects(){return [...doc.querySelectorAll('#qr--bar button,#qr--bar .qr--button')].map(n=>n.getBoundingClientRect()).filter(r=>r.width&&r.height);}
+  function safeTop(x,y,w,h,blocks=quickReplyRects()){
+    for(const r of blocks)if(x<r.right&&x+w>r.left&&y<r.bottom&&y+h>r.top)y=Math.min(y,r.top-h-4);
+    return y;
+  }
+  function safeGeneration(){
+    const big=doc.querySelector('#send_form>.clawd-composer-clawd'),clip=big?.dataset.clawdClip||'',key=[root.dataset.cwGenerating,clip,win.innerWidth,win.innerHeight].join(':');
+    if(key===generationSafeKey)return;generationSafeKey=key;
+    if(!big||!/^((sit)?write|done|stopped|error|recover)/i.test(clip)){root.style.removeProperty('--cw-hw-rig-lift');return;}
+    const r=big.getBoundingClientRect(),top=r.top-40,h=85,w=90,x=r.left-15;
+    const y=safeTop(x,top,w,h);root.style.setProperty('--cw-hw-rig-lift',(y-top)+'px');
+  }
   const later=(fn,ms)=>{const token=epoch,id=win.setTimeout(()=>{timers.delete(id);if(!dead&&token===epoch)fn();},ms);timers.add(id);return id;};
   const cancel=id=>{win.clearTimeout(id);timers.delete(id);};
   function on(target,type,fn,options){target.addEventListener(type,fn,options);listeners.push(()=>target.removeEventListener(type,fn,options));}
@@ -95,7 +108,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     if(dead)return;
     for(const [host,n]of anchors)if(!host.isConnected){remove(n);anchors.delete(host);}
     const typing=!!doc.getElementById('send_textarea')?.value;if(typing!==root.classList.contains('hw-typing'))root.classList.toggle('hw-typing',typing);
-    dressIcons();welcomeWeb(doc.querySelector('.clawd-welcome-hero'));
+    dressIcons();welcomeWeb(doc.querySelector('.clawd-welcome-hero'));safeGeneration();
     const form=doc.getElementById('send_form');
     // Generation words use the native placeholder; the original footer retains its layout.
     // Local anchors only: native popup ancestry and focus stay untouched.
@@ -149,7 +162,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     const snap=submit,c=getContext(),message=c?.chat?.[Number(id)];
     if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>15000||Number(id)<snap.length||!message?.is_user||message.mes!==snap.text)return;
     submit=null;cancel(submitTimer);submitTimer=0;
-    action();const r=snap.rect,actor=node('span','hw-send hw-fx');actor.style.left=Math.max(8,r.left)+'px';actor.style.top=Math.max(48,r.top-26)+'px';
+    action();const r=snap.rect,actor=node('span','hw-send hw-fx');actor.style.left=Math.max(8,r.left)+'px';actor.style.top=Math.max(48,safeTop(r.left,r.top-26,r.width+550,60))+'px';
     picture(art.witch({awake:true}),actor,2);
     const broom=node('span','hw-broom',actor);broom.innerHTML='<i class="hw-shaft"></i><i class="hw-grip hw-grip-l"></i><i class="hw-grip hw-grip-r"></i><i class="hw-bristles"></i>';
     const text=node('span','hw-send-text',actor);text.textContent=snap.text.slice(0,120);text.style.maxWidth=Math.max(30,r.width-70)+'px';
@@ -165,10 +178,10 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>60000||!(!c.chat.includes(snap.data)||(snap.data.swipes?.length||0)<snap.swipes))return;
     deletion=null;cancel(deleteTimer);deleteTimer=0;
     action();const r=snap.rect,form=doc.getElementById('send_form')?.getBoundingClientRect();if(!form)return;
-    const x=Math.max(32,Math.min(win.innerWidth-90,r.left+r.width*.5)),y=Math.max(64,Math.min(form.top-100,r.top+30));
+    const x=Math.max(32,Math.min(win.innerWidth-90,r.left+r.width*.5)),y=Math.max(64,safeTop(x-35,Math.min(form.top-100,r.top+30),100,150));
     const actor=node('span','hw-delete hw-fx');actor.style.left=x-35+'px';actor.style.top=y+'px';picture(art.sheet({awake:true}),actor,2);
     const page=node('span','hw-delete-page',actor);page.textContent=snap.text.slice(0,90);
-    const pot=node('span','hw-delete-pot hw-fx');pot.style.left=x+'px';pot.style.top=Math.max(y+70,Math.min(form.top-35,win.innerHeight-70))+'px';pot.innerHTML=svg('cauldron');
+    const pot=node('span','hw-delete-pot hw-fx');pot.style.left=x+'px';pot.style.top=(y+70)+'px';pot.innerHTML=svg('cauldron');
     const dy=parseFloat(pot.style.top)-y-35;
     animate(actor,[{opacity:0,transform:'scale(.8)'},{offset:.12,opacity:1,transform:'scale(1)'},{offset:.65,opacity:1,transform:`translate(-18px,${dy}px)`},{offset:.85,opacity:1,transform:`translate(-12px,${dy-5}px) rotate(10deg)`},{opacity:0,transform:`translate(-12px,${dy}px)`}],{duration:1900,easing:'ease-in-out',fill:'forwards'},()=>remove(actor));
     animate(page,[{transform:'scale(1)'},{offset:.65,transform:'scale(.65)'},{offset:.8,opacity:1,transform:'translate(14px,12px) scale(.3)'},{opacity:0,transform:'translate(14px,28px) scale(.1)'}],{duration:1700,fill:'forwards'});
@@ -255,10 +268,10 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     on(doc,'pointermove',trackSpider,{passive:true});on(doc,'pointercancel',clearSpider,{passive:true});on(doc,'scroll',()=>{clearSpider();clearGhost();},{capture:true,passive:true});
     on(doc,'input',e=>{if(e.target.id==='send_textarea'){const value=!!e.target.value;if(value!==root.classList.contains('hw-typing')){root.classList.toggle('hw-typing',value);welcomeWeb(doc.querySelector('.clawd-welcome-hero'));}}},{passive:true});
     on(doc,'click',e=>{if(e.target.closest?.('.popup-button-cancel,#dialogue_del_mes_cancel'))finishDelete(deletion);const m=e.target.closest?.('.mes_edit_delete,.claude-user-message-delete');if(m)captureDelete(m.closest('.mes'));if(e.target.closest?.('#dialogue_del_mes_ok'))captureDelete(doc.querySelector('#chat>.mes:has(input.del_checkbox:checked)')||doc.querySelector('#chat>.mes:last-child'));},{capture:true,passive:true});
-    on(doc,'visibilitychange',()=>{reset();});on(win,'resize',()=>{reset();webKey='';pailBase=null;staticScenes();},{passive:true});on(win,'blur',clearSpider);on(motion,'change',()=>{lastCalm=calm();reset();staticScenes();});
+    on(doc,'visibilitychange',()=>{reset();});on(win,'resize',()=>{reset();webKey='';generationSafeKey='';pailBase=null;staticScenes();},{passive:true});on(win,'blur',clearSpider);on(motion,'change',()=>{lastCalm=calm();reset();staticScenes();});
     doc.fonts?.ready.then(()=>{if(!dead){webKey='';staticScenes();}});
   },sync,sent,deleted,captureDelete,finishDelete,reset,positionClawd:positionPail,
   stats:()=>({timers:timers.size,animations:animations.size,nodes:[...owned].filter(n=>n.isConnected).length,ghost:!!ghost,spider:!!spider}),
-  destroy(){if(dead)return;dead=true;reset();observer.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');}
+  destroy(){if(dead)return;dead=true;reset();observer.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');root.style.removeProperty('--cw-hw-rig-lift');}
   };
 }
