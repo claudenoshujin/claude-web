@@ -154,6 +154,11 @@ export const iconRules=[
  [
   "#ui_preset_export_button",
   "pailOut"
+ ],
+ [
+  ".cw-v4-navitem[data-pref=\"chat\"] .cw-v4-icon",
+  "bubble",
+  "self"
  ]
 ];
 export const halloweenCSS=String.raw`
