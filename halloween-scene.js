@@ -23,6 +23,12 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   const panel=()=>doc.querySelector('.cw-v4-shell:not([hidden])');
   let generationSafeKey='';
   function quickReplyRects(){return [...doc.querySelectorAll('#qr--bar button,#qr--bar .qr--button')].map(n=>n.getBoundingClientRect()).filter(r=>r.width&&r.height);}
+  function clipQuickReplies(layer,bounds={left:0,top:0,right:win.innerWidth,bottom:win.innerHeight},blocks=quickReplyRects()){
+    const outer={left:Math.max(0,bounds.left),top:Math.max(0,bounds.top),right:Math.min(win.innerWidth,bounds.right),bottom:Math.min(win.innerHeight,bounds.bottom)};
+    const rect=r=>`M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`;
+    let path=rect(outer);for(const b of blocks){const r={left:Math.max(outer.left,b.left),top:Math.max(outer.top,b.top),right:Math.min(outer.right,b.right),bottom:Math.min(outer.bottom,b.bottom)};if(r.right>r.left&&r.bottom>r.top)path+=rect(r);}
+    layer.style.clipPath=`path(evenodd, "${path}")`;
+  }
   function safeTop(x,y,w,h,blocks=quickReplyRects()){
     for(const r of blocks)if(x<r.right&&x+w>r.left&&y<r.bottom&&y+h>r.top)y=Math.min(y,r.top-h-4);
     return y;
@@ -176,13 +182,13 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   function at(n,x,y,w,h){Object.assign(n.style,{position:'fixed',left:x+'px',top:y+'px'});if(w!=null)n.style.width=w+'px';if(h!=null)n.style.height=h+'px';return n;}
   function clearSend(){win.cancelAnimationFrame(sendFrame);sendFrame=0;remove(sendLayer);sendLayer=null;}
   function sendSnapshot(box){
-    const r=box.getBoundingClientRect(),cs=win.getComputedStyle(box),mirror=node('div','hw-text-mirror');
+    const blocks=quickReplyRects(),r=box.getBoundingClientRect(),cs=win.getComputedStyle(box),mirror=node('div','hw-text-mirror');
     for(const key of ['font','fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','whiteSpace','wordBreak','overflowWrap','textAlign','direction','tabSize','boxSizing','borderTopWidth','borderLeftWidth','borderRightWidth','borderBottomWidth'])mirror.style[key]=cs[key];
     Object.assign(mirror.style,{position:'fixed',left:r.left+'px',top:r.top-box.scrollTop+'px',width:r.width+'px',height:'auto',minHeight:r.height+'px',visibility:'hidden',pointerEvents:'none',whiteSpace:'pre-wrap',borderStyle:'solid',borderColor:'transparent'});
     const spans=Array.from(box.value,c=>{const n=doc.createElement('span');n.textContent=c;mirror.append(n);return n;});
     const chars=spans.map(n=>{const b=n.getBoundingClientRect();return {c:n.textContent,x:b.left,y:b.top,w:b.width,h:b.height};}).filter(c=>c.c.trim()&&c.w&&c.y+c.h>r.top&&c.y<r.bottom&&c.x+c.w>r.left&&c.x<r.right).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x-b.x).slice(0,80);
     remove(mirror);clearSend();if(!chars.length)return null;
-    const layer=sendLayer=node('div','hw-flight-layer hw-fx');
+    const layer=sendLayer=node('div','hw-flight-layer hw-fx');clipQuickReplies(layer,undefined,blocks);
     for(const c of chars){c.n=at(node('span','hw-flight-char',layer),c.x,c.y,c.w,c.h);Object.assign(c.n.style,{font:cs.font,letterSpacing:cs.letterSpacing,color:cs.color,lineHeight:c.h+'px',whiteSpace:'pre'});c.n.textContent=c.c;}
     return {layer,chars};
   }
@@ -196,7 +202,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   }
   function sent(id){
     const snap=submit,c=getContext(),message=c?.chat?.[Number(id)];if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>1500||Number(id)<snap.length||!message?.is_user||message.mes!==snap.text)return;
-    submit=null;cancel(submitTimer);submitTimer=0;action();const gap=clamp(.36/snap.chars.length,.012,.03),start=win.performance.now();
+    submit=null;cancel(submitTimer);submitTimer=0;action();clipQuickReplies(snap.layer);const gap=clamp(.36/snap.chars.length,.012,.03),start=win.performance.now();
     const parts=snap.chars.map((c,i)=>({...c,delay:i*gap,T:rnd(.66,.8),h1:rnd(.88,1.12),jx:rnd(-3,3),jy:rnd(-3,3),r0:rnd(4,8),ph:rnd(0,2*Math.PI),done:false}));let nextSpark=0;
     const frame=now=>{
       sendFrame=0;if(!moving()||sendLayer!==snap.layer)return clearSend();const elapsed=(now-start)/1000;let alive=0;
@@ -222,7 +228,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   function deleteStar(layer,x,y){const size=rnd(6,10),a=rnd(0,Math.PI*2),d=rnd(22,44),n=at(node('span','hw-delete-spark',layer),x-size/2,y-size/2,size,size);n.innerHTML=star4(size);animate(n,[{transform:'translate(0,0) scale(0)',opacity:1},{offset:.5,transform:`translate(${Math.cos(a)*d*.6}px,${Math.sin(a)*d*.6}px) scale(1) rotate(45deg)`,opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px) scale(0) rotate(90deg)`,opacity:.8}],{duration:540,easing:'ease-out'},()=>remove(n));}
   function deleted(){
     const snap=deletion,c=getContext();if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>60000||!(!c.chat.includes(snap.data)||(snap.data.swipes?.length||0)<snap.swipes))return;
-    deletion=null;cancel(deleteTimer);deleteTimer=0;action();const r=snap.rect,layer=at(node('div','hw-deletion-layer hw-fx'),0,0,win.innerWidth,win.innerHeight),piece=snap.clone;layer.dataset.hwDelete=deleteChoice();layer.style.clipPath=`inset(${Math.max(0,r.top-50)}px ${Math.max(0,win.innerWidth-r.right-50)}px ${Math.max(0,win.innerHeight-r.bottom-50)}px ${Math.max(0,r.left-50)}px)`;layer.append(piece);owned.add(piece);
+    deletion=null;cancel(deleteTimer);deleteTimer=0;action();const r=snap.rect,blocks=quickReplyRects(),layer=at(node('div','hw-deletion-layer hw-fx'),0,0,win.innerWidth,win.innerHeight),piece=snap.clone;layer.dataset.hwDelete=deleteChoice();clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(piece);
     Object.assign(piece.style,{position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0',transformOrigin:'50% 50%',pointerEvents:'none'});const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';
     if(layer.dataset.hwDelete==='A'){
       animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'});
