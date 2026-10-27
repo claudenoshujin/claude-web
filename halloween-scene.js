@@ -210,18 +210,20 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   }
   function sent(id){
     const snap=submit,c=getContext(),message=c?.chat?.[Number(id)];if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>1500||Number(id)<snap.length||!message?.is_user||message.mes!==snap.text)return;
-    submit=null;cancel(submitTimer);submitTimer=0;action();clipQuickReplies(snap.layer);const gap=clamp(.36/snap.chars.length,.012,.03),start=win.performance.now();
+    submit=null;cancel(submitTimer);submitTimer=0;action();clipQuickReplies(snap.layer);const gap=clamp(.36/snap.chars.length,.012,.03);
+    if(typeof snap.layer.animate!=='function')return animate(snap.layer,[{opacity:1},{opacity:0}],{duration:150},clearSend);
     const parts=snap.chars.map((c,i)=>({...c,delay:i*gap,T:rnd(.66,.8),h1:rnd(.88,1.12),jx:rnd(-3,3),jy:rnd(-3,3),r0:rnd(4,8),ph:rnd(0,2*Math.PI),done:false}));let nextSpark=0;
-    const frame=now=>{
-      sendFrame=0;if(!moving()||sendLayer!==snap.layer)return clearSend();const elapsed=(now-start)/1000;let alive=0;
-      for(const p of parts){if(p.done)continue;alive++;const t=elapsed-p.delay;if(t<0)continue;let dx=0,dy=0,rot=0,sx=1,sy=1,opacity=1;
-        if(t<.08){const v=Math.sin(Math.PI*t/.08);dy=1.5*v;sx=1+.1*v;sy=1-.14*v;}else{const u=Math.min(1,(t-.08)/(p.T-.08));if(u>=1){p.done=true;remove(p.n);continue;}dx=8+92*u+p.jx*u;dy=-74*p.h1*Math.pow(u,.82)+p.jy*u;rot=p.r0*Math.sin(Math.PI*u)-6*u+3*u*Math.sin(p.ph+12*t);sx=sy=1-.65*u*u*u;opacity=u<.35?1:1-(u-.35)/.65;}
-        if(!p.tint&&t>.06){p.tint=true;p.n.style.transition='color .3s';p.n.style.color='#D97757';}p.ax=p.x+p.w/2+dx;p.ay=p.y+p.h/2+dy;
-        p.n.style.transform=`translate(${dx}px,${dy}px) rotate(${rot}deg) scale(${sx},${sy})`;p.n.style.opacity=String(opacity);
-      }
-      if(elapsed>=nextSpark){nextSpark=elapsed+.035;const live=parts.filter(p=>!p.done&&elapsed-p.delay>.15),slot=snap.sparks.find(s=>!s.busy);if(live.length&&slot){slot.busy=true;const p=live[Math.random()*live.length|0],size=rnd(5,10),n=at(slot.n,p.ax+rnd(-5,5)-size/2,p.ay+rnd(-4,4)-size/2,size,size);n.style.display='block';animate(n,[{transform:'scale(0) rotate(0deg)',opacity:1},{offset:.45,transform:'scale(1.15) rotate(45deg)',opacity:1},{transform:'scale(0) rotate(90deg)',opacity:.9}],{duration:rnd(300,420),easing:'ease-out'},()=>{slot.busy=false;n.style.display='none';});}}
-      if(alive)sendFrame=win.requestAnimationFrame(frame);else later(()=>{if(sendLayer===snap.layer)clearSend();},360);
-    };sendFrame=win.requestAnimationFrame(frame);
+    const pose=(p,t)=>{let dx=0,dy=0,rot=0,sx=1,sy=1,opacity=1;if(t<.08){const v=Math.sin(Math.PI*t/.08);dy=1.5*v;sx=1+.1*v;sy=1-.14*v;}else{const u=Math.min(1,(t-.08)/(p.T-.08));dx=8+92*u+p.jx*u;dy=-74*p.h1*Math.pow(u,.82)+p.jy*u;rot=p.r0*Math.sin(Math.PI*u)-6*u+3*u*Math.sin(p.ph+12*t);sx=sy=1-.65*u*u*u;opacity=u<.35?1:1-(u-.35)/.65;}return {dx,dy,transform:`translate(${dx}px,${dy}px) rotate(${rot}deg) scale(${sx},${sy})`,opacity};};
+    const last=parts.reduce((a,b)=>a.delay+a.T>b.delay+b.T?a:b),end=last.delay+last.T;
+    for(const p of parts){const times=[0,.08-.000001,.08,p.T];for(let t=1/60;t<p.T;t+=1/60)times.push(t);times.sort((a,b)=>a-b);const frames=times.map(t=>{const v=pose(p,t);return {offset:t/p.T,transform:v.transform,opacity:v.opacity};});
+      animate(p.n,frames,{delay:p.delay*1000,duration:p.T*1000,easing:'linear',fill:'forwards'},p===last?()=>later(()=>{if(sendLayer===snap.layer)clearSend();},360):undefined);
+      animate(p.n,[{color:p.n.style.color},{color:'#D97757'}],{delay:(p.delay+.06)*1000,duration:300,easing:'ease',fill:'forwards'});
+    }
+    for(const slot of snap.sparks){at(slot.n,0,0,10,10);slot.n.style.display='block';slot.n.style.opacity='0';slot.until=0;}
+    for(nextSpark=.035;nextSpark<end;nextSpark+=.035){const live=parts.filter(p=>nextSpark-p.delay>.15&&nextSpark-p.delay<p.T),slot=snap.sparks.find(s=>s.until<=nextSpark);if(!live.length||!slot)continue;
+      const p=live[Math.random()*live.length|0],v=pose(p,nextSpark-p.delay),x=p.x+p.w/2+v.dx+rnd(-5,5)-5,y=p.y+p.h/2+v.dy+rnd(-4,4)-5,k=rnd(5,10)/10,duration=rnd(300,420);slot.until=nextSpark+duration/1000;
+      animate(slot.n,[{transform:`translate(${x}px,${y}px) scale(0) rotate(0deg)`,opacity:1},{offset:.45,transform:`translate(${x}px,${y}px) scale(${k*1.15}) rotate(45deg)`,opacity:1},{transform:`translate(${x}px,${y}px) scale(0) rotate(90deg)`,opacity:.9}],{delay:nextSpark*1000,duration,easing:'ease-out'});
+    }
   }
   function captureDelete(message){
     if(!moving()||!message)return;const c=getContext(),id=Number(message.getAttribute('mesid')),data=c?.chat?.[id];if(!data)return;
