@@ -80,7 +80,35 @@ export function createClawdPile({ doc, win, big = null }) {
     url = `url("${cv.toDataURL()}")`; imgCache.set(key, url); return url;
   }
 
+  // Only the invisible hit surface is clipped; the Clawd artwork stays intact.
+  let quickReplyRects = [];
+  function readQuickReplyRects() {
+    quickReplyRects = [...doc.querySelectorAll('#qr--bar .qr--button, #qr--popoutTrigger')]
+      .map(el => el.getBoundingClientRect()).filter(r => r.width && r.height);
+    for (const k of Object.values(K)) updateHitSurface(k);
+  }
+  function updateHitSurface(k) {
+    if (!k.hit) return;
+    if (!quickReplyRects.length || k.mode === 'held') { k.hit.style.clipPath = ''; return; }
+    const origin = k.el.getBoundingClientRect();
+    let parts = [{ l: 0, t: 0, r: W * PX, b: H * PX }];
+    for (const qr of quickReplyRects) {
+      const hole = { l: qr.left - origin.left, t: qr.top - origin.top,
+        r: qr.right - origin.left, b: qr.bottom - origin.top };
+      parts = parts.flatMap(p => {
+        const l = Math.max(p.l, hole.l), r = Math.min(p.r, hole.r);
+        const t = Math.max(p.t, hole.t), b = Math.min(p.b, hole.b);
+        if (l >= r || t >= b) return [p];
+        return [{ l: p.l, t: p.t, r: p.r, b: t }, { l: p.l, t: b, r: p.r, b: p.b },
+          { l: p.l, t, r: l, b }, { l: r, t, r: p.r, b }].filter(p => p.l < p.r && p.t < p.b);
+      });
+    }
+    k.hit.style.clipPath = parts.length ? 'path("' + parts.map(p =>
+      'M' + p.l + ' ' + p.t + 'H' + p.r + 'V' + p.b + 'H' + p.l + 'Z').join('') + '")' : 'inset(100%)';
+  }
   const K = {};
+  win.addEventListener('resize', readQuickReplyRects);
+  win.visualViewport?.addEventListener('resize', readQuickReplyRects);
   let pile = null, form = null, style = null, ro = null, zTimer = 0, zi = 0, destroyed = false;
   let sparks = [], zs = [];
   const timers = new Set();
@@ -172,6 +200,7 @@ export function createClawdPile({ doc, win, big = null }) {
     k.el.classList.toggle('clawd-pile-up', !!k.on.length);   // 叠在别人头上的：滚动时跟着往下，不切
     k.el.classList.toggle('clawd-pile-onbig', !bigOn && onBig(k));   // 坐在大 Clawd 头上的：滚动时跟着它缩 12px
     k.sh.style.left = `${k.x + 1.5 * PX}px`; k.sh.style.display = k.on.length ? 'none' : '';
+    updateHitSurface(k);
   }
   function make(name) {
     const el = doc.createElement('div'); el.className = 'clawd-pile-c'; el.dataset.name = name;
@@ -182,6 +211,7 @@ export function createClawdPile({ doc, win, big = null }) {
     const sh = doc.createElement('div'); sh.className = 'clawd-pile-shadow';
     pile.append(sh, el);
     const k = { name, el, b, ps, sh, legEls, x: 0, on: [], eyes: 'shut', pose: 'crouch', mode: 'sleep', face: 0, timers: new Set(), legAnims: [], kick: null, walk: null, hop: null };
+    const hit = doc.createElement('div'); hit.className = 'clawd-pile-hit'; el.append(hit); k.hit = hit;
     K[name] = k; bindPointer(k); return k;
   }
 
@@ -241,6 +271,7 @@ export function createClawdPile({ doc, win, big = null }) {
     k.pose = 'walk'; look(k); stepOnce(k);
   }
   function stepOnce(k) {
+    readQuickReplyRects();
     const w = k.walk; if (!w) return;
     if (pausedAt) { w.t = win.setTimeout(() => stepOnce(k), 200); return; }   // 滚动时先停步
     const x = w.base + w.off, b = bounds();
@@ -328,7 +359,7 @@ export function createClawdPile({ doc, win, big = null }) {
     k.el.addEventListener('pointermove', e => {
       if (!down || e.pointerId !== id) return; stop(e);
       if (!drag && Math.hypot(e.clientX - sx, e.clientY - sy) > 4) { drag = true; const r = k.el.getBoundingClientRect(); ox = sx - r.left; oy = sy - r.top; pickUp(k); }
-      if (drag) { const p = pile.getBoundingClientRect(); k.el.style.left = `${e.clientX - p.left - ox}px`; k.el.style.top = `${e.clientY - p.top - oy}px`; }
+      if (drag) { k.hit.style.clipPath = ''; const p = pile.getBoundingClientRect(); k.el.style.left = `${e.clientX - p.left - ox}px`; k.el.style.top = `${e.clientY - p.top - oy}px`; }
     });
     const up = e => {
       if (!down || e.pointerId !== id) return; stop(e); down = false;
@@ -461,7 +492,8 @@ html body #send_form#send_form.clawd-has-pile::after{content:none!important}
 html body #send_form#send_form>.clawd-pile.clawd-pile{display:block!important}
 .clawd-pile{--clawd-pile-ink:#6b6560;--clawd-pile-shadow:rgba(20,20,19,.14);position:absolute;left:0;right:0;bottom:100%;height:0;margin-bottom:-1px;z-index:2;pointer-events:none}
 html[data-claude-integrated-theme="night"] .clawd-pile{--clawd-pile-ink:#bdb7ae;--clawd-pile-shadow:rgba(0,0,0,.35)}
-.clawd-pile>.clawd-pile-c{position:absolute;width:${W * PX}px;height:${H * PX}px;pointer-events:auto;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.clawd-pile>.clawd-pile-c{position:absolute;width:${W * PX}px;height:${H * PX}px;pointer-events:none;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.clawd-pile>.clawd-pile-c>.clawd-pile-hit{position:absolute;inset:0;pointer-events:auto}
 .clawd-pile>.clawd-pile-c.clawd-pile-held{cursor:grabbing}
 .clawd-pile .clawd-pile-b{position:absolute;inset:0;transform-origin:${8 * PX}px 100%;transition:translate .24s cubic-bezier(.3,1.6,.5,1)}
 /* 2.0.291（Lulu：滚动时小 Clawd 卡在原地不动）：照大 Clawd 的「扒着输入框」——滚动时身子缩下去 4 格，输入框上沿以下的部分切掉，
@@ -592,8 +624,8 @@ html[data-claude-motion="off"] .clawd-pile *{animation:none!important}
       for (const n of NAMES) if (K[n]) { clear(K[n]); endWalk(K[n]); }
       pile?.remove(); form = f; peeking = false;
       pile = doc.createElement('div'); pile.className = 'clawd-pile'; pile.setAttribute('aria-hidden', 'true');
-      f.append(pile); build();
-      ro?.disconnect(); ro = win.ResizeObserver ? new win.ResizeObserver(() => relayout()) : null; ro?.observe(f);
+      f.append(pile); build(); readQuickReplyRects();
+      ro?.disconnect(); ro = win.ResizeObserver ? new win.ResizeObserver(() => { relayout(); readQuickReplyRects(); }) : null; ro?.observe(f);
     }
     if (!f.classList.contains('clawd-has-pile')) f.classList.add('clawd-has-pile');
     if (!zTimer) zTimer = win.setInterval(puffZ, 5000);
@@ -610,8 +642,10 @@ html[data-claude-motion="off"] .clawd-pile *{animation:none!important}
   }
   function destroy() {
     costumeThemeObserver?.disconnect();costumeThemeObserver=null;
+    win.removeEventListener('resize', readQuickReplyRects);
+    win.visualViewport?.removeEventListener('resize', readQuickReplyRects);
     destroyed = true; win.clearInterval(zTimer); zTimer = 0; win.clearTimeout(resumeTimer);
-    ro?.disconnect(); ro = null;
+    ro?.disconnect(); ro = null; quickReplyRects = [];
     for (const n of NAMES) if (K[n]) {
       K[n].kick?.cancel();
       K[n].legAnims?.forEach(animation => animation.cancel());
