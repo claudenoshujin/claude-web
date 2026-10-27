@@ -8,6 +8,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   const doc=win.document,root=doc.documentElement,art=createHalloweenSprites(doc);
   const rig=buildHalloweenRig();rig.pileCells=halloweenPileCells;
   const owned=new Set(),timers=new Set(),animations=new Set(),listeners=[],copies=new Map(),anchors=new Map(),icons=new Map(),corners=new Map();
+  const pressedPointers=new Set();
   const motion=win.matchMedia('(prefers-reduced-motion: reduce)');
   let dead=false,epoch=0,scheduler=0,raf=0,pail=null,pailBase=null,pailAirborne=false,ghost=null,spider=null,welcome=null,lastAction=0,submit=null,deletion=null,webKey='',submitTimer=0,deleteTimer=0,validAfter=win.performance.now(),lastCalm=null;
   const calm=()=>motion.matches||root.dataset.claudeMotion==='off';
@@ -140,10 +141,11 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     copies.set(button,{status,timer:later(()=>{delete button.dataset.cwHalloweenCopy;remove(status);copies.delete(button);},1500)});
   }
   function rememberSend(event){
-    if(!moving()||modal())return;
-    const t=event.target,box=doc.getElementById('send_textarea');if(!box?.value.trim())return;
-    if(event.type==='keydown'&&(t!==box||event.key!=='Enter'||event.isComposing))return;
+    const t=event.target;
+    if(event.type==='keydown'&&(t?.id!=='send_textarea'||event.key!=='Enter'||event.isComposing))return;
     if(event.type!=='keydown'&&!t.closest?.('#send_but,#send_form [type="submit"]'))return;
+    if(!moving())return;
+    const box=doc.getElementById('send_textarea');if(!box?.value.trim()||modal())return;
     const chat=getContext()?.chat;cancel(submitTimer);submit={text:box.value,rect:box.getBoundingClientRect(),chat,length:chat?.length||0,at:Date.now()};submitTimer=later(()=>{submit=null;submitTimer=0;},15000);
   }
   function sent(id){
@@ -177,6 +179,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   }
   function clearGhost(expected){if(!ghost||(expected&&ghost.node!==expected))return;const old=ghost;ghost=null;for(const a of old.node.getAnimations?.({subtree:true})||[])a.cancel();for(const a of old.anims)a?.cancel();remove(old.node);}
   function appear(){
+    const state=getClawdState?.();if(pressedPointers.size||state?.held||state?.dragging||state?.airborne)return false;
     if(!moving()||!ambient()||ghost||panel()||modal()||root.dataset.cwGenerating==='1'||Date.now()-lastAction<6500)return false;
     const form=doc.getElementById('send_form')?.getBoundingClientRect(),chat=doc.getElementById('chat')?.getBoundingClientRect();if(!form||!chat)return false;
     const minX=Math.max(8,chat.left+8),maxX=Math.min(win.innerWidth-52,chat.right-50),maxY=Math.min(form.top-70,win.innerHeight-100);if(maxX<minX||maxY<90)return false;
@@ -229,6 +232,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   function tick(){scheduler=0;if(dead)return;appear();scheduler=later(tick,(7+Math.random()*5)*1000);}
   function schedule(){if(scheduler||!visible()||calm()||!ambient())return;scheduler=later(tick,3000);}
   function reset(){
+    pressedPointers.clear();
     win.cancelAnimationFrame(spiderModalFrame);spiderModalFrame=0;spiderModalValid=false;
     epoch++;validAfter=win.performance.now();for(const id of timers)win.clearTimeout(id);timers.clear();scheduler=0;
     for(const a of animations)a.cancel();animations.clear();clearGhost();clearSpider();
@@ -247,7 +251,8 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
     const shell=doc.getElementById('chat');if(shell)observer.observe(shell,{childList:true});
     // Popup creation is observed shallowly; never scan streaming message subtrees.
     observer.observe(doc.body,{childList:true});
-    on(doc,'cw-copy-result',copyResult);on(doc,'pointerdown',e=>{if(!e.target.closest?.('.hw-roaming'))action();if(panel())trackSpider(e,true);},{capture:true,passive:true});
+    on(doc,'cw-copy-result',copyResult);on(doc,'pointerdown',e=>{pressedPointers.add(e.pointerId);if(!e.target.closest?.('.hw-roaming'))action();if(panel())trackSpider(e,true);},{capture:true,passive:true});
+    on(doc,'pointerup',e=>pressedPointers.delete(e.pointerId),{capture:true,passive:true});on(doc,'pointercancel',e=>pressedPointers.delete(e.pointerId),{capture:true,passive:true});on(win,'blur',()=>pressedPointers.clear());
     on(doc,'click',candy);
     on(doc,'pointerup',rememberSend,{capture:true,passive:true});on(doc,'click',rememberSend,{capture:true,passive:true});on(doc,'keydown',e=>{if(!e.target.closest?.('.hw-roaming'))action();rememberSend(e);},{capture:true,passive:true});
     on(doc,'pointermove',trackSpider,{passive:true});on(doc,'pointercancel',clearSpider,{passive:true});on(doc,'scroll',()=>{clearSpider();clearGhost();},{capture:true,passive:true});

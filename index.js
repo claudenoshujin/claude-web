@@ -1547,7 +1547,7 @@ if (CLAUDE_ENABLED) {
       genStartedAt: 0
     };
     const NORMAL_CLAWD_RIG = buildClawdRig();
-    let CLAWD_RIG = NORMAL_CLAWD_RIG, halloween = null;
+    let CLAWD_RIG = NORMAL_CLAWD_RIG, halloween = null, halloweenAirborne = false;
     function switchHalloweenRig(next) {
       const rig = next || NORMAL_CLAWD_RIG;
       if (CLAWD_RIG === rig || destroyed) return;
@@ -3159,6 +3159,7 @@ if (CLAUDE_ENABLED) {
       return Date.now() < A2.lockUntil;
     }
     function a2Place(button, ballistic = false) {
+      halloweenAirborne = ballistic || A2.held || A2.dragging || Math.abs(A2.fy - A2.floor) > .5;
       const move = `translate3d(${A2.x.toFixed(1)}px, ${A2.fy.toFixed(1)}px, 0)`;
       const home = !A2.x && !A2.fy;
       if (home && !A2.rot && A2.sqx === 1 && A2.sqy === 1) {
@@ -7262,7 +7263,7 @@ if (CLAUDE_ENABLED) {
       installAutoCompleteResizeGuard();
       installStyle();
       installClawdRigStyle();
-      halloween = installHalloween({win:hostWindow, getContext, setRig:switchHalloweenRig, refresh:scheduleRefresh, getClawdState:()=>({x:A2.x,y:A2.fy})});
+      halloween = installHalloween({win:hostWindow, getContext, setRig:switchHalloweenRig, refresh:scheduleRefresh, getClawdState:()=>({x:A2.x,y:A2.fy,held:A2.held,dragging:A2.dragging,airborne:halloweenAirborne})});
       halloween.sync();
       hostWindow.console?.info?.("[Claude-Clawd] build:", KEYBOARD_BUILD.id);
       setBodyClass(READY_CLASS, !0);
