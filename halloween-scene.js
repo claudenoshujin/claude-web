@@ -4,12 +4,12 @@ import { buildHalloweenRig } from './halloween-rig.js?v=2.0.160-halloween2';
 import { halloweenCSS, iconRules } from './halloween-style.js?v=2.0.160-halloween2';
 import { halloweenPileCells } from './halloween-pile.js?v=2.0.160-halloween2';
 
-export function createHalloweenScene({win,getContext,ambient}) {
+export function createHalloweenScene({win,getContext,ambient,getClawdState}) {
   const doc=win.document,root=doc.documentElement,art=createHalloweenSprites(doc);
   const rig=buildHalloweenRig();rig.pileCells=halloweenPileCells;
   const owned=new Set(),timers=new Set(),animations=new Set(),listeners=[],copies=new Map(),anchors=new Map(),icons=new Map(),corners=new Map();
   const motion=win.matchMedia('(prefers-reduced-motion: reduce)');
-  let dead=false,epoch=0,scheduler=0,raf=0,pail=null,ghost=null,spider=null,welcome=null,lastAction=0,submit=null,deletion=null,webKey='',submitTimer=0,deleteTimer=0,validAfter=win.performance.now(),lastCalm=null;
+  let dead=false,epoch=0,scheduler=0,raf=0,pail=null,pailBase=null,pailAirborne=false,ghost=null,spider=null,welcome=null,lastAction=0,submit=null,deletion=null,webKey='',submitTimer=0,deleteTimer=0,validAfter=win.performance.now(),lastCalm=null;
   const calm=()=>motion.matches||root.dataset.claudeMotion==='off';
   const visible=()=>!dead&&!doc.hidden;
   const moving=()=>visible()&&!calm();
@@ -104,12 +104,25 @@ export function createHalloweenScene({win,getContext,ambient}) {
     for(const [host,corner]of corners)if(!host.isConnected){remove(corner);corners.delete(host);}
     positionPail();
   }
-  function positionPail(){
-    const big=doc.querySelector('#send_form .clawd-composer-clawd'),r=big?.getBoundingClientRect();
-    if(!r?.width){remove(pail);pail=null;return;}
+  function positionPail(state){
+    if(state?.airborne){pailAirborne=true;return;}
+    if(!state&&pailAirborne)return;
+    const big=doc.querySelector('#send_form .clawd-composer-clawd');
+    if(!big){remove(pail);pail=null;pailBase=null;return;}
+    let left,top;
+    if(state){
+      if(!pailBase)return;
+      left=pailBase.left+state.x+44;top=pailBase.bottom+state.y-25;
+    }else{
+      const r=big.getBoundingClientRect();if(!r.width){remove(pail);pail=null;pailBase=null;return;}
+      const current=getClawdState?.()||{x:0,y:0};
+      left=r.left+44;top=r.bottom-25;pailBase={left:r.left-current.x,bottom:r.bottom-current.y};
+    }
     // A peer button avoids nesting an interactive control inside the Clawd button.
     if(!pail){pail=node('button','hw-anchor hw-pail');pail.setAttribute('aria-label','撒糖');picture(art.pail(),pail,3);}
-    pail.style.left=(r.left+44)+'px';pail.style.top=(r.bottom-25)+'px';
+    const oldLeft=parseFloat(pail.style.left),oldTop=parseFloat(pail.style.top),landing=pailAirborne;
+    pailAirborne=false;pail.style.left=left+'px';pail.style.top=top+'px';
+    if(landing&&!calm()&&Number.isFinite(oldLeft)&&Number.isFinite(oldTop))animate(pail,[{transform:`translate(${oldLeft-left}px,${oldTop-top}px)`},{offset:.5,transform:`translate(${(oldLeft-left)*.45}px,${(oldTop-top)*.45-12}px)`},{transform:'translate(0,0)'}],{duration:280,easing:'ease-out'});
     pail.disabled=!moving();pail.title=calm()?'已减少动态效果，暂停撒糖':'撒糖';
   }
   function copyResult(event){
@@ -233,7 +246,7 @@ export function createHalloweenScene({win,getContext,ambient}) {
     on(doc,'pointermove',trackSpider,{passive:true});on(doc,'pointercancel',clearSpider,{passive:true});on(doc,'scroll',()=>{clearSpider();clearGhost();},{capture:true,passive:true});
     on(doc,'input',e=>{if(e.target.id==='send_textarea'){const value=!!e.target.value;if(value!==root.classList.contains('hw-typing')){root.classList.toggle('hw-typing',value);welcomeWeb(doc.querySelector('.clawd-welcome-hero'));}}},{passive:true});
     on(doc,'click',e=>{if(e.target.closest?.('.popup-button-cancel,#dialogue_del_mes_cancel'))finishDelete(deletion);const m=e.target.closest?.('.mes_edit_delete,.claude-user-message-delete');if(m)captureDelete(m.closest('.mes'));if(e.target.closest?.('#dialogue_del_mes_ok'))captureDelete(doc.querySelector('#chat>.mes:has(input.del_checkbox:checked)')||doc.querySelector('#chat>.mes:last-child'));},{capture:true,passive:true});
-    on(doc,'visibilitychange',()=>{reset();});on(win,'resize',()=>{reset();webKey='';staticScenes();},{passive:true});on(win,'blur',clearSpider);on(motion,'change',()=>{lastCalm=calm();reset();staticScenes();});
+    on(doc,'visibilitychange',()=>{reset();});on(win,'resize',()=>{reset();webKey='';pailBase=null;staticScenes();},{passive:true});on(win,'blur',clearSpider);on(motion,'change',()=>{lastCalm=calm();reset();staticScenes();});
     doc.fonts?.ready.then(()=>{if(!dead){webKey='';staticScenes();}});
   },sync,sent,deleted,captureDelete,finishDelete,reset,positionClawd:positionPail,
   stats:()=>({timers:timers.size,animations:animations.size,nodes:[...owned].filter(n=>n.isConnected).length,ghost:!!ghost,spider:!!spider}),

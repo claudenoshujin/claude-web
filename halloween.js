@@ -1,7 +1,7 @@
 import { preferencesFor } from './preferences.js?v=2.0.160';
 
 // Lightweight lifecycle. Artwork, rig and animation code are fetched only on enable.
-export function installHalloween({win, getContext, setRig, refresh}) {
+export function installHalloween({win, getContext, setRig, refresh, getClawdState}) {
   const doc=win.document, root=doc.documentElement, prefs=preferencesFor(win);
   let disposed=false, serial=0, scene=null, pending=null, settings=null,failed=false;
   const listeners=[], subscriptions=[];
@@ -51,7 +51,7 @@ export function installHalloween({win, getContext, setRig, refresh}) {
       if(disposed||serial!==ticket||!wanted())return;
       // Start only after all dependencies loaded; failed setup is fully reversible.
       root.dataset.cwHalloween='on';
-      const next=module.createHalloweenScene({win,getContext,ambient});
+      const next=module.createHalloweenScene({win,getContext,ambient,getClawdState});
       scene=next;
       try{next.install();setRig(next.rig);refresh();}
       catch(error){next.destroy();scene=null;root.removeAttribute('data-cw-halloween');setRig(null);throw error;}
@@ -60,7 +60,7 @@ export function installHalloween({win, getContext, setRig, refresh}) {
   }
   const observer=new win.MutationObserver(()=>{sync();});
   observer.observe(root,{attributes:true,attributeFilter:['data-claude-enabled','data-claude-motion','data-claude-decorations','data-claude-integrated-theme','data-cw-v4-settings']});
-  const api={sync,get enabled(){return !!scene;},positionClawd:()=>scene?.positionClawd(),captureDelete:node=>scene?.captureDelete(node),finishDelete:token=>scene?.finishDelete(token),
+  const api={sync,get enabled(){return !!scene;},positionClawd:state=>scene?.positionClawd(state),captureDelete:node=>scene?.captureDelete(node),finishDelete:token=>scene?.finishDelete(token),
     stats:()=>({enabled:!!scene,loading:!!pending,subscriptions:subscriptions.length,...scene?.stats()}),
     async setEnabled(value){failed=false;prefs.setItem('claude-web:halloween',value?'on':'off');await sync();},
     destroy(){if(disposed)return;disposed=true;serial++;pending=null;observer.disconnect();listeners.splice(0).forEach(f=>f());subscriptions.splice(0).forEach(f=>f());scene?.destroy();scene=null;settings?.remove();root.removeAttribute('data-cw-halloween');setRig(null);}

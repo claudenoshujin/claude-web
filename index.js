@@ -3158,18 +3158,19 @@ if (CLAUDE_ENABLED) {
     function a2Locked() {
       return Date.now() < A2.lockUntil;
     }
-    function a2Place(button) {
+    function a2Place(button, ballistic = false) {
       const move = `translate3d(${A2.x.toFixed(1)}px, ${A2.fy.toFixed(1)}px, 0)`;
       const home = !A2.x && !A2.fy;
       if (home && !A2.rot && A2.sqx === 1 && A2.sqy === 1) {
         button.style.removeProperty("transform");
+        if (halloween?.enabled) halloween.positionClawd({ airborne: ballistic || A2.held || A2.dragging || Math.abs(A2.fy - A2.floor) > .5, x: A2.x, y: A2.fy });
         return;
       }
       let value = move;
       A2.rot && (value += ` rotate(${A2.rot.toFixed(1)}deg)`);
       A2.sqx === 1 && A2.sqy === 1 || (value += ` scale(${A2.sqx.toFixed(3)}, ${A2.sqy.toFixed(3)})`);
       button.style.setProperty("transform", value, "important");
-      if (halloween?.enabled) halloween.positionClawd();
+      if (halloween?.enabled) halloween.positionClawd({ airborne: ballistic || A2.held || A2.dragging || Math.abs(A2.fy - A2.floor) > .5, x: A2.x, y: A2.fy });
     }
     function a2CancelSeq() {
       if (!A2.lockUntil) {
@@ -3515,7 +3516,7 @@ if (CLAUDE_ENABLED) {
           }
         }
         A2.rot = Math.max(-P.maxRot, Math.min(P.maxRot, -bx * P.spin));
-        a2Place(button);
+        a2Place(button, true);
         requestClawdFrame(step);
       };
       requestClawdFrame(step);
@@ -7261,7 +7262,7 @@ if (CLAUDE_ENABLED) {
       installAutoCompleteResizeGuard();
       installStyle();
       installClawdRigStyle();
-      halloween = installHalloween({win:hostWindow, getContext, setRig:switchHalloweenRig, refresh:scheduleRefresh});
+      halloween = installHalloween({win:hostWindow, getContext, setRig:switchHalloweenRig, refresh:scheduleRefresh, getClawdState:()=>({x:A2.x,y:A2.fy})});
       halloween.sync();
       hostWindow.console?.info?.("[Claude-Clawd] build:", KEYBOARD_BUILD.id);
       setBodyClass(READY_CLASS, !0);
