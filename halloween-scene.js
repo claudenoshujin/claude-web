@@ -200,14 +200,17 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     const r=box.getBoundingClientRect(),scrollTop=box.scrollTop,computed=win.getComputedStyle(box),keys=['font','fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','whiteSpace','wordBreak','overflowWrap','textAlign','direction','tabSize','boxSizing','borderTopWidth','borderLeftWidth','borderRightWidth','borderBottomWidth','color'],cs=Object.fromEntries(keys.map(key=>[key,computed[key]])),mirror=node('div','hw-text-mirror',doc.createDocumentFragment());
     for(const key of keys)mirror.style[key]=cs[key];
     Object.assign(mirror.style,{position:'fixed',left:r.left+'px',top:r.top-scrollTop+'px',width:r.width+'px',height:'auto',minHeight:r.height+'px',visibility:'hidden',pointerEvents:'none',whiteSpace:'pre-wrap',borderStyle:'solid',borderColor:'transparent'});
-    const spans=Array.from(box.value,c=>{const n=doc.createElement('span');n.textContent=c;mirror.append(n);return n;});
+    mirror.textContent=box.value;const text=mirror.firstChild,runes=[];let offset=0;for(const c of box.value){runes.push({c,offset});offset+=c.length;}
     doc.body.append(mirror);
-    const chars=spans.map(n=>{const b=n.getBoundingClientRect();return {c:n.textContent,x:b.left,y:b.top,w:b.width,h:b.height};}).filter(c=>c.c.trim()&&c.w&&c.y+c.h>r.top&&c.y<r.bottom&&c.x+c.w>r.left&&c.x<r.right).sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x-b.x).slice(0,80);
-    remove(mirror);clearSend();if(!chars.length)return null;
+    const range=doc.createRange(),measure=i=>{const c=runes[i];range.setStart(text,c.offset);range.setEnd(text,c.offset+c.c.length);return range.getBoundingClientRect();},search=test=>{let lo=0,hi=runes.length;while(lo<hi){const mid=(lo+hi)>>1;if(test(measure(mid)))hi=mid;else lo=mid+1;}return lo;},start=search(b=>b.bottom>r.top),end=search(b=>b.top>=r.bottom),visibleChars=[];
+    for(let i=start;i<end;i++){const {c}=runes[i];if(!c.trim())continue;const b=measure(i);if(b.width&&b.right>r.left&&b.left<r.right)visibleChars.push({c,x:b.left,y:b.top,w:b.width,h:b.height});}
+    const phone=root.dataset.claudeLayout==='mobile';visibleChars.sort((a,b)=>Math.abs(a.y-b.y)>2?a.y-b.y:a.x-b.x);const chars=visibleChars.slice(0,phone?40:80);
+    clearSend();if(!chars.length){remove(mirror);return null;}
     const layer=sendLayer=node('div','hw-flight-layer hw-fx',doc.createDocumentFragment());
+    let remainder=null;if(phone&&visibleChars.length>40){remainder=at(node('div','hw-flight-rest',layer),r.left,r.top,r.width,r.height);remainder.style.overflow='hidden';const masks=[];for(const c of chars){let row=masks.find(b=>Math.abs(b.top-c.y)<3);if(!row)masks.push(row={left:c.x,right:c.x+c.w,top:c.y,bottom:c.y+c.h});else{row.left=Math.min(row.left,c.x);row.right=Math.max(row.right,c.x+c.w);row.top=Math.min(row.top,c.y);row.bottom=Math.max(row.bottom,c.y+c.h);}}remainder.style.clipPath=`path("M0 0H${r.width}V${r.height}H0Z ${masks.map(c=>`M${c.left-r.left} ${c.top-r.top}V${c.bottom-r.top}H${c.right-r.left}V${c.top-r.top}Z`).join(' ')}")`;Object.assign(mirror.style,{position:'absolute',left:'0',top:-scrollTop+'px',visibility:'visible'});remainder.append(mirror);}else remove(mirror);
     for(const c of chars){c.n=at(node('span','hw-flight-char',layer),c.x,c.y,c.w,c.h);Object.assign(c.n.style,{font:cs.font,letterSpacing:cs.letterSpacing,color:cs.color,lineHeight:c.h+'px',whiteSpace:'pre'});c.n.textContent=c.c;}
-    const sparks=Array.from({length:10},()=>{const n=node('span','hw-flight-spark',layer);n.style.display='none';n.innerHTML=star4(10);Object.assign(n.firstElementChild.style,{width:'100%',height:'100%'});return {n,busy:false};});
-    doc.body.append(layer);return {layer,chars,sparks};
+    const sparks=Array.from({length:phone?6:10},()=>{const n=node('span','hw-flight-spark',layer);n.style.display='none';n.innerHTML=star4(10);Object.assign(n.firstElementChild.style,{width:'100%',height:'100%'});return {n,busy:false};});
+    doc.body.append(layer);return {layer,chars,sparks,remainder,phone};
   }
   function rememberSend(event){
     const t=event.target;if(event.type==='keydown'&&(t?.id!=='send_textarea'||event.key!=='Enter'||event.isComposing))return;
@@ -220,16 +223,17 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   function sent(id){
     const snap=submit,c=getContext(),message=c?.chat?.[Number(id)];if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>1500||Number(id)<snap.length||!message?.is_user||message.mes!==snap.text)return;
     submit=null;cancel(submitTimer);submitTimer=0;action();clipQuickReplies(snap.layer);const gap=clamp(.36/snap.chars.length,.012,.03);
+    if(snap.remainder)animate(snap.remainder,[{opacity:1},{opacity:0}],{duration:240,fill:'forwards'},()=>remove(snap.remainder));
     if(typeof snap.layer.animate!=='function')return animate(snap.layer,[{opacity:1},{opacity:0}],{duration:150},clearSend);
     const parts=snap.chars.map((c,i)=>({...c,delay:i*gap,T:rnd(.66,.8),h1:rnd(.88,1.12),jx:rnd(-3,3),jy:rnd(-3,3),r0:rnd(4,8),ph:rnd(0,2*Math.PI),done:false}));let nextSpark=0;
     const pose=(p,t)=>{let dx=0,dy=0,rot=0,sx=1,sy=1,opacity=1;if(t<.08){const v=Math.sin(Math.PI*t/.08);dy=1.5*v;sx=1+.1*v;sy=1-.14*v;}else{const u=Math.min(1,(t-.08)/(p.T-.08));dx=8+92*u+p.jx*u;dy=-74*p.h1*Math.pow(u,.82)+p.jy*u;rot=p.r0*Math.sin(Math.PI*u)-6*u+3*u*Math.sin(p.ph+12*t);sx=sy=1-.65*u*u*u;opacity=u<.35?1:1-(u-.35)/.65;}return {dx,dy,transform:`translate(${dx}px,${dy}px) rotate(${rot}deg) scale(${sx},${sy})`,opacity};};
     const last=parts.reduce((a,b)=>a.delay+a.T>b.delay+b.T?a:b),end=last.delay+last.T;
     for(const p of parts){const times=[0,.08-.000001,.08,p.T];for(let t=1/60;t<p.T;t+=1/60)times.push(t);times.sort((a,b)=>a-b);const frames=times.map(t=>{const v=pose(p,t);return {offset:t/p.T,transform:v.transform,opacity:v.opacity};});
       animate(p.n,frames,{delay:p.delay*1000,duration:p.T*1000,easing:'linear',fill:'forwards'},p===last?()=>later(()=>{if(sendLayer===snap.layer)clearSend();},360):undefined);
-      animate(p.n,[{color:p.n.style.color},{color:'#D97757'}],{delay:(p.delay+.06)*1000,duration:300,easing:'ease',fill:'forwards'});
+      later(()=>{if(p.n.isConnected)p.n.style.color='#D97757';},(p.delay+.08)*1000);
     }
     for(const slot of snap.sparks){at(slot.n,0,0,10,10);slot.n.style.display='block';slot.n.style.opacity='0';slot.until=0;}
-    for(nextSpark=.035;nextSpark<end;nextSpark+=.035){const live=parts.filter(p=>nextSpark-p.delay>.15&&nextSpark-p.delay<p.T),slot=snap.sparks.find(s=>s.until<=nextSpark);if(!live.length||!slot)continue;
+    let emitted=0;for(nextSpark=.035;nextSpark<end&&emitted<(snap.phone?6:Infinity);nextSpark+=.035){const live=parts.filter(p=>nextSpark-p.delay>.15&&nextSpark-p.delay<p.T),slot=snap.sparks.find(s=>s.until<=nextSpark);if(!live.length||!slot)continue;emitted++;
       const p=live[Math.random()*live.length|0],v=pose(p,nextSpark-p.delay),x=p.x+p.w/2+v.dx+rnd(-5,5)-5,y=p.y+p.h/2+v.dy+rnd(-4,4)-5,k=rnd(5,10)/10,duration=rnd(300,420);slot.until=nextSpark+duration/1000;
       animate(slot.n,[{transform:`translate(${x}px,${y}px) scale(0) rotate(0deg)`,opacity:1},{offset:.45,transform:`translate(${x}px,${y}px) scale(${k*1.15}) rotate(45deg)`,opacity:1},{transform:`translate(${x}px,${y}px) scale(0) rotate(90deg)`,opacity:.9}],{delay:nextSpark*1000,duration,easing:'ease-out'});
     }
