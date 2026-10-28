@@ -288,12 +288,26 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   function clearDelete(token){
     if(!token)return;
     if(deletion===token){deletion=null;cancel(deleteTimer);deleteTimer=0;}
+    win.cancelAnimationFrame(token.collapseFrame);token.collapseFrame=0;
+    if(token.collapseIdle!=null)win.cancelIdleCallback?.(token.collapseIdle);token.collapseIdle=null;
+    cancel(token.collapseTimer);token.collapseTimer=0;
     remove(token.layer);remove(token.clone);remove(token.spacer);activeDeletes.delete(token);
   }
   function endDeleteEffect(snap){
+    if(!activeDeletes.has(snap))return;
     remove(snap.layer);
     if(!snap.spacer?.isConnected){clearDelete(snap);return;}
-    animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},()=>clearDelete(snap));
+    const collapse=()=>{
+      if(dead||!activeDeletes.has(snap))return;
+      if(!snap.spacer?.isConnected){clearDelete(snap);return;}
+      animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},()=>clearDelete(snap));
+    };
+    // Both variants yield after removing their effect layer, away from native post-delete work.
+    snap.collapseFrame=win.requestAnimationFrame(()=>{
+      snap.collapseFrame=0;if(dead||!activeDeletes.has(snap))return;
+      if(typeof win.requestIdleCallback==='function')snap.collapseIdle=win.requestIdleCallback(()=>{snap.collapseIdle=null;collapse();},{timeout:150});
+      else snap.collapseTimer=later(()=>{snap.collapseTimer=0;collapse();},150);
+    });
   }
   function removedDelete(records){
     const snap=deletion,chat=doc.getElementById('chat');
