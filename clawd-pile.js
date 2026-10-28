@@ -414,7 +414,7 @@ export function createClawdPile({ doc, win, big = null }) {
     const toY = parseFloat(k.el.style.top);
     k.mode = 'sit'; k.pose = 'dangle'; look(k);
     const a = k.el.animate?.([{ translate: `${fromX - k.x}px ${fromY - toY}px` }, { translate: '0 0' }], { duration: Math.min(420, 180 + Math.abs(fromY - toY) * 2), easing: 'cubic-bezier(.5,0,1,1)' });
-    const land = () => { squash(k); k.pose = 'crouch'; k.eyes = 'open'; look(k); settle(k, () => { save(); later(k, () => doze(k), rnd(1500, 3000)); }); };
+    const land = () => { squash(k); k.pose = 'crouch'; k.eyes = 'open'; look(k); settle(k, () => { save(); pile.dispatchEvent(new win.Event('cw-clawd-pile-drop', { bubbles: true })); later(k, () => doze(k), rnd(1500, 3000)); }); };
     if (a) a.onfinish = land; else land();
   }
 
