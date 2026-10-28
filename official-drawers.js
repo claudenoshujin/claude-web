@@ -836,7 +836,18 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       ui.opt(L('从文件导入'),false,click('character_import_button'));ui.opt(L('从网址导入'),false,click('external_import_button'));
     });
     fab.querySelector('summary').prepend(icon('plus'));fab.querySelector('summary').setAttribute('aria-label',L('新建'));page.append(fab);
-    move(s,get('rm_print_characters_pagination'),all);move(s,get('rm_print_characters_block'),all);finish(s);
+    move(s,get('rm_print_characters_pagination'),all);move(s,get('rm_print_characters_block'),all);
+    // After an import or a new character ST scrolls #rm_print_characters_block to the card and flashes it, but here the
+    // panel scrolls, not that block, so the card stayed off screen. Follow ST's flash and scroll the real scroller.
+    const printed=get('rm_print_characters_block');if(printed){
+      const shown=new WeakSet(),watch=new MutationObserver(ms=>{for(const m of ms){const card=m.target;
+        if(shown.has(card)||!card.classList.contains('flash'))continue;shown.add(card);
+        let box=card.parentElement;while(box&&!(box.scrollHeight>box.clientHeight+1&&/auto|scroll/.test(getComputedStyle(box).overflowY)))box=box.parentElement;
+        if(box){const r=card.getBoundingClientRect(),b=box.getBoundingClientRect();box.scrollTop+=r.top-b.top-(box.clientHeight-r.height)/2;}
+      }});
+      watch.observe(printed,{subtree:true,attributes:true,attributeFilter:['class']});cleanup(s,()=>watch.disconnect());
+    }
+    finish(s);
     // Keep the real form and its conditional wrappers, including create-only
     // name/submit controls. Editing an existing name still uses ST's Rename.
     const form=get('form_create'),adapted=form&&begin(form);if(adapted){
