@@ -22,7 +22,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   let spiderModalValid=false,spiderModalValue=false,spiderModalFrame=0;
   let viewport={right:win.innerWidth,bottom:win.innerHeight};
   let drawerHost=null,drawerBlocked=false;
-  function refreshDrawerGate(){drawerHost=root.dataset.cwV4Settings==='open'?panel():null;drawerBlocked=!!drawerHost&&modal();if(drawerBlocked)retireDrawerSpider();}
+  function refreshDrawerGate(){drawerHost=root.dataset.cwV4Settings==='open'?panel():null;drawerBlocked=!!drawerHost&&spiderModal();if(drawerBlocked)retireDrawerSpider();}
   function spiderModal(){
     if(!spiderModalValid){spiderModalValue=modal();spiderModalValid=true;spiderModalFrame=win.requestAnimationFrame(()=>{spiderModalFrame=0;spiderModalValid=false;});}
     return spiderModalValue;
@@ -144,8 +144,9 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     refreshDrawerGate();
     for(const [host,n]of anchors)if(!host.isConnected){remove(n);anchors.delete(host);}
     const typing=!!doc.getElementById('send_textarea')?.value;if(typing!==root.classList.contains('hw-typing'))root.classList.toggle('hw-typing',typing);
-    rootFlag('cwHwAmbient',ambient()?'on':'off');rootFlag('cwHwCalm',calm()?'on':'off');dressIcons();welcomeWeb(doc.querySelector('.clawd-welcome-hero'));chatDecoration();safeGeneration();
-    const form=doc.getElementById('send_form');
+    rootFlag('cwHwAmbient',ambient()?'on':'off');rootFlag('cwHwCalm',calm()?'on':'off');dressIcons();
+    const settingsOpen=root.dataset.cwV4Settings==='open';
+    if(!settingsOpen){welcomeWeb(doc.querySelector('.clawd-welcome-hero'));chatDecoration();safeGeneration();}
     // Generation words use the native placeholder; the original footer retains its layout.
     // Local anchors only: native popup ancestry and focus stay untouched.
     for(const host of doc.querySelectorAll('#options,.cw-menu:not([hidden]),dialog[open] .popup-content,.cw-v4-shell .cw-v4-head')){
@@ -154,7 +155,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
       if(!corners.get(host)?.isConnected){const corner=node('span','hw-corner-ghost',host);picture(art.sheet({awake:true}),corner,1.4);corners.set(host,corner);}
     }
     for(const [host,corner]of corners)if(!host.isConnected){remove(corner);corners.delete(host);}
-    positionPail();
+    if(!settingsOpen)positionPail();
   }
   function pailSpot(layout,wanted){
     const {r,blocks,soft=[],top}=layout,avoid=[...blocks,...soft],min=r.left,max=Math.max(min,r.right-21),x=clamp(wanted,min,max),over=(left,y)=>avoid.some(b=>left<b.right&&left+21>b.left&&y<b.bottom&&y+24>b.top);
@@ -444,6 +445,11 @@ function nodeSpider(P, size) {
     if(records.every(r=>r.target.closest?.('[data-cw-halloween-owned]')||[...r.addedNodes,...r.removedNodes].every(n=>n.nodeType===1&&n.hasAttribute?.('data-cw-halloween-owned'))))return;
     if(!raf)raf=win.requestAnimationFrame(()=>{raf=0;if(!dead)staticScenes();});
   });
+  let settingsWasOpen=root.dataset.cwV4Settings==='open';
+  const settingsObserver=new win.MutationObserver(()=>{
+    const open=root.dataset.cwV4Settings==='open',closed=settingsWasOpen&&!open;settingsWasOpen=open;
+    if(closed&&!dead&&!raf)raf=win.requestAnimationFrame(()=>{raf=0;if(!dead)staticScenes();});
+  });
   function stopAmbient(){cancel(scheduler);scheduler=0;clearPrank();}
   function sync(){if(dead)return;const nowCalm=calm();if(nowCalm!==lastCalm){lastCalm=nowCalm;if(nowCalm)reset();}staticScenes();if(!moving()||!ambient())stopAmbient();else schedule();}
   return {rig,install(){
@@ -451,6 +457,7 @@ function nodeSpider(P, size) {
     const shell=doc.getElementById('chat');if(shell)observer.observe(shell,{childList:true});
     // Popup creation is observed shallowly; never scan streaming message subtrees.
     observer.observe(doc.body,{childList:true});
+    settingsObserver.observe(root,{attributes:true,attributeFilter:['data-cw-v4-settings']});
     on(doc,'cw-clawd-pile-drop',()=>positionPail());
     on(doc,'cw-copy-result',copyResult);on(doc,'pointerdown',e=>{pressedPointers.add(e.pointerId);action();if(root.dataset.cwV4Settings==='open')moveDrawerSpider(e,true);},{capture:true,passive:true});
     on(doc,'pointerup',e=>pressedPointers.delete(e.pointerId),{capture:true,passive:true});on(doc,'pointercancel',e=>pressedPointers.delete(e.pointerId),{capture:true,passive:true});on(win,'blur',()=>{pressedPointers.clear();activity();});
@@ -464,6 +471,6 @@ function nodeSpider(P, size) {
     doc.fonts?.ready.then(()=>{if(!dead){webKey='';staticScenes();}});
   },sync,sent,deleted,captureDelete,finishDelete,reset,positionClawd:positionPail,
   stats:()=>({timers:timers.size,animations:animations.size,nodes:[...owned].filter(n=>n.isConnected).length,prank:!!ghost,spider:!!spider,sendRaf:!!sendFrame,spiderRaf:!!spider?.frame,decoRaf:(welcomeState?.frames.size||0)+(chatDecorationState?.frames.size||0)}),
-  destroy(){if(dead)return;dead=true;reset();pailResizeObserver?.disconnect();pailQrObserver?.disconnect();pailSmallObserver?.disconnect();win.cancelAnimationFrame(pailSmallFrame);pailSmallFrame=0;pailSmallForm=pailSmallPile=null;pailObserved.clear();pailDrag=null;observer.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');root.style.removeProperty('--cw-hw-rig-lift');}
+  destroy(){if(dead)return;dead=true;reset();pailResizeObserver?.disconnect();pailQrObserver?.disconnect();pailSmallObserver?.disconnect();win.cancelAnimationFrame(pailSmallFrame);pailSmallFrame=0;pailSmallForm=pailSmallPile=null;pailObserved.clear();pailDrag=null;observer.disconnect();settingsObserver.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');root.style.removeProperty('--cw-hw-rig-lift');}
   };
 }
