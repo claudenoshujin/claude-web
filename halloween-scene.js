@@ -9,6 +9,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   const rig=buildHalloweenRig();rig.pileCells=halloweenPileCells;
   const owned=new Set(),timers=new Set(),animations=new Set(),listeners=[],copies=new Map(),anchors=new Map(),icons=new Map(),corners=new Map();
   const pressedPointers=new Set();
+  const pendingDialogDecorations=new Map();
   const motion=win.matchMedia('(prefers-reduced-motion: reduce)');
   let dead=false,epoch=0,scheduler=0,raf=0,pail=null,ghost=null,spider=null,welcome=null,lastAction=0,submit=null,deletion=null,webKey='',submitTimer=0,deleteTimer=0,validAfter=win.performance.now(),lastCalm=null;
   let pailRatio=null,pailFloorOffset=null,pailDrag=null,pailSkipClick=false,pailLayout=null,pailResizeObserver=null,pailQrObserver=null,pailForm=null,pailQr=null,candyBusy=false;
@@ -59,7 +60,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     if(!moving()||typeof el.animate!=='function'){if(done)later(done,options.duration||0);return null;}
     try{const a=el.animate(frames,options);animations.add(a);a.onfinish=()=>{animations.delete(a);done?.();};a.oncancel=()=>animations.delete(a);return a;}catch{done?.();return null;}
   }
-  function picture(sprite,parent,scale=2,cls='hw-pixels'){const n=node('img',cls,parent);n.src=sprite.url;n.alt='';n.draggable=false;n.style.width=sprite.w*scale+'px';n.style.height=sprite.h*scale+'px';return n;}
+  function picture(sprite,parent,scale=2,cls='hw-pixels'){const n=node('img',cls,doc.createDocumentFragment());n.width=Math.round(sprite.w*scale);n.height=Math.round(sprite.h*scale);n.src=sprite.url;n.alt='';n.draggable=false;parent.append(n);return n;}
   const svg=(key,mask=false)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="${mask?'black':'currentColor'}" stroke-width="${1.35*(IW[key]||1)}" stroke-linecap="round" stroke-linejoin="round"><style>.t{stroke-width:1}.e{stroke-width:1.8}.k{stroke-width:2.7}.kb{fill:${mask?'none':'var(--cl-surface,#fff)'}}</style>${I[key]}</svg>`;
   const url=key=>`url("data:image/svg+xml,${encodeURIComponent(svg(key,true))}")`;
   function buildStyle(){
@@ -139,6 +140,24 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     if(type==='web')n.innerHTML='<svg viewBox="0 0 90 75" fill="none" stroke="currentColor" stroke-width=".7"><path d="M0 0 90 0M0 0 83 22M0 0 65 49M0 0 33 69M0 0V75M0 17Q7 16 9 2M0 35Q16 35 19 5M0 55Q25 54 30 8M0 73Q39 70 44 12M9 2Q12 11 17 13M19 5Q23 21 32 24M30 8Q34 34 47 35M44 12Q50 43 65 49M17 13Q20 20 19 29M32 24Q36 35 33 44M47 35Q53 49 49 61M65 49Q72 60 65 69M19 29Q13 35 8 35M33 44Q22 56 12 55M49 61Q40 72 33 69"/></svg>';
     return n;
   }
+  function decorateHost(host,fade=false){
+    const fresh=[];
+    if(!anchors.get(host)?.isConnected)fresh.push(anchor(host,'web'));
+    if(!host.matches('.cw-v4-head')&&!corners.get(host)?.isConnected){const corner=node('span','hw-corner-ghost',doc.createDocumentFragment());picture(art.sheet({awake:true}),corner,1.4);corners.set(host,corner);host.append(corner);fresh.push(corner);}
+    if(fade)for(const n of fresh)animate(n,[{opacity:0},{opacity:1}],{duration:160,easing:'ease-out'});
+  }
+  function clearPendingDialogDecorations(){
+    for(const state of pendingDialogDecorations.values()){cancel(state.timer);if(state.idle!=null)win.cancelIdleCallback?.(state.idle);}
+    pendingDialogDecorations.clear();
+  }
+  function decorateDialogLater(host){
+    if(pendingDialogDecorations.has(host)||(anchors.get(host)?.isConnected&&corners.get(host)?.isConnected))return;
+    const state={timer:0,idle:null},token=epoch;pendingDialogDecorations.set(host,state);
+    state.timer=later(()=>{
+      const add=()=>{pendingDialogDecorations.delete(host);if(!dead&&epoch===token&&host.isConnected&&host.closest('dialog[open]'))decorateHost(host,true);};
+      if(typeof win.requestIdleCallback==='function')state.idle=win.requestIdleCallback(add,{timeout:500});else add();
+    },350);
+  }
   function staticScenes(){
     if(dead)return;
     refreshDrawerGate();
@@ -150,9 +169,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     // Generation words use the native placeholder; the original footer retains its layout.
     // Local anchors only: native popup ancestry and focus stay untouched.
     for(const host of doc.querySelectorAll('#options,.cw-menu:not([hidden]),dialog[open] .popup-content,.cw-v4-shell .cw-v4-head')){
-      anchor(host,'web');
-      if(host.matches('.cw-v4-head'))continue;
-      if(!corners.get(host)?.isConnected){const corner=node('span','hw-corner-ghost',host);picture(art.sheet({awake:true}),corner,1.4);corners.set(host,corner);}
+      if(host.closest('dialog[open]'))decorateDialogLater(host);else decorateHost(host);
     }
     for(const [host,corner]of corners)if(!host.isConnected){remove(corner);corners.delete(host);}
     if(!settingsOpen)positionPail();
@@ -431,7 +448,7 @@ function nodeSpider(P, size) {
   function schedule(){if(scheduler||!visible()||calm()||!ambient())return;scheduler=later(tick,1000);}
   function reset(){
     // CHAT_CHANGED cancels the timer pool; discard cached decoration states too.
-    clearWelcome();clearChatDecoration();
+    clearWelcome();clearChatDecoration();clearPendingDialogDecorations();
     clearSend();candyBusy=false;
     pressedPointers.clear();
     win.cancelAnimationFrame(spiderModalFrame);spiderModalFrame=0;spiderModalValid=false;
