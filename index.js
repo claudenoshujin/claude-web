@@ -6558,8 +6558,19 @@ if (CLAUDE_ENABLED) {
       suspendedThemeMedia = null;
       delete hostDocument.documentElement.dataset.claudeExternalSurface;
     }
+    // The character manager script closes by writing display:none on its modal. The body observer only sees
+    // childList changes, so watch the modal's own attributes; otherwise the isolation (theme suspended) stayed on.
+    let watchedExternalManager = null, externalManagerWatch = null;
+    function watchExternalManager(manager) {
+      if (watchedExternalManager === manager) return;
+      externalManagerWatch?.disconnect();
+      watchedExternalManager = manager;
+      externalManagerWatch = manager ? new hostWindow.MutationObserver(scheduleExternalSurfaceIsolation) : null;
+      externalManagerWatch?.observe(manager, { attributes: !0, attributeFilter: [ "style", "class", "hidden" ] });
+    }
     function syncExternalSurfaceIsolation() {
       const manager = hostDocument.querySelector("#charManagerModal");
+      watchExternalManager(manager);
       const visible = manager && !manager.hidden && (() => {
         const style = hostWindow.getComputedStyle(manager);
         return style.display !== "none" && style.visibility !== "hidden";
@@ -7110,6 +7121,9 @@ if (CLAUDE_ENABLED) {
       hostDocument.body.classList.remove("clawd-external-modal-open");
       restoreExternalModalRailLayer();
       liftExternalModals([]);
+      externalManagerWatch?.disconnect();
+      externalManagerWatch = null;
+      watchedExternalManager = null;
       externalSurfaceIsolationRaf && hostWindow.cancelAnimationFrame(externalSurfaceIsolationRaf);
       externalSurfaceIsolationRaf = 0;
       restoreExternalThemeStyle();
