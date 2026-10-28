@@ -299,8 +299,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     chat.insertBefore(spacer,record.nextSibling?.parentNode===chat?record.nextSibling:null);snap.spacer=spacer;chat.scrollTop=snap.scrollTop;
     playDelete(snap);
   }
-  // 161 只用飞蛾；A 要先解决删除后版面重排和复制品走样，见审阅会话 10-28 结论
-  function deleteChoice(){return 'B';}
+  function deleteChoice(forceMoth=false){let choice=forceMoth?'B':Math.random()<.5?'A':'B';if(!forceMoth&&deleteHistory.length>=2&&deleteHistory.at(-1)===choice&&deleteHistory.at(-2)===choice)choice=choice==='A'?'B':'A';deleteHistory.push(choice);if(deleteHistory.length>4)deleteHistory.shift();return choice;}
   function deleteStar(layer,x,y){const size=rnd(6,10),a=rnd(0,Math.PI*2),d=rnd(22,44),n=at(node('span','hw-delete-spark',layer),x-size/2,y-size/2,size,size);n.innerHTML=star4(size);animate(n,[{transform:'translate(0,0) scale(0)',opacity:1},{offset:.5,transform:`translate(${Math.cos(a)*d*.6}px,${Math.sin(a)*d*.6}px) scale(1) rotate(45deg)`,opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px) scale(0) rotate(90deg)`,opacity:.8}],{duration:540,easing:'ease-out'},()=>remove(n));}
   function deleted(){
     // Element removals start synchronously in the childList observer; this is the swipe fallback.
@@ -314,7 +313,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     let piece=snap.clone;
     Object.assign(piece.style,{position:'absolute',left:'0',top:'0',width:original.width+'px',height:original.height+'px',boxSizing:'border-box',margin:'0'});
     if(r.width!==original.width||r.height!==original.height){const crop=node('div','hw-delete-crop',doc.createDocumentFragment());crop.style.overflow='hidden';piece.style.left=original.left-r.left+'px';piece.style.top=original.top-r.top+'px';crop.append(piece);piece=crop;}
-    layer.dataset.hwDelete=snap.forceMoth?'B':deleteChoice();clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(snap.clone);
+    layer.dataset.hwDelete=deleteChoice(snap.forceMoth);clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(snap.clone);
     Object.assign(piece.style,{position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0',transformOrigin:'50% 50%',pointerEvents:'none'});const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';doc.body.append(layer);
     if(layer.dataset.hwDelete==='A'){
       animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'});
