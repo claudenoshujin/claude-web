@@ -272,7 +272,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     for(const n of clone.querySelectorAll(controls))n.remove();
     const originals=[message,...message.querySelectorAll('*')].filter(n=>n===message||!n.closest(controls)),clones=[clone,...clone.querySelectorAll('*')],forceMoth=clones.length>600;
     for(let i=0;i<clones.length;i++){
-      const n=clones[i];if(!forceMoth){const cs=win.getComputedStyle(originals[i]);for(const p of cs)n.style.setProperty(p,cs.getPropertyValue(p));}
+      const n=clones[i];if(!forceMoth){const cs=win.getComputedStyle(originals[i]);for(const p of cs)n.style.setProperty(p,cs.getPropertyValue(p),'important');}
       n.style.setProperty('pointer-events','none','important');n.style.setProperty('animation','none','important');n.style.setProperty('transition','none','important');
     }
     for(const n of clone.querySelectorAll('video,audio'))try{n.pause();}catch{}clone.inert=true;clone.setAttribute('aria-hidden','true');clone.dataset.cwHalloweenOwned='';
@@ -310,11 +310,13 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     if(deletion!==snap)return;
     activeDeletes.add(snap);
     deletion=null;cancel(deleteTimer);deleteTimer=0;action();const original=snap.rect,r=snap.visibleRect||original,blocks=quickReplyRects(),layer=at(node('div','hw-deletion-layer hw-fx',doc.createDocumentFragment()),0,0,viewport.right,viewport.bottom);
-    let piece=snap.clone;
-    Object.assign(piece.style,{position:'absolute',left:'0',top:'0',width:original.width+'px',height:original.height+'px',boxSizing:'border-box',margin:'0'});
-    if(r.width!==original.width||r.height!==original.height){const crop=node('div','hw-delete-crop',doc.createDocumentFragment());crop.style.overflow='hidden';piece.style.left=original.left-r.left+'px';piece.style.top=original.top-r.top+'px';crop.append(piece);piece=crop;}
+    // Animate an uncopied wrapper: copied !important transform/opacity/filter must stay faithful without overriding WAAPI.
+    const piece=node('div','hw-delete-crop',doc.createDocumentFragment()),clipped=r.width!==original.width||r.height!==original.height;
+    for(const [key,value]of Object.entries({position:'absolute',left:original.left-r.left+'px',top:original.top-r.top+'px',width:original.width+'px',height:original.height+'px','box-sizing':'border-box',margin:'0'}))snap.clone.style.setProperty(key,value,'important');
+    piece.style.setProperty('overflow',clipped?'hidden':'visible','important');piece.append(snap.clone);
     layer.dataset.hwDelete=deleteChoice(snap.forceMoth);clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(snap.clone);
-    Object.assign(piece.style,{position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0',transformOrigin:'50% 50%',pointerEvents:'none'});const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';doc.body.append(layer);
+    for(const [key,value]of Object.entries({position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0','box-sizing':'border-box','transform-origin':'50% 50%','pointer-events':'none'}))piece.style.setProperty(key,value,'important');
+    const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';doc.body.append(layer);
     if(layer.dataset.hwDelete==='A'){
       animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'});
       later(()=>{const size=root.dataset.claudeLayout==='mobile'?28:30,n=at(node('span','hw-delete-asterisk',layer),cx-size/2,cy-size/2,size,size);n.innerHTML=asteriskMarkup(size);animate(n,[{transform:'scale(0) rotate(0deg)',opacity:1},{offset:.32,transform:'scale(1.2) rotate(70deg)',opacity:1},{offset:.52,transform:'scale(1) rotate(110deg)',opacity:1},{transform:'scale(.1) rotate(210deg)',opacity:0}],{duration:580,easing:'cubic-bezier(.3,.7,.4,1)',fill:'forwards'});},210);
