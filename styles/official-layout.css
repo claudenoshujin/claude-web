@@ -624,6 +624,9 @@ html[data-cw-v4] body #right-nav-panel.cw-v4-panel #form_create.cw-v4-reflow{ove
  * (after opening a character), the list fell back to ST's height:100% + overflow-y:hidden and could not scroll. */
 html[data-cw-v4] body #right-nav-panel.cw-v4-panel .scrollableInner:has(> #rm_characters_block.cw-v4-reflow:not([style*="display: none"])){overflow:visible!important;height:auto!important;max-height:none!important}
 html[data-cw-v4] body #right-nav-panel.cw-v4-panel #rm_characters_block.cw-v4-reflow{height:auto!important;max-height:none!important}
+/* 骰子前端 (dice frontend) sizes its panel inline from #chat.clientWidth, which includes padding; ST's #chat has
+ * almost none, CW's has 16px (phone) / a wide left gutter (desktop), so the panel ran off the right edge. */
+html[data-cw-v4] body #chat>.acu-wrapper.acu-dice-ui-root{width:100%!important;max-width:100%!important}
 
 @media(max-width:700px){
   html[data-cw-v4] body #top-settings-holder>.drawer>.drawer-toggle{padding-left:10px!important}
