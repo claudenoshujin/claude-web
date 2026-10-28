@@ -3976,7 +3976,9 @@ if (CLAUDE_ENABLED) {
     }
     function installVirtualKeyboardOverlay() {
       if (!isMobileLayout() || keyboardBaselineMode) return;
-      const keyboard = hostWindow.navigator?.virtualKeyboard;
+      // Android lets the IME shrink the layout (ST asks for interactive-widget=resizes-content). Overlaying the
+      // keyboard there only lifted the composer: chat, message edit boxes and settings stayed full height under it.
+      const keyboard = usesNativeAndroidKeyboardLayout() ? null : hostWindow.navigator?.virtualKeyboard;
       if (keyboard && "overlaysContent" in keyboard) try {
         virtualKeyboardOverlayOriginal = Boolean(keyboard.overlaysContent);
         virtualKeyboardOverlayCaptured = !0;
