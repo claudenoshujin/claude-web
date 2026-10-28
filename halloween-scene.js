@@ -95,7 +95,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   let welcomeState=null,chatDecorationState=null;
   function local(parent,cls,x,y,w,h){const n=node('span',cls,parent);Object.assign(n.style,{position:'absolute',left:x+'px',top:y+'px'});if(w!=null)n.style.width=w+'px';if(h!=null)n.style.height=h+'px';return n;}
   function decoLater(state,fn,ms){const id=later(()=>{state.timers.delete(id);if(state.node.isConnected)fn();},ms);state.timers.add(id);return id;}
-  function decoLegs(state,art,ms){const start=win.performance.now();let id=0;const frame=now=>{state.frames.delete(id);if(!moving()||!ambient()||!state.node.isConnected)return;const t=(now-start)/1000;art.legs(t*2.6,.25,0,0);if(now-start<ms){id=win.requestAnimationFrame(frame);state.frames.add(id);}else art.legs(0,0,0,0);};id=win.requestAnimationFrame(frame);state.frames.add(id);}
+  function decoLegs(state,art,ms){if(moving()&&ambient()&&state.node.isConnected)art.animateLegs(ms);}
   function clearDeco(state){if(!state)return;for(const id of state.timers)cancel(id);for(const id of state.frames)win.cancelAnimationFrame(id);remove(state.node);}
   function clearWelcome(){if(welcomeState?.ast){const {ast,visibility,priority}=welcomeState;if(visibility)ast.style.setProperty('visibility',visibility,priority);else ast.style.removeProperty('visibility');}clearDeco(welcomeState);welcomeState=null;welcome=null;webKey='';}
   function clearChatDecoration(){clearDeco(chatDecorationState);chatDecorationState=null;}
@@ -305,21 +305,29 @@ function nodeSpider(P, size) {
   sv('path', { d: blobPath(0, 8.4, 3.7, .08, 23), fill: C }, g);
   sv('circle', { cx: -1.35, cy: 8.8, r: .95, fill: P.paper }, g); sv('circle', { cx: 1.35, cy: 8.8, r: .95, fill: P.paper }, g);
   sv('circle', { cx: -2.2, cy: -5.4, r: 1.1, fill: P.paper, opacity: .55 }, g);   // 肚子上一点高光
-  function legs(time, tuck, splay, poke) {
-    for (const L of LEGS) {
+  function legPose(L,time,tuck,splay,poke){
       const wig = Math.sin(time * 5.2 + L.i * 1.7 + L.side) * 4;
       let a = L.a - L.side * tuck * 34 + L.side * splay * 18 + wig;
       if (L.i === 0) a += L.side * poke * 40;
       const kx = L.hx + Math.cos(a * RAD) * L.l1, ky = L.hy + Math.sin(a * RAD) * L.l1 - 2.6;
       const b = a + L.side * (26 - tuck * 18);
       const fx = kx + Math.cos(b * RAD) * L.l2, fy = ky + Math.sin(b * RAD) * L.l2 + 1.2;
-      L.path.setAttribute('d', 'M' + L.hx.toFixed(2) + ' ' + L.hy.toFixed(2) + 'L' + kx.toFixed(2) + ' ' + ky.toFixed(2) + 'L' + fx.toFixed(2) + ' ' + fy.toFixed(2));
-      L.knee.setAttribute('cx', kx.toFixed(2)); L.knee.setAttribute('cy', ky.toFixed(2));
-      L.foot.setAttribute('cx', fx.toFixed(2)); L.foot.setAttribute('cy', fy.toFixed(2));
+      return {d:'M' + L.hx.toFixed(2) + ' ' + L.hy.toFixed(2) + 'L' + kx.toFixed(2) + ' ' + ky.toFixed(2) + 'L' + fx.toFixed(2) + ' ' + fy.toFixed(2),kx:kx.toFixed(2),ky:ky.toFixed(2),fx:fx.toFixed(2),fy:fy.toFixed(2)};
+  }
+  function legs(time,tuck,splay,poke){
+    for(const L of LEGS){const p=legPose(L,time,tuck,splay,poke);L.path.setAttribute('d',p.d);L.knee.setAttribute('cx',p.kx);L.knee.setAttribute('cy',p.ky);L.foot.setAttribute('cx',p.fx);L.foot.setAttribute('cy',p.fy);}
+  }
+  function animateLegs(ms){
+    // Same leg geometry sampled at 60 Hz, played by the browser without idle JS frames.
+    const count=Math.ceil(ms/1000*60),options={duration:ms,easing:'linear'};
+    for(const L of LEGS){const frames=Array.from({length:count+1},(_,i)=>({offset:i/count,...legPose(L,i/count*ms/1000*2.6,.25,0,0)}));
+      animate(L.path,frames.map(p=>({offset:p.offset,d:`path("${p.d}")`})),options);
+      animate(L.knee,frames.map(p=>({offset:p.offset,cx:p.kx+'px',cy:p.ky+'px'})),options);
+      animate(L.foot,frames.map(p=>({offset:p.offset,cx:p.fx+'px',cy:p.fy+'px'})),options);
     }
   }
   legs(0, 0, 0, 0);
-  return { svg, legs };
+  return { svg, legs, animateLegs };
 }
   let idleThreshold=rnd(30000,60000),lastPrank=0;
   function clearPrank(){if(!ghost)return;const old=ghost;ghost=null;for(const id of old.timers)cancel(id);for(const a of old.anims)a?.cancel();remove(old.node);}
