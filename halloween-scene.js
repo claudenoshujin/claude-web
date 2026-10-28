@@ -288,18 +288,23 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   }
   function endDeleteEffect(snap){
     if(!activeDeletes.has(snap))return;
-    remove(snap.layer);
-    if(!snap.spacer?.isConnected){clearDelete(snap);return;}
+    remove(snap.layer);snap.layer=null;snap.effectDone=true;
+    if(snap.gapDone)clearDelete(snap);
+  }
+  function startDeleteCollapse(snap){
+    if(!activeDeletes.has(snap))return;
+    const done=()=>{remove(snap.spacer);snap.spacer=null;snap.gapDone=true;if(snap.effectDone)clearDelete(snap);};
+    if(!snap.spacer?.isConnected){done();return;}
     const collapse=()=>{
       if(dead||!activeDeletes.has(snap))return;
-      if(!snap.spacer?.isConnected){clearDelete(snap);return;}
-      animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},()=>clearDelete(snap));
+      if(!snap.spacer?.isConnected){done();return;}
+      animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},done);
     };
-    // Both variants yield after removing their effect layer, away from native post-delete work.
+    // Yield after the copied message disappears; its fixed effect layer finishes independently.
     snap.collapseFrame=win.requestAnimationFrame(()=>{
       snap.collapseFrame=0;if(dead||!activeDeletes.has(snap))return;
-      if(typeof win.requestIdleCallback==='function')snap.collapseIdle=win.requestIdleCallback(()=>{snap.collapseIdle=null;collapse();},{timeout:150});
-      else snap.collapseTimer=later(()=>{snap.collapseTimer=0;collapse();},150);
+      if(typeof win.requestIdleCallback==='function')snap.collapseIdle=win.requestIdleCallback(()=>{snap.collapseIdle=null;collapse();},{timeout:80});
+      else snap.collapseTimer=later(()=>{snap.collapseTimer=0;collapse();},80);
     });
   }
   function removedDelete(records){
@@ -339,12 +344,12 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     for(const [key,value]of Object.entries({position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0','box-sizing':'border-box','transform-origin':'50% 50%','pointer-events':'none'}))piece.style.setProperty(key,value,'important');
     const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';doc.body.append(layer);
     if(layer.dataset.hwDelete==='A'){
-      animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'});
+      animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'},()=>startDeleteCollapse(snap));
       later(()=>{const size=root.dataset.claudeLayout==='mobile'?28:30,n=at(node('span','hw-delete-asterisk',layer),cx-size/2,cy-size/2,size,size);n.innerHTML=asteriskMarkup(size);animate(n,[{transform:'scale(0) rotate(0deg)',opacity:1},{offset:.32,transform:'scale(1.2) rotate(70deg)',opacity:1},{offset:.52,transform:'scale(1) rotate(110deg)',opacity:1},{transform:'scale(.1) rotate(210deg)',opacity:0}],{duration:580,easing:'cubic-bezier(.3,.7,.4,1)',fill:'forwards'});},210);
       later(()=>{for(let i=0;i<8;i++){const a=i/8*Math.PI*2+rnd(0,.6),d=28*rnd(.55,1.05),size=rnd(12,22),n=at(node('span','hw-delete-puff',layer),cx-size/2,cy-size/2,size,size);n.style.background=`radial-gradient(circle,${night?'rgba(198,188,216,.55)':'rgba(122,110,148,.34)'} 0 52%,transparent 72%)`;animate(n,[{transform:'scale(.3)',opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d-8}px) scale(1.35)`,opacity:0}],{duration:rnd(460,640),easing:'cubic-bezier(.2,.8,.3,1)'},()=>remove(n));}for(let i=0;i<6;i++)deleteStar(layer,cx,cy);},510);
       snap.layer=layer;later(()=>endDeleteEffect(snap),1150);
     }else{
-      animate(piece,[{opacity:1,transform:'translateY(0)',filter:'blur(0px)'},{opacity:0,transform:'translateY(-4px)',filter:'blur(1.5px)'}],{duration:440,easing:'ease-in',fill:'forwards'});
+      animate(piece,[{opacity:1,transform:'translateY(0)',filter:'blur(0px)'},{opacity:0,transform:'translateY(-4px)',filter:'blur(1.5px)'}],{duration:440,easing:'ease-in',fill:'forwards'},()=>startDeleteCollapse(snap));
       const count=clamp(Math.round(r.width*r.height/9000),4,root.dataset.claudeLayout==='mobile'?5:8);for(let i=0;i<count;i++)later(()=>{const size=rnd(19,27)*(root.dataset.claudeLayout==='mobile'?.9:1),x=r.left+14+rnd(0,Math.max(0,r.width-28)),y=r.top+12+rnd(0,Math.max(0,r.height-24)),m=at(node('span','hw-delete-moth',layer),x-size/2,y-size/2,size,size);m.innerHTML=mothMarkup(size,night);const dx=rnd(-30,30),dy=-rnd(34,74),rot=dx*.4,w=rnd(-10,10);animate(m,[{transform:'scale(.5)',opacity:0},{offset:.2,transform:`translate(${dx*.2+w}px,${dy*.22}px) rotate(${rot*.4}deg)`,opacity:1},{offset:.58,transform:`translate(${dx*.55-w}px,${dy*.6}px) rotate(${-rot*.3}deg) scale(.96)`,opacity:1},{transform:`translate(${dx}px,${dy}px) rotate(${rot}deg) scale(.8)`,opacity:0}],{duration:rnd(780,1000),easing:'cubic-bezier(.3,.1,.4,1)',fill:'forwards'});const wings=m.querySelector('.mw');wings.style.transformBox='fill-box';wings.style.transformOrigin='center';animate(wings,[{transform:'scaleX(1)'},{transform:'scaleX(.22)'},{transform:'scaleX(1)'}],{duration:rnd(110,140),iterations:9});},i*45+rnd(0,60));snap.layer=layer;later(()=>endDeleteEffect(snap),1400);
     }
   }
