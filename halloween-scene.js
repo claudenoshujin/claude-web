@@ -298,7 +298,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     const collapse=()=>{
       if(dead||!activeDeletes.has(snap))return;
       if(!snap.spacer?.isConnected){done();return;}
-      animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},done);
+      animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:280,easing:'ease-in-out',fill:'forwards'},done);
     };
     // Yield after the copied message disappears; its fixed effect layer finishes independently.
     snap.collapseFrame=win.requestAnimationFrame(()=>{
