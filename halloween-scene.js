@@ -276,9 +276,10 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
       n.style.setProperty('pointer-events','none','important');n.style.setProperty('animation','none','important');n.style.setProperty('transition','none','important');
     }
     for(const n of clone.querySelectorAll('video,audio'))try{n.pause();}catch{}clone.inert=true;clone.setAttribute('aria-hidden','true');clone.dataset.cwHalloweenOwned='';
-    const cs=win.getComputedStyle(message),chat=doc.getElementById('chat');
+    const chat=doc.getElementById('chat'),previousRect=message.previousElementSibling?.getBoundingClientRect(),next=message.nextElementSibling,nextRect=next?.getBoundingClientRect();
+    const outerHeight=Math.max(0,nextRect?nextRect.top-(previousRect?.bottom??rect.top):rect.height),nextTop=nextRect?nextRect.top+(chat?.scrollTop||0):null;
     const view=chat?.getBoundingClientRect(),left=Math.max(0,view?.left||0,rect.left),top=Math.max(0,view?.top||0,rect.top),right=Math.min(viewport.right,view?.right??viewport.right,rect.right),bottom=Math.min(viewport.bottom,view?.bottom??viewport.bottom,rect.bottom),visibleRect={left,top,right:Math.max(left,right),bottom:Math.max(top,bottom),width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
-    deletion={data,chat:c.chat,message,outerHeight:rect.height+(parseFloat(cs.marginTop)||0)+(parseFloat(cs.marginBottom)||0),scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,visibleRect,forceMoth,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
+    deletion={data,chat:c.chat,message,outerHeight,next,nextTop,scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,visibleRect,forceMoth,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
   }
   function finishDelete(token){
     if(!token)return;
@@ -297,6 +298,11 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     const spacer=node('div','hw-delete-spacer',doc.createDocumentFragment());
     Object.assign(spacer.style,{height:snap.outerHeight+'px',minHeight:'0',margin:'0',padding:'0',border:'0',boxSizing:'border-box',flexShrink:'0',overflow:'hidden',pointerEvents:'none'});
     chat.insertBefore(spacer,record.nextSibling?.parentNode===chat?record.nextSibling:null);snap.spacer=spacer;chat.scrollTop=snap.scrollTop;
+    // Neighbor margins/gaps may survive replacement; settle the real flow position before this callback can paint.
+    if(snap.next?.parentNode===chat&&snap.nextTop!=null){
+      const delta=snap.nextTop-(snap.next.getBoundingClientRect().top+chat.scrollTop);
+      snap.outerHeight=Math.max(0,snap.outerHeight+delta);spacer.style.height=snap.outerHeight+'px';chat.scrollTop=snap.scrollTop;
+    }
     playDelete(snap);
   }
   function deleteChoice(forceMoth=false){let choice=forceMoth?'B':Math.random()<.5?'A':'B';if(!forceMoth&&deleteHistory.length>=2&&deleteHistory.at(-1)===choice&&deleteHistory.at(-2)===choice)choice=choice==='A'?'B':'A';deleteHistory.push(choice);if(deleteHistory.length>4)deleteHistory.shift();return choice;}
