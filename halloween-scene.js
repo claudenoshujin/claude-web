@@ -10,6 +10,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   const owned=new Set(),timers=new Set(),animations=new Set(),listeners=[],copies=new Map(),anchors=new Map(),icons=new Map(),corners=new Map();
   const pressedPointers=new Set();
   const pendingDialogDecorations=new Map();
+  const activeDeletes=new Set();
   const motion=win.matchMedia('(prefers-reduced-motion: reduce)');
   let dead=false,epoch=0,scheduler=0,raf=0,pail=null,ghost=null,spider=null,welcome=null,lastAction=0,submit=null,deletion=null,webKey='',submitTimer=0,deleteTimer=0,validAfter=win.performance.now(),lastCalm=null;
   let pailRatio=null,pailFloorOffset=null,pailDrag=null,pailSkipClick=false,pailLayout=null,pailResizeObserver=null,pailQrObserver=null,pailForm=null,pailQr=null,candyBusy=false;
@@ -270,24 +271,49 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     const originals=[message,...message.querySelectorAll('*')],clones=[clone,...clone.querySelectorAll('*')];
     for(let i=0;i<originals.length;i++){const cs=win.getComputedStyle(originals[i]),n=clones[i];for(const key of ['font','color','backgroundColor','display','padding','margin','border','borderRadius','boxSizing','textAlign','whiteSpace','wordBreak','overflowWrap'])n.style[key]=cs[key];n.style.setProperty('pointer-events','none','important');n.style.setProperty('animation','none','important');n.style.setProperty('transition','none','important');if(n.matches('img,video,canvas')){const r=originals[i].getBoundingClientRect();n.style.width=r.width+'px';n.style.height=r.height+'px';}}
     for(const n of clone.querySelectorAll('video,audio'))try{n.pause();}catch{}clone.inert=true;clone.setAttribute('aria-hidden','true');clone.dataset.cwHalloweenOwned='';
-    deletion={data,chat:c.chat,swipes:data.swipes?.length||0,rect,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
+    const cs=win.getComputedStyle(message),chat=doc.getElementById('chat');
+    deletion={data,chat:c.chat,message,outerHeight:rect.height+(parseFloat(cs.marginTop)||0)+(parseFloat(cs.marginBottom)||0),scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
   }
-  function finishDelete(token){if(token&&deletion===token){remove(token.clone);deletion=null;cancel(deleteTimer);deleteTimer=0;}}
+  function finishDelete(token){
+    if(!token)return;
+    if(deletion===token){deletion=null;cancel(deleteTimer);deleteTimer=0;}
+    remove(token.layer);remove(token.clone);remove(token.spacer);activeDeletes.delete(token);
+  }
+  function endDeleteEffect(snap){
+    remove(snap.layer);
+    if(!snap.spacer?.isConnected){finishDelete(snap);return;}
+    animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},()=>finishDelete(snap));
+  }
+  function removedDelete(records){
+    const snap=deletion,chat=doc.getElementById('chat');
+    if(!snap||!moving()||snap.chat!==getContext()?.chat||Date.now()-snap.at>60000||snap.message.isConnected)return;
+    const record=records.find(r=>r.target===chat&&[...r.removedNodes].includes(snap.message));if(!record)return;
+    const spacer=node('div','hw-delete-spacer',doc.createDocumentFragment());
+    Object.assign(spacer.style,{height:snap.outerHeight+'px',minHeight:'0',margin:'0',padding:'0',border:'0',boxSizing:'border-box',flexShrink:'0',overflow:'hidden',pointerEvents:'none'});
+    chat.insertBefore(spacer,record.nextSibling?.parentNode===chat?record.nextSibling:null);snap.spacer=spacer;chat.scrollTop=snap.scrollTop;
+    playDelete(snap);
+  }
   // 161 只用飞蛾；A 要先解决删除后版面重排和复制品走样，见审阅会话 10-28 结论
   function deleteChoice(){return 'B';}
   function deleteStar(layer,x,y){const size=rnd(6,10),a=rnd(0,Math.PI*2),d=rnd(22,44),n=at(node('span','hw-delete-spark',layer),x-size/2,y-size/2,size,size);n.innerHTML=star4(size);animate(n,[{transform:'translate(0,0) scale(0)',opacity:1},{offset:.5,transform:`translate(${Math.cos(a)*d*.6}px,${Math.sin(a)*d*.6}px) scale(1) rotate(45deg)`,opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px) scale(0) rotate(90deg)`,opacity:.8}],{duration:540,easing:'ease-out'},()=>remove(n));}
   function deleted(){
-    const snap=deletion,c=getContext();if(!snap||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>60000||!(!c.chat.includes(snap.data)||(snap.data.swipes?.length||0)<snap.swipes))return;
+    // Element removals start synchronously in the childList observer; this is the swipe fallback.
+    const snap=deletion,c=getContext();if(!snap||!snap.message.isConnected||!moving()||snap.chat!==c?.chat||Date.now()-snap.at>60000||!(!c.chat.includes(snap.data)||(snap.data.swipes?.length||0)<snap.swipes))return;
+    playDelete(snap);
+  }
+  function playDelete(snap){
+    if(deletion!==snap)return;
+    activeDeletes.add(snap);
     deletion=null;cancel(deleteTimer);deleteTimer=0;action();const r=snap.rect,blocks=quickReplyRects(),layer=at(node('div','hw-deletion-layer hw-fx',doc.createDocumentFragment()),0,0,viewport.right,viewport.bottom),piece=snap.clone;layer.dataset.hwDelete=deleteChoice();clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(piece);
     Object.assign(piece.style,{position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0',transformOrigin:'50% 50%',pointerEvents:'none'});const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';doc.body.append(layer);
     if(layer.dataset.hwDelete==='A'){
       animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'});
       later(()=>{const size=root.dataset.claudeLayout==='mobile'?28:30,n=at(node('span','hw-delete-asterisk',layer),cx-size/2,cy-size/2,size,size);n.innerHTML=asteriskMarkup(size);animate(n,[{transform:'scale(0) rotate(0deg)',opacity:1},{offset:.32,transform:'scale(1.2) rotate(70deg)',opacity:1},{offset:.52,transform:'scale(1) rotate(110deg)',opacity:1},{transform:'scale(.1) rotate(210deg)',opacity:0}],{duration:580,easing:'cubic-bezier(.3,.7,.4,1)',fill:'forwards'});},210);
       later(()=>{for(let i=0;i<8;i++){const a=i/8*Math.PI*2+rnd(0,.6),d=28*rnd(.55,1.05),size=rnd(12,22),n=at(node('span','hw-delete-puff',layer),cx-size/2,cy-size/2,size,size);n.style.background=`radial-gradient(circle,${night?'rgba(198,188,216,.55)':'rgba(122,110,148,.34)'} 0 52%,transparent 72%)`;animate(n,[{transform:'scale(.3)',opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d-8}px) scale(1.35)`,opacity:0}],{duration:rnd(460,640),easing:'cubic-bezier(.2,.8,.3,1)'},()=>remove(n));}for(let i=0;i<6;i++)deleteStar(layer,cx,cy);},510);
-      later(()=>remove(layer),1150);
+      snap.layer=layer;later(()=>endDeleteEffect(snap),1150);
     }else{
       animate(piece,[{opacity:1,transform:'translateY(0)',filter:'blur(0px)'},{opacity:0,transform:'translateY(-4px)',filter:'blur(1.5px)'}],{duration:440,easing:'ease-in',fill:'forwards'});
-      const count=clamp(Math.round(r.width*r.height/9000),4,root.dataset.claudeLayout==='mobile'?5:8);for(let i=0;i<count;i++)later(()=>{const size=rnd(19,27)*(root.dataset.claudeLayout==='mobile'?.9:1),x=r.left+14+rnd(0,Math.max(0,r.width-28)),y=r.top+12+rnd(0,Math.max(0,r.height-24)),m=at(node('span','hw-delete-moth',layer),x-size/2,y-size/2,size,size);m.innerHTML=mothMarkup(size,night);const dx=rnd(-30,30),dy=-rnd(34,74),rot=dx*.4,w=rnd(-10,10);animate(m,[{transform:'scale(.5)',opacity:0},{offset:.2,transform:`translate(${dx*.2+w}px,${dy*.22}px) rotate(${rot*.4}deg)`,opacity:1},{offset:.58,transform:`translate(${dx*.55-w}px,${dy*.6}px) rotate(${-rot*.3}deg) scale(.96)`,opacity:1},{transform:`translate(${dx}px,${dy}px) rotate(${rot}deg) scale(.8)`,opacity:0}],{duration:rnd(780,1000),easing:'cubic-bezier(.3,.1,.4,1)',fill:'forwards'});const wings=m.querySelector('.mw');wings.style.transformBox='fill-box';wings.style.transformOrigin='center';animate(wings,[{transform:'scaleX(1)'},{transform:'scaleX(.22)'},{transform:'scaleX(1)'}],{duration:rnd(110,140),iterations:9});},i*45+rnd(0,60));later(()=>remove(layer),1400);
+      const count=clamp(Math.round(r.width*r.height/9000),4,root.dataset.claudeLayout==='mobile'?5:8);for(let i=0;i<count;i++)later(()=>{const size=rnd(19,27)*(root.dataset.claudeLayout==='mobile'?.9:1),x=r.left+14+rnd(0,Math.max(0,r.width-28)),y=r.top+12+rnd(0,Math.max(0,r.height-24)),m=at(node('span','hw-delete-moth',layer),x-size/2,y-size/2,size,size);m.innerHTML=mothMarkup(size,night);const dx=rnd(-30,30),dy=-rnd(34,74),rot=dx*.4,w=rnd(-10,10);animate(m,[{transform:'scale(.5)',opacity:0},{offset:.2,transform:`translate(${dx*.2+w}px,${dy*.22}px) rotate(${rot*.4}deg)`,opacity:1},{offset:.58,transform:`translate(${dx*.55-w}px,${dy*.6}px) rotate(${-rot*.3}deg) scale(.96)`,opacity:1},{transform:`translate(${dx}px,${dy}px) rotate(${rot}deg) scale(.8)`,opacity:0}],{duration:rnd(780,1000),easing:'cubic-bezier(.3,.1,.4,1)',fill:'forwards'});const wings=m.querySelector('.mw');wings.style.transformBox='fill-box';wings.style.transformOrigin='center';animate(wings,[{transform:'scaleX(1)'},{transform:'scaleX(.22)'},{transform:'scaleX(1)'}],{duration:rnd(110,140),iterations:9});},i*45+rnd(0,60));snap.layer=layer;later(()=>endDeleteEffect(snap),1400);
     }
   }
 
@@ -448,7 +474,7 @@ function nodeSpider(P, size) {
   function schedule(){if(scheduler||!visible()||calm()||!ambient())return;scheduler=later(tick,1000);}
   function reset(){
     // CHAT_CHANGED cancels the timer pool; discard cached decoration states too.
-    clearWelcome();clearChatDecoration();clearPendingDialogDecorations();
+    clearWelcome();clearChatDecoration();clearPendingDialogDecorations();finishDelete(deletion);for(const snap of [...activeDeletes])finishDelete(snap);
     clearSend();candyBusy=false;
     pressedPointers.clear();
     win.cancelAnimationFrame(spiderModalFrame);spiderModalFrame=0;spiderModalValid=false;
@@ -459,6 +485,7 @@ function nodeSpider(P, size) {
     submit=null;deletion=null;submitTimer=deleteTimer=0;if(!dead){if(!doc.hidden)staticScenes();schedule();}
   }
   const observer=new win.MutationObserver(records=>{
+    removedDelete(records);
     if(records.every(r=>r.target.closest?.('[data-cw-halloween-owned]')||[...r.addedNodes,...r.removedNodes].every(n=>n.nodeType===1&&n.hasAttribute?.('data-cw-halloween-owned'))))return;
     if(!raf)raf=win.requestAnimationFrame(()=>{raf=0;if(!dead)staticScenes();});
   });
