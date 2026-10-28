@@ -164,7 +164,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   function savePail(){if(pailRatio!=null)prefs?.setItem('claude-web:halloween-pail-x',pailRatio.toFixed(6));}
   function bindSmallClawds(form){
     const pile=form.querySelector('.clawd-pile');if(form===pailSmallForm&&pile===pailSmallPile)return;
-    pailSmallObserver??=new win.MutationObserver(()=>{if(dead||pailSmallFrame)return;pailSmallFrame=win.requestAnimationFrame(()=>{pailSmallFrame=0;if(!dead)positionPail();});});
+    pailSmallObserver??=new win.MutationObserver(records=>{if(dead||pailSmallFrame||!records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&(n.matches('.clawd-pile-c,.clawd-pile')||n.querySelector('.clawd-pile-c,.clawd-pile')))))return;pailSmallFrame=win.requestAnimationFrame(()=>{pailSmallFrame=0;if(!dead)positionPail();});});
     pailSmallObserver.disconnect();pailSmallForm=form;pailSmallPile=pile;
     pailSmallObserver.observe(form,{childList:true});if(pile)pailSmallObserver.observe(pile,{childList:true});
   }
