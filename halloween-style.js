@@ -162,7 +162,6 @@ html[data-cw-halloween="on"] .clawd-pile-shadow:has(+.clawd-pile-c[data-name="co
 html[data-cw-hw-calm="on"] :is(.clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels),html[data-cw-hw-ambient="off"] :is(.clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels){animation:none;translate:0 0}
 @media(prefers-reduced-motion:reduce){html[data-cw-halloween="on"] .clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels{animation:none;translate:0 0}}
 @keyframes hw-web-sway{0%,100%{transform:rotate(0deg)}25%{transform:rotate(1.15deg)}75%{transform:rotate(-1.15deg)}}
-@keyframes hw-signature{0%,100%{opacity:.95}50%{opacity:.45}}
 .hw-live-web,.hw-live-web *,.hw-chat-deco,.hw-chat-deco *{pointer-events:none!important;user-select:none}.hw-web-thread{transform-origin:top;transition:height .2s}.hw-web-star{transition:top .2s}.hw-chat-deco{position:fixed!important}
 .hw-fx.hw-node-spider,.hw-fx.hw-node-ripple{z-index:3003}
 .hw-node-spider,.hw-node-thread,.hw-node-body,.hw-node-ripple,.hw-prank,.hw-prank *{pointer-events:none!important;user-select:none}
