@@ -407,6 +407,8 @@ function nodeSpider(P, size) {
   function tick(){scheduler=0;if(dead)return;maybePrank();scheduler=later(tick,1000);}
   function schedule(){if(scheduler||!visible()||calm()||!ambient())return;scheduler=later(tick,1000);}
   function reset(){
+    // CHAT_CHANGED cancels the timer pool; discard cached decoration states too.
+    clearWelcome();clearChatDecoration();
     clearSend();candyBusy=false;
     pressedPointers.clear();
     win.cancelAnimationFrame(spiderModalFrame);spiderModalFrame=0;spiderModalValid=false;
@@ -414,7 +416,7 @@ function nodeSpider(P, size) {
     for(const a of animations)a.cancel();animations.clear();clearPrank();clearDrawerSpider();
     for(const [b,state]of copies){delete b.dataset.cwHalloweenCopy;remove(state.status);}copies.clear();
     for(const n of [...owned])if(n.classList.contains('hw-fx')||n.closest?.('.hw-fx'))remove(n);
-    submit=null;deletion=null;submitTimer=deleteTimer=0;if(!dead)schedule();
+    submit=null;deletion=null;submitTimer=deleteTimer=0;if(!dead){if(!doc.hidden)staticScenes();schedule();}
   }
   const observer=new win.MutationObserver(records=>{
     if(records.every(r=>r.target.closest?.('[data-cw-halloween-owned]')||[...r.addedNodes,...r.removedNodes].every(n=>n.nodeType===1&&n.hasAttribute?.('data-cw-halloween-owned'))))return;
