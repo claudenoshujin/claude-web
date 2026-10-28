@@ -13,6 +13,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   let dead=false,epoch=0,scheduler=0,raf=0,pail=null,ghost=null,spider=null,welcome=null,lastAction=0,submit=null,deletion=null,webKey='',submitTimer=0,deleteTimer=0,validAfter=win.performance.now(),lastCalm=null;
   let pailRatio=null,pailFloorOffset=null,pailDrag=null,pailSkipClick=false,pailLayout=null,pailResizeObserver=null,pailQrObserver=null,pailForm=null,pailQr=null,candyBusy=false;
   const pailObserved=new Set();
+  let pailSmallObserver=null,pailSmallForm=null,pailSmallPile=null,pailSmallFrame=0;
   const calm=()=>motion.matches||root.dataset.claudeMotion==='off';
   const visible=()=>!dead&&!doc.hidden;
   const moving=()=>visible()&&!calm();
@@ -29,6 +30,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   const panel=()=>doc.querySelector('.cw-v4-shell:not([hidden])');
   let generationSafeKey='';
   function quickReplyRects(){return [...doc.querySelectorAll('#qr--bar button,#qr--bar .qr--button')].map(n=>n.getBoundingClientRect()).filter(r=>r.width&&r.height);}
+  function smallClawdRects(){return [...doc.querySelectorAll('#send_form .clawd-pile-c')].map(n=>n.getBoundingClientRect()).filter(r=>r.width&&r.height);}
   function clipQuickReplies(layer,bounds,blocks=quickReplyRects()){
     if(!bounds&&!blocks.length)return;
     bounds=bounds||{left:0,top:0,...viewport};
@@ -155,11 +157,17 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     positionPail();
   }
   function pailSpot(layout,wanted){
-    const {r,blocks,top}=layout,min=r.left,max=Math.max(min,r.right-21),x=clamp(wanted,min,max),over=(left,y)=>blocks.some(b=>left<b.right&&left+21>b.left&&y<b.bottom&&y+24>b.top);
-    const xs=[x,min,max,...blocks.flatMap(b=>[b.left-25,b.right+4])].map(v=>clamp(v,min,max)).filter(v=>!over(v,top)).sort((a,b)=>Math.abs(a-x)-Math.abs(b-x));
+    const {r,blocks,soft=[],top}=layout,avoid=[...blocks,...soft],min=r.left,max=Math.max(min,r.right-21),x=clamp(wanted,min,max),over=(left,y)=>avoid.some(b=>left<b.right&&left+21>b.left&&y<b.bottom&&y+24>b.top);
+    const xs=[x,min,max,...avoid.flatMap(b=>[b.left-25,b.right+4])].map(v=>clamp(v,min,max)).filter(v=>!over(v,top)).sort((a,b)=>Math.abs(a-x)-Math.abs(b-x));
     const left=xs.length?xs[0]:x;return {left,top:xs.length?top:safeTop(left,top,21,24,blocks)};
   }
   function savePail(){if(pailRatio!=null)prefs?.setItem('claude-web:halloween-pail-x',pailRatio.toFixed(6));}
+  function bindSmallClawds(form){
+    const pile=form.querySelector('.clawd-pile');if(form===pailSmallForm&&pile===pailSmallPile)return;
+    pailSmallObserver??=new win.MutationObserver(()=>{if(dead||pailSmallFrame)return;pailSmallFrame=win.requestAnimationFrame(()=>{pailSmallFrame=0;if(!dead)positionPail();});});
+    pailSmallObserver.disconnect();pailSmallForm=form;pailSmallPile=pile;
+    pailSmallObserver.observe(form,{childList:true});if(pile)pailSmallObserver.observe(pile,{childList:true});
+  }
   function bindPailLayout(form){
     const qr=doc.getElementById('qr--bar');
     if(form!==pailForm||qr!==pailQr){pailResizeObserver?.disconnect();pailQrObserver?.disconnect();pailObserved.clear();pailForm=form;pailQr=qr;
@@ -171,12 +179,12 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   function finishPailDrag(e){if(!pailDrag||e.pointerId!==pailDrag.id)return;const moved=pailDrag.moved;pailDrag=null;pailSkipClick=moved;if(moved)savePail();try{pail.releasePointerCapture(e.pointerId);}catch{}positionPail();}
   function positionPail(state){
     // Clawd coordinates no longer move the independent bucket, even at landing.
-    if(state||pailDrag||dead)return;const form=doc.getElementById('send_form');if(!form)return;const r=form.getBoundingClientRect();if(!r.width){pail?.style.setProperty('display','none','important');return;}
+    if(state||pailDrag||dead)return;const form=doc.getElementById('send_form');if(!form)return;bindSmallClawds(form);const r=form.getBoundingClientRect();if(!r.width){pail?.style.setProperty('display','none','important');return;}
     if(pailRatio==null||pailFloorOffset==null){const big=form.querySelector('.clawd-composer-clawd'),b=big?.getBoundingClientRect(),s=getClawdState?.()||{x:0,y:0};if(!b?.width)return;
       const stored=prefs?.getItem('claude-web:halloween-pail-x'),value=stored==null?NaN:Number(stored);pailRatio=Number.isFinite(value)?clamp(value,0,1):(b.left-s.x+44-r.left)/r.width;pailFloorOffset=b.bottom-s.y-25-r.top;}
-    const layout=pailLayout={r,blocks:quickReplyRects(),top:r.top+pailFloorOffset},spot=pailSpot(layout,r.left+pailRatio*r.width);
+    const layout=pailLayout={r,blocks:quickReplyRects(),soft:smallClawdRects(),top:r.top+pailFloorOffset},spot=pailSpot(layout,r.left+pailRatio*r.width);
     if(!pail){pail=node('button','hw-anchor hw-pail');pail.setAttribute('aria-label','撒糖');picture(art.pail(),pail,3);
-      on(pail,'pointerdown',e=>{if(e.button!==0)return;pailSkipClick=false;const rect=(pailForm||form).getBoundingClientRect();pailDrag={id:e.pointerId,x:e.clientX,y:e.clientY,left:parseFloat(pail.style.left),moved:false,layout:{r:rect,blocks:quickReplyRects(),top:rect.top+pailFloorOffset}};try{pail.setPointerCapture(e.pointerId);}catch{}},{passive:true});
+      on(pail,'pointerdown',e=>{if(e.button!==0)return;pailSkipClick=false;const rect=(pailForm||form).getBoundingClientRect();pailDrag={id:e.pointerId,x:e.clientX,y:e.clientY,left:parseFloat(pail.style.left),moved:false,layout:{r:rect,blocks:quickReplyRects(),soft:smallClawdRects(),top:rect.top+pailFloorOffset}};try{pail.setPointerCapture(e.pointerId);}catch{}},{passive:true});
       on(pail,'pointermove',e=>{const d=pailDrag;if(!d||d.id!==e.pointerId)return;if(Math.hypot(e.clientX-d.x,e.clientY-d.y)>4)d.moved=true;if(!d.moved)return;e.preventDefault();const p=pailSpot(d.layout,d.left+e.clientX-d.x);pailRatio=clamp((p.left-d.layout.r.left)/d.layout.r.width,0,1);pail.style.left=p.left+'px';pail.style.top=p.top+'px';},{passive:false});
       on(pail,'pointerup',finishPailDrag,{passive:true});on(pail,'pointercancel',finishPailDrag,{passive:true});}
     for(const [key,value]of [['left',spot.left+'px'],['top',spot.top+'px'],['display','block']])if(pail.style.getPropertyValue(key)!==value)pail.style.setProperty(key,value,key==='display'?'important':'');
@@ -454,6 +462,6 @@ function nodeSpider(P, size) {
     doc.fonts?.ready.then(()=>{if(!dead){webKey='';staticScenes();}});
   },sync,sent,deleted,captureDelete,finishDelete,reset,positionClawd:positionPail,
   stats:()=>({timers:timers.size,animations:animations.size,nodes:[...owned].filter(n=>n.isConnected).length,prank:!!ghost,spider:!!spider,sendRaf:!!sendFrame,spiderRaf:!!spider?.frame,decoRaf:(welcomeState?.frames.size||0)+(chatDecorationState?.frames.size||0)}),
-  destroy(){if(dead)return;dead=true;reset();pailResizeObserver?.disconnect();pailQrObserver?.disconnect();pailObserved.clear();pailDrag=null;observer.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');root.style.removeProperty('--cw-hw-rig-lift');}
+  destroy(){if(dead)return;dead=true;reset();pailResizeObserver?.disconnect();pailQrObserver?.disconnect();pailSmallObserver?.disconnect();win.cancelAnimationFrame(pailSmallFrame);pailSmallFrame=0;pailSmallForm=pailSmallPile=null;pailObserved.clear();pailDrag=null;observer.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');root.style.removeProperty('--cw-hw-rig-lift');}
   };
 }
