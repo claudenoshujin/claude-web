@@ -3776,3 +3776,9 @@ html[data-cw-v4][data-claude-integrated-theme="night"]{--cw-chat-surface:44,44,4
 html[data-cw-v4] body :is(#bg1,#bg_custom,#bg_animation)>img.cw-background-filter{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;border:0!important;border-radius:0!important;pointer-events:none!important}
 .cw-background-filter-controls{margin-top:14px;padding-top:12px;border-top:1px solid var(--cw-v4-line,#8883)}
 .cw-background-filter-controls label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0}.cw-background-filter-controls input[type=range]{flex:1;min-width:70px}.cw-background-filter-controls output{min-width:34px;text-align:right}.cw-background-filter-controls select{width:100%}.cw-background-filter-controls [hidden]{display:none!important}
+/* SillyTavern-Layout's "input above/below" modes regrid ST's three-column composer (#nonQRFormItems auto|1fr|auto)
+ * and move a non-empty #send_textarea into row 1 or 2. CW lays the composer out itself (a text row over a button
+ * row; one flex row on the desktop chat page), so with "below" the text landed on the + button. Keep CW's placement. */
+html[data-cw-v4] body:is(.te-input-upper,.te-input-lower) #send_form #nonQRFormItems{justify-items:normal!important}
+html[data-cw-v4] body:is(.te-input-upper,.te-input-lower) #send_form #send_textarea{grid-row:1!important;grid-column:1/-1!important;justify-self:auto!important;width:auto!important}
+html[data-cw-v4][data-claude-layout="pc"] body:is(.te-input-upper,.te-input-lower):not(.clawd-welcome) #send_form #nonQRFormItems{display:flex!important}
