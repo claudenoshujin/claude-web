@@ -282,14 +282,18 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     deletion={data,chat:c.chat,message,outerHeight,next,nextTop,scrollHeight:chat?.scrollHeight||0,scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,visibleRect,forceMoth,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
   }
   function finishDelete(token){
+    // CW calls this in its native-delete finally block; a started effect owns its own lifetime.
+    if(token&&deletion===token&&!activeDeletes.has(token))clearDelete(token);
+  }
+  function clearDelete(token){
     if(!token)return;
     if(deletion===token){deletion=null;cancel(deleteTimer);deleteTimer=0;}
     remove(token.layer);remove(token.clone);remove(token.spacer);activeDeletes.delete(token);
   }
   function endDeleteEffect(snap){
     remove(snap.layer);
-    if(!snap.spacer?.isConnected){finishDelete(snap);return;}
-    animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},()=>finishDelete(snap));
+    if(!snap.spacer?.isConnected){clearDelete(snap);return;}
+    animate(snap.spacer,[{height:snap.outerHeight+'px'},{height:'0px'}],{duration:220,easing:'ease-in-out',fill:'forwards'},()=>clearDelete(snap));
   }
   function removedDelete(records){
     const snap=deletion,chat=doc.getElementById('chat');
@@ -495,7 +499,7 @@ function nodeSpider(P, size) {
   function schedule(){if(scheduler||!visible()||calm()||!ambient())return;scheduler=later(tick,1000);}
   function reset(){
     // CHAT_CHANGED cancels the timer pool; discard cached decoration states too.
-    clearWelcome();clearChatDecoration();clearPendingDialogDecorations();finishDelete(deletion);for(const snap of [...activeDeletes])finishDelete(snap);
+    clearWelcome();clearChatDecoration();clearPendingDialogDecorations();clearDelete(deletion);for(const snap of [...activeDeletes])clearDelete(snap);
     clearSend();candyBusy=false;
     pressedPointers.clear();
     win.cancelAnimationFrame(spiderModalFrame);spiderModalFrame=0;spiderModalValid=false;
