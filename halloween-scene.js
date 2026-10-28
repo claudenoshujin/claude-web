@@ -279,7 +279,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     const chat=doc.getElementById('chat'),previousRect=message.previousElementSibling?.getBoundingClientRect(),next=message.nextElementSibling,nextRect=next?.getBoundingClientRect();
     const outerHeight=Math.max(0,nextRect?nextRect.top-(previousRect?.bottom??rect.top):rect.height),nextTop=nextRect?nextRect.top+(chat?.scrollTop||0):null;
     const view=chat?.getBoundingClientRect(),left=Math.max(0,view?.left||0,rect.left),top=Math.max(0,view?.top||0,rect.top),right=Math.min(viewport.right,view?.right??viewport.right,rect.right),bottom=Math.min(viewport.bottom,view?.bottom??viewport.bottom,rect.bottom),visibleRect={left,top,right:Math.max(left,right),bottom:Math.max(top,bottom),width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
-    deletion={data,chat:c.chat,message,outerHeight,next,nextTop,scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,visibleRect,forceMoth,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
+    deletion={data,chat:c.chat,message,outerHeight,next,nextTop,scrollHeight:chat?.scrollHeight||0,scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,visibleRect,forceMoth,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
   }
   function finishDelete(token){
     if(!token)return;
@@ -302,6 +302,10 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     if(snap.next?.parentNode===chat&&snap.nextTop!=null){
       const delta=snap.nextTop-(snap.next.getBoundingClientRect().top+chat.scrollTop);
       snap.outerHeight=Math.max(0,snap.outerHeight+delta);spacer.style.height=snap.outerHeight+'px';chat.scrollTop=snap.scrollTop;
+    }else if(!snap.next&&chat.lastElementChild===spacer){
+      // At the bottom, lost trailing margin reduces scrollHeight and clamps scrollTop before any neighbor can be measured.
+      snap.outerHeight=Math.max(0,snap.outerHeight+snap.scrollHeight-chat.scrollHeight);
+      spacer.style.height=snap.outerHeight+'px';chat.scrollTop=snap.scrollTop;
     }
     playDelete(snap);
   }
