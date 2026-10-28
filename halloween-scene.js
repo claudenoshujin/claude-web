@@ -268,11 +268,17 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   function captureDelete(message){
     if(!moving()||!message)return;const c=getContext(),id=Number(message.getAttribute('mesid')),data=c?.chat?.[id];if(!data)return;
     finishDelete(deletion);const rect=message.getBoundingClientRect(),clone=message.cloneNode(true);clone.removeAttribute('id');for(const n of clone.querySelectorAll('[id]'))n.removeAttribute('id');
-    const originals=[message,...message.querySelectorAll('*')],clones=[clone,...clone.querySelectorAll('*')];
-    for(let i=0;i<originals.length;i++){const cs=win.getComputedStyle(originals[i]),n=clones[i];for(const key of ['font','color','backgroundColor','display','padding','margin','border','borderRadius','boxSizing','textAlign','whiteSpace','wordBreak','overflowWrap'])n.style[key]=cs[key];n.style.setProperty('pointer-events','none','important');n.style.setProperty('animation','none','important');n.style.setProperty('transition','none','important');if(n.matches('img,video,canvas')){const r=originals[i].getBoundingClientRect();n.style.width=r.width+'px';n.style.height=r.height+'px';}}
+    const controls='.mes_buttons,.extraMesButtons,.mes_edit_buttons,.swipe_left,.swipe_right,.swipes-counter';
+    for(const n of clone.querySelectorAll(controls))n.remove();
+    const originals=[message,...message.querySelectorAll('*')].filter(n=>n===message||!n.closest(controls)),clones=[clone,...clone.querySelectorAll('*')],forceMoth=clones.length>600;
+    for(let i=0;i<clones.length;i++){
+      const n=clones[i];if(!forceMoth){const cs=win.getComputedStyle(originals[i]);for(const p of cs)n.style.setProperty(p,cs.getPropertyValue(p));}
+      n.style.setProperty('pointer-events','none','important');n.style.setProperty('animation','none','important');n.style.setProperty('transition','none','important');
+    }
     for(const n of clone.querySelectorAll('video,audio'))try{n.pause();}catch{}clone.inert=true;clone.setAttribute('aria-hidden','true');clone.dataset.cwHalloweenOwned='';
     const cs=win.getComputedStyle(message),chat=doc.getElementById('chat');
-    deletion={data,chat:c.chat,message,outerHeight:rect.height+(parseFloat(cs.marginTop)||0)+(parseFloat(cs.marginBottom)||0),scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
+    const view=chat?.getBoundingClientRect(),left=Math.max(0,view?.left||0,rect.left),top=Math.max(0,view?.top||0,rect.top),right=Math.min(viewport.right,view?.right??viewport.right,rect.right),bottom=Math.min(viewport.bottom,view?.bottom??viewport.bottom,rect.bottom),visibleRect={left,top,right:Math.max(left,right),bottom:Math.max(top,bottom),width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
+    deletion={data,chat:c.chat,message,outerHeight:rect.height+(parseFloat(cs.marginTop)||0)+(parseFloat(cs.marginBottom)||0),scrollTop:chat?.scrollTop||0,swipes:data.swipes?.length||0,rect,visibleRect,forceMoth,clone,at:Date.now()};deleteTimer=later(()=>finishDelete(deletion),60000);return deletion;
   }
   function finishDelete(token){
     if(!token)return;
@@ -304,7 +310,11 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
   function playDelete(snap){
     if(deletion!==snap)return;
     activeDeletes.add(snap);
-    deletion=null;cancel(deleteTimer);deleteTimer=0;action();const r=snap.rect,blocks=quickReplyRects(),layer=at(node('div','hw-deletion-layer hw-fx',doc.createDocumentFragment()),0,0,viewport.right,viewport.bottom),piece=snap.clone;layer.dataset.hwDelete=deleteChoice();clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(piece);
+    deletion=null;cancel(deleteTimer);deleteTimer=0;action();const original=snap.rect,r=snap.visibleRect||original,blocks=quickReplyRects(),layer=at(node('div','hw-deletion-layer hw-fx',doc.createDocumentFragment()),0,0,viewport.right,viewport.bottom);
+    let piece=snap.clone;
+    Object.assign(piece.style,{position:'absolute',left:'0',top:'0',width:original.width+'px',height:original.height+'px',boxSizing:'border-box',margin:'0'});
+    if(r.width!==original.width||r.height!==original.height){const crop=node('div','hw-delete-crop',doc.createDocumentFragment());crop.style.overflow='hidden';piece.style.left=original.left-r.left+'px';piece.style.top=original.top-r.top+'px';crop.append(piece);piece=crop;}
+    layer.dataset.hwDelete=snap.forceMoth?'B':deleteChoice();clipQuickReplies(layer,{left:r.left-50,top:r.top-50,right:r.right+50,bottom:r.bottom+50},blocks);layer.append(piece);owned.add(snap.clone);
     Object.assign(piece.style,{position:'absolute',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',margin:'0',transformOrigin:'50% 50%',pointerEvents:'none'});const cx=r.left+r.width/2,cy=r.top+r.height/2,night=root.dataset.claudeIntegratedTheme==='night';doc.body.append(layer);
     if(layer.dataset.hwDelete==='A'){
       animate(piece,[{transform:'scale(1) rotate(0deg)',opacity:1},{offset:.55,transform:'scale(.34) rotate(6deg)',opacity:1},{transform:'scale(.03) rotate(16deg)',opacity:0}],{duration:300,easing:'cubic-bezier(.55,0,.85,.4)',fill:'forwards'});
