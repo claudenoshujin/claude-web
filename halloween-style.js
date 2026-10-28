@@ -159,7 +159,7 @@ html[data-cw-halloween="on"] .clawd-pile-shadow:has(+.clawd-pile-c[data-name="co
 .hw-prank-cursor{position:relative}
 .hw-prank-cursor>.hw-pixels{animation:hw-sheet-float 2.5s ease-in-out infinite}
 .hw-prank-cursor::after{content:"";position:absolute;left:50%;bottom:-4px;width:13px;height:2px;translate:-50% 0;border-radius:50%;background:rgba(0,0,0,.2)}
-html[data-cw-hw-calm="on"] :is(.clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels),html[data-cw-hw-ambient="off"] :is(.clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels){animation:none;translate:0 0}
+html[data-cw-halloween="on"][data-cw-hw-calm="on"] :is(.clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels),html[data-cw-halloween="on"][data-cw-hw-ambient="off"] :is(.clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels){animation:none;translate:0 0}
 @media(prefers-reduced-motion:reduce){html[data-cw-halloween="on"] .clawd-pile-c[data-name="cowboy"] .clawd-pile-s,.hw-prank-cursor>.hw-pixels{animation:none;translate:0 0}}
 @keyframes hw-web-sway{0%,100%{transform:rotate(0deg)}25%{transform:rotate(1.15deg)}75%{transform:rotate(-1.15deg)}}
 .hw-live-web,.hw-live-web *,.hw-chat-deco,.hw-chat-deco *{pointer-events:none!important;user-select:none}.hw-web-thread{transform-origin:top;transition:height .2s}.hw-web-star{transition:top .2s}.hw-chat-deco{position:fixed!important}
