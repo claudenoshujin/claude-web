@@ -527,8 +527,8 @@ function nodeSpider(P, size) {
   const iconEffectKinds=['drift','ghost','possess','clawd','candy'];
   function stopIconEffect(){
     const state=iconEffect;if(!state)return;iconEffect=null;
-    for(const id of state.timers)cancel(id);for(const a of state.anims)a?.cancel();
-    state.source.classList.remove('hw-icon-muted','hw-icon-self');remove(state.node);
+    try{for(const id of state.timers)cancel(id);for(const a of state.anims)a?.cancel();}
+    finally{state.source.classList.toggle('hw-icon-muted',state.mutedBefore);state.source.classList.toggle('hw-icon-self',state.selfBefore);remove(state.node);}
   }
   function stopIconEffects(){cancel(iconEffectTimer);iconEffectTimer=0;stopIconEffect();}
   function iconEffectAllowed(){const box=doc.getElementById('send_textarea');return moving()&&ambient()&&!pressedPointers.size&&Date.now()-lastAction>=6500&&root.dataset.cwV4Settings!=='open'&&root.dataset.cwGenerating!=='1'&&!box?.value&&!modal();}
@@ -545,6 +545,10 @@ function nodeSpider(P, size) {
       seen.add(source);targets.push({source,button,key,kind,r:{left:r.left,top:r.top,width:r.width,height:r.height}});
     }return targets;
   }
+  function iconEffectZ(source){
+    let outer=0;for(let n=source;n&&n!==doc;n=n.parentElement){const c=win.getComputedStyle(n),z=Number.parseInt(c.zIndex,10);if(c.position!=='static'&&Number.isFinite(z))outer=z;}
+    return Math.max(2999,outer+1);
+  }
   function playIconEffect(kind,target){
     if(!iconEffectAllowed()||typeof win.Element.prototype.animate!=='function')return false;
     const choices=target?[target]:iconEffectTargets();if(!choices.length)return false;
@@ -552,12 +556,13 @@ function nodeSpider(P, size) {
     if(cs.visibility==='hidden'||+cs.opacity===0)return false;
     const pseudo=chosen.kind==='before'?win.getComputedStyle(source,'::before'):null,size=Math.min(32,parseFloat(pseudo?.width)||Math.min(r.width,r.height)||20),cx=r.left+r.width/2,cy=r.top+r.height/2;
     stopIconEffect();const fragment=doc.createDocumentFragment(),layer=at(node('div','hw-icon-effect hw-fx',fragment),0,0,viewport.right,viewport.bottom);
-    layer.dataset.hwIconEffect=kind;layer.style.color=cs.color;
+    layer.dataset.hwIconEffect=kind;layer.style.color=cs.color;layer.style.zIndex=String(iconEffectZ(source));
     const proxy=at(node('span','hw-icon-proxy',layer),cx-size/2,cy-size/2,size,size);proxy.innerHTML=svg(key);Object.assign(proxy.style,{display:'block',transformOrigin:'50% 50%'});Object.assign(proxy.firstChild.style,{display:'block',width:'100%',height:'100%',overflow:'visible'});
-    const state=iconEffect={node:layer,source,anims:new Set(),timers:new Set()};
+    const state=iconEffect={node:layer,source,mutedBefore:source.classList.contains('hw-icon-muted'),selfBefore:source.classList.contains('hw-icon-self'),anims:new Set(),timers:new Set()};
     const wait=(fn,ms)=>{const id=later(()=>{state.timers.delete(id);if(iconEffect===state)fn();},ms);state.timers.add(id);return id;};
     const play=(n,frames,options)=>{const a=animate(n,frames,options);if(a)state.anims.add(a);return a;};
     const k=(offset,x,y,angle=0,scale=1,opacity=1)=>({offset,transform:`translate(${x}px,${y}px) rotate(${angle}deg) scale(${scale})`,opacity});
+    wait(stopIconEffect,5000);let started=false;try{
     let duration=4000;
     if(kind==='drift'){
       const direction=cx<viewport.right*.55?1:-1,dx=direction*rnd(95,130),up=-rnd(9,15);
@@ -586,11 +591,12 @@ function nodeSpider(P, size) {
     }else if(kind==='candy'){
       duration=2100;const count=2+(Math.random()*2|0),floor=cy+size*.75*.55;
       for(let i=0;i<count;i++){const sp=art.candy(Math.random()*3|0,art.CANDY_PAIRS[Math.random()*art.CANDY_PAIRS.length|0]),w=sp.w*2,h=sp.h*2,x=cx-w/2,y=cy-h/2,n=at(picture(sp,layer,2,'hw-pixels hw-icon-candy'),x,y,w,h),delay=120+i*80,m=candyMotion(w,h,x,y,(i%2?1:-1)*rnd(26,62),rnd(-230,-170),floor);
-        n.style.opacity='0';const frames=m.frames.map(f=>({offset:Math.min(1,f.t/m.T),transform:`translate(${f.x}px,${f.y}px) rotate(${f.ang}deg) scale(${f.sx},${f.sy})`,opacity:f.opacity}));frames[0].offset=0;frames.at(-1).offset=1;play(n,frames,{duration:m.T*1000,delay,fill:'forwards'});duration=Math.max(duration,m.T*1000+delay);}
+        n.style.opacity='0';const frames=m.frames.map(f=>({offset:Math.min(1,f.t/m.T),transform:`translate(${f.x}px,${f.y}px) rotate(${f.ang}deg) scale(${f.sx},${f.sy})`,opacity:f.opacity}));frames[0].offset=0;frames.at(-1).offset=1;play(n,frames,{duration:m.T*1000,delay});duration=Math.max(duration,m.T*1000+delay);}
       play(proxy,[{transform:'scale(1)'},{offset:.25,transform:'scale(1.18,.78)'},{offset:.5,transform:'translateY(-2px) scale(.9,1.14)'},{offset:.75,transform:'scale(1.04,.96)'},{transform:'scale(1)'}],{duration:520,easing:'ease-out'});
     }
     source.classList.add('hw-icon-muted');if(['self','native'].includes(chosen.kind))source.classList.add('hw-icon-self');
-    doc.body.append(fragment);wait(stopIconEffect,duration+40);lastIconEffect=kind;return true;
+    doc.body.append(fragment);wait(stopIconEffect,duration+40);lastIconEffect=kind;started=true;return true;
+    }finally{if(!started)stopIconEffect();}
   }
   function scheduleIconEffects(){
     if(iconEffectTimer||!moving()||!ambient()||root.dataset.cwV4Settings==='open')return;
