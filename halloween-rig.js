@@ -2248,8 +2248,39 @@ export function buildHalloweenRig() {
   brewLoop('write','熬药：聚烟变锅、搅拌');
   brewLoop('sitWrite','熬药：坐着慢慢搅',true);
   brewLoop('writeHeld','熬药：守着小锅');
-  brewLoop('writeSend','发送后：开始熬药');
-  brewLoop('writeSendQuiet','发送后：安静熬药');
+  /* 点发送 → 熬药的衔接（Lulu 2026-10-28 选 B，预览 设计预览\Clawd打字到熬药衔接-v1.html）：
+     普通 Clawd 的 writeSend 有一段「接信」衔接，节日版原来直接从打字姿势跳到聚烟变锅。
+     现在：「！」抬头（帽子跟着身体一弹）→ 低头在身前搓两下钳子 → 紫烟聚成锅 → 握勺，1 秒后接和 brewLoop 逐帧一样的搅拌。
+     安静版（头上坐着小 Clawd）不做身体伸缩。 */
+  function brewBridge(id,name,quiet){
+    const O=1000,L=4000;
+    const c=def(new Clip(id,name,O+L,{loop:true,intro:O,track:'A',group:'gen',from:'compose'}));
+    c.beat(0,'打字的姿势').beat(100,quiet?'「！」抬头':'「！」抬头，帽子跟着一弹').beat(300,'低头，双钳在身前搓两下').beat(500,'几粒紫烟聚起来')
+     .beat(800,'小锅噗地出现').beat(900,'握勺，低头看锅').beat(O,'一拍一拍搅拌（同熬药循环）');
+    composeLoop(c,0);
+    c.at(100,'upper',{y:0}).at(100,'eyes',{f:'open',x:0,y:-1});
+    sym(c,100,'bang',{x:6,y:1,dur:400});
+    if(!quiet)c.flex(100,{sx:.96,sy:1.05}).flex(200,{});
+    c.at(300,'eyes',{y:1});
+    c.at(300,'clawL',{f:'stub',x:1,y:-1}).at(300,'clawR',{f:'stub',x:-1,y:-1});
+    c.at(400,'clawL',{x:2}).at(400,'clawR',{x:-2});
+    c.at(500,'clawL',{x:1}).at(500,'clawR',{x:-1});
+    c.seq(500,100,'propA',[{f:'brewPoof3',x:0,y:0,z:7,a:1,att:null},{f:'brewPoof2'},{f:'brewPoof1'},{f:'brewPot0'}]);
+    c.at(800,'clawL',{f:'front',x:3,y:0});
+    c.at(900,'clawR',{f:'front',x:-1,y:-2}).at(900,'propB',{f:'brewSpoon0',x:0,y:0,z:8,a:1,att:null}).at(900,'eyes',{f:'open',x:0,y:1});
+    for(let t=O,i=0;t<=O+L;t+=200,i++){
+      const k=i%4;brewPose(c,t);
+      c.at(t,'propA',{f:(i%10>=8?'brewPot':'brewPotQuiet')+k});c.at(t,'propB',{f:'brewSpoon'+k});
+      c.at(t,'clawR',{x:-1+[0,1,0,-1][k],y:-2});
+      if(i===8)c.at(t,'eyes',{f:'open',y:2});
+      if(i===15)c.at(t,'eyes',{f:'half'});
+      if(i===16)c.at(t,'eyes',{f:'shut'});
+      if(i===0||i===20)c.at(t,'propA',{f:'brewPot0'});
+    }
+    return c;
+  }
+  brewBridge('writeSend','发送后：「！」抬头、搓钳子聚烟变锅 → 熬药',false);
+  brewBridge('writeSendQuiet','发送后：抬头、搓钳子聚烟变锅 → 熬药（安静版）',true);
 
   /* 熬好了：节奏照原版「完成」（抛笔、举钳蹦一下、闪光），道具换成星芒 / 勺子 / 锅。
      不用大骷髅：它一出来就盖住脸和锅，眼洞透出身体的橙色像红眼，和「完成」的高兴情绪对不上。
