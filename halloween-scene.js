@@ -619,7 +619,7 @@ function nodeSpider(P, size) {
       if(effect==='flame')return flickerCandles(true);
       if(effect==='send'){const box=doc.getElementById('send_textarea');if(!box)return false;const snap=sendSnapshot(box,'测试文字');if(!snap)return false;playSend(snap);return true;}
       if(effect==='delete-A'||effect==='delete-B'){
-        const message=doc.querySelector('#chat>.mes:last-child');if(!message)return false;
+        const message=[...doc.querySelectorAll('#chat>.mes')].at(-1);if(!message)return false;
         const snap=captureDelete(message);if(!snap)return false;
         snap.demoOriginal={node:message,value:message.style.getPropertyValue('visibility'),priority:message.style.getPropertyPriority('visibility')};snap.demoChoice=effect.at(-1);snap.gapDone=true;
         message.style.setProperty('visibility','hidden','important');try{playDelete(snap);}catch(error){clearDelete(snap);throw error;}return true;
