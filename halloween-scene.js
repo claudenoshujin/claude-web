@@ -55,8 +55,8 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     try{const a=el.animate(frames,options);animations.add(a);a.onfinish=()=>{animations.delete(a);done?.();};a.oncancel=()=>animations.delete(a);return a;}catch{done?.();return null;}
   }
   function picture(sprite,parent,scale=2,cls='hw-pixels'){const n=node('img',cls,doc.createDocumentFragment());n.width=Math.round(sprite.w*scale);n.height=Math.round(sprite.h*scale);n.src=sprite.url;n.alt='';n.draggable=false;parent.append(n);return n;}
-  const svg=(key,mask=false)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="${mask?'black':'currentColor'}" stroke-width="${1.35*(IW[key]||1)}" stroke-linecap="round" stroke-linejoin="round"><style>.t{stroke-width:1}.e{stroke-width:1.8}.k{stroke-width:2.7}.kb{fill:${mask?'none':'var(--cl-surface,#fff)'}}</style>${I[key]}</svg>`;
-  const url=key=>`url("data:image/svg+xml,${encodeURIComponent(svg(key,true))}")`;
+  const svg=(key,mask=false,flicker=false)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="${mask?'black':'currentColor'}" stroke-width="${1.35*(IW[key]||1)}" stroke-linecap="round" stroke-linejoin="round"><style>.t{stroke-width:1}.e{stroke-width:1.8}.k{stroke-width:2.7}.kb{fill:${mask?'none':'var(--cl-surface,#fff)'}}${flicker?'.fl path{transform-box:fill-box;transform-origin:50% 100%;animation:flick 1.6s ease-in-out infinite}@keyframes flick{0%,100%{transform:scale(1,1)}30%{transform:scale(.9,1.12)}60%{transform:scale(1.05,.92)}}':''}</style>${I[key]}</svg>`;
+  const url=(key,flicker=false)=>`url("data:image/svg+xml,${encodeURIComponent(svg(key,true,flicker))}")`;
   function buildStyle(){
     const style=node('style','cw-halloween-style',doc.head);
     const scope='html[data-cw-halloween="on"]'+Array.from({length:8},(_,i)=>`:not(#cw-hw-${i})`).join('');
@@ -67,6 +67,10 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
       if(kind==='svg')continue;
       else if(['#options_button','#extensionsMenuButton','body.cw-v4-filled:not(.claude-generation-active) #send_but','body:not(.cw-v4-filled):not(.claude-generation-active) #send_but','.clawd-fake-mic'].includes(selector))css+=`${scope} ${selector}::${kind}{mask-image:${url(key)}!important;-webkit-mask-image:${url(key)}!important}`;
       else css+=`${scope} ${selector}::${kind}{content:""!important;background:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important}`;
+    }
+    for(const [selector,key,kind='before']of iconRules)if(key==='candles'){
+      const target=selector+'.hw-flicker'+(['native','self','svg'].includes(kind)?'':'::'+kind);
+      css+=`${scope} ${target}{mask-image:${url(key,true)}!important;-webkit-mask-image:${url(key,true)}!important}`;
     }
     const legacyIcons='#options_button,#extensionsMenuButton,#send_but,.mes_copy,.mes_edit,.mes_narrate,.mes_edit_delete,.claude-user-message-edit,.claude-user-message-delete,.clawd-fake-mic';
     css+=`${scope}[data-claude-ui="classic"] :is(${legacyIcons})::before{display:inline-block!important;width:18px!important;height:18px!important}`;
@@ -158,7 +162,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     for(const [host,n]of anchors)if(!host.isConnected){remove(n);anchors.delete(host);}
     const typing=!!doc.getElementById('send_textarea')?.value;if(typing!==root.classList.contains('hw-typing'))root.classList.toggle('hw-typing',typing);
     rootFlag('cwHwAmbient',ambient()?'on':'off');rootFlag('cwHwCalm',calm()?'on':'off');dressIcons();
-    const settingsOpen=root.dataset.cwV4Settings==='open';if(settingsOpen)startDrawerSpider();else stopDrawerSpider();
+    const settingsOpen=root.dataset.cwV4Settings==='open';if(settingsOpen||!moving()||!ambient())stopCandles();else scheduleCandles();if(settingsOpen)startDrawerSpider();else stopDrawerSpider();
     if(!settingsOpen){welcomeWeb(doc.querySelector('.clawd-welcome-hero'));chatDecoration();safeGeneration();}
     // Generation words use the native placeholder; the original footer retains its layout.
     // Local anchors only: native popup ancestry and focus stay untouched.
@@ -506,6 +510,18 @@ function nodeSpider(P, size) {
     }
     doc.body.append(layer);candyBusy=true;later(()=>{remove(layer);candyBusy=false;},longest+50);
   }
+  let candleTimer=0,candleEnd=0;const flickering=new Set();
+  function clearCandleFlicker(){cancel(candleEnd);candleEnd=0;for(const n of flickering)n.classList.remove('hw-flicker');flickering.clear();}
+  function stopCandles(){cancel(candleTimer);candleTimer=0;clearCandleFlicker();}
+  function scheduleCandles(){
+    if(candleTimer||!moving()||!ambient()||root.dataset.cwV4Settings==='open')return;
+    candleTimer=later(()=>{candleTimer=0;
+      if(!moving()||!ambient()||root.dataset.cwV4Settings==='open'){stopCandles();return;}
+      clearCandleFlicker();
+      for(const [selector,key]of iconRules)if(key==='candles')for(const n of doc.querySelectorAll(selector))if(n.getClientRects().length){n.classList.add('hw-flicker');flickering.add(n);}
+      if(flickering.size)candleEnd=later(clearCandleFlicker,3200);scheduleCandles();
+    },rnd(8000,14000));
+  }
   function activity(){lastAction=Date.now();idleThreshold=rnd(30000,60000);}
   function action(){activity();clearPrank();}
   function tick(){scheduler=0;if(dead)return;maybePrank();scheduler=later(tick,1000);}
@@ -513,7 +529,7 @@ function nodeSpider(P, size) {
   function reset(){
     // CHAT_CHANGED cancels the timer pool; discard cached decoration states too.
     clearWelcome();clearChatDecoration();clearPendingDialogDecorations();clearDelete(deletion);for(const snap of [...activeDeletes])clearDelete(snap);
-    clearSend();candyBusy=false;
+    clearSend();stopCandles();candyBusy=false;
     pressedPointers.clear();
     epoch++;validAfter=win.performance.now();for(const id of timers)win.clearTimeout(id);timers.clear();scheduler=0;
     for(const a of animations)a.cancel();animations.clear();clearPrank();stopDrawerSpider();
@@ -531,7 +547,7 @@ function nodeSpider(P, size) {
     const open=root.dataset.cwV4Settings==='open',closed=settingsWasOpen&&!open;settingsWasOpen=open;if(open)startDrawerSpider();else stopDrawerSpider();
     if(closed&&!dead&&!raf)raf=win.requestAnimationFrame(()=>{raf=0;if(!dead)staticScenes();});
   });
-  function stopAmbient(){cancel(scheduler);scheduler=0;clearPrank();}
+  function stopAmbient(){cancel(scheduler);scheduler=0;clearPrank();stopCandles();}
   function sync(){if(dead)return;const nowCalm=calm();if(nowCalm!==lastCalm){lastCalm=nowCalm;if(nowCalm)reset();}staticScenes();if(!moving()||!ambient())stopAmbient();else schedule();}
   return {rig,install(){
     lastAction=Date.now();lastCalm=calm();buildStyle();staticScenes();schedule();
