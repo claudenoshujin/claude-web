@@ -555,7 +555,7 @@ function nodeSpider(P, size) {
   }
   function playIconEffect(kind,target,force=false){
     if(!moving()||(!force&&!iconEffectAllowed())||typeof win.Element.prototype.animate!=='function')return false;
-    const choices=target?[target]:iconEffectTargets();if(!choices.length)return false;
+    let choices=target?[target]:iconEffectTargets();if(force&&!target){const safe=choices.filter(t=>t.r.top>100&&t.r.top+t.r.height<viewport.bottom-10);if(safe.length)choices=safe;}if(!choices.length)return false;
     const chosen=choices[Math.random()*choices.length|0],{source,key,r}=chosen,cs=win.getComputedStyle(source);
     if(cs.visibility==='hidden'||+cs.opacity===0)return false;
     const pseudo=chosen.kind==='before'?win.getComputedStyle(source,'::before'):null,size=Math.min(32,parseFloat(pseudo?.width)||Math.min(r.width,r.height)||20),cx=r.left+r.width/2,cy=r.top+r.height/2;
