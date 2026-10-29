@@ -561,14 +561,14 @@ function nodeSpider(P, size) {
     let duration=4000;
     if(kind==='drift'){
       const direction=cx<viewport.right*.55?1:-1,dx=direction*rnd(95,130),up=-rnd(9,15);
-      play(proxy,[k(0,0,0),k(.14,dx*.08,up*.45,6*direction,1,.92),k(.42,dx,up,-6*direction,1,.82),k(.58,dx,up*.55,4,1,.82),k(.72,dx,up*.85,-4,1,.82),k(.9,dx*.25,up*.3,3,1,.95),k(1,0,0)],{duration,easing:'ease-in-out',composite:'add'});
+      play(proxy,[k(0,0,0),k(.14,dx*.08,up*.45,6*direction,1,.92),k(.42,dx,up,-6*direction,1,.82),k(.58,dx,up*.55,4,1,.82),k(.72,dx,up*.85,-4,1,.82),k(.9,dx*.25,up*.3,3,1,.95),k(1,0,0)],{duration,easing:'ease-in-out'});
     }else if(kind==='ghost'){
-      duration=3800;const sp=art.sheet({awake:true}),S=Math.max(18,size*1.45),g=at(node('span','hw-icon-ghost',layer),cx-S/2,cy-S/2,S,S),ox=sp.ox,oy=sp.oy;
+      duration=3800;const sp=art.sheet({awake:true}),S=Math.max(18,size*.75*1.45),g=at(node('span','hw-icon-ghost',layer),cx-S/2,cy-S/2,S,S),ox=sp.ox,oy=sp.oy;
       g.innerHTML=`<svg viewBox="0 0 ${sp.w} ${sp.h}" style="width:100%;height:100%;overflow:visible;image-rendering:pixelated"><image href="${sp.url}" width="${sp.w}" height="${sp.h}"/><rect x="${ox+3}" y="${oy+1}" width="10" height="2" fill="#fbf8f1"/><g class="hw-ghost-look"><g class="hw-ghost-eyes" fill="#2b1d17"><rect x="${ox+4}" y="${oy+1}" width="1" height="2"/><rect x="${ox+11}" y="${oy+1}" width="1" height="2"/></g></g></svg>`;
       g.style.opacity='0';const look=g.querySelector('.hw-ghost-look'),eyes=g.querySelector('.hw-ghost-eyes');eyes.style.transformOrigin='12px 11.9px';
-      const lift=-(size*.5+S*.6),direction=cx>viewport.right-90?-1:1,far=lift-58;
+      const lift=-(size*.75*.5+S*.6),direction=cx>viewport.right-90?-1:1,far=lift-58;
       play(g,[k(0,0,0,0,.25,0),k(.1,0,lift*1.15,0,1.08),k(.16,0,lift),k(.3,4*direction,lift-1,7*direction),{...k(.42,-3*direction,lift,-6*direction),easing:'ease-in'},k(.6,14*direction,lift-18,8*direction,.97,.85),k(.8,27*direction,lift-38,-6*direction,.93,.45),k(1,38*direction,far,6*direction,.88,0)],{duration,easing:'ease-in-out'});
-      play(look,[{transform:'translateX(0)'},{offset:750/3800,transform:'translateX(-.9px)',easing:'steps(1,end)'},{offset:1350/3800,transform:'translateX(.9px)',easing:'steps(1,end)'},{offset:1700/3800,transform:`translateX(${direction*.9}px)`},{transform:`translateX(${direction*.9}px)`}],{duration});
+      play(look,[{transform:'translateX(0)',easing:'steps(1,end)'},{offset:750/3800,transform:'translateX(-.9px)',easing:'steps(1,end)'},{offset:1350/3800,transform:'translateX(.9px)',easing:'steps(1,end)'},{offset:1700/3800,transform:`translateX(${direction*.9}px)`},{transform:`translateX(${direction*.9}px)`}],{duration});
       play(eyes,[{transform:'scaleY(1)'},{transform:'scaleY(.12)'},{transform:'scaleY(1)'}],{delay:1150,duration:170,easing:'ease-in-out'});
       play(proxy,[{transform:'scale(1)'},{offset:.04,transform:'scale(1.16,.8)'},{offset:.1,transform:'scale(.94,1.08)'},{offset:.16,transform:'scale(1)'},{transform:'scale(1)'}],{duration});
     }else if(kind==='possess'){
@@ -584,7 +584,7 @@ function nodeSpider(P, size) {
       play(proxy,[{opacity:1},{offset:.08,opacity:0},{offset:.9,opacity:0},{opacity:1}],{duration,easing:'ease-in-out'});
       play(box,[t(0,0,4,.6,.4,0),t(.08,0,-2,1.08,1.12),t(.14,0,0,1,1),t(.18,0,0,1,1),t(.24,-1.5,0,1,1),t(.48,-1.5,0,1,1),t(.54,1.5,0,1,1),t(.72,1.5,0,1,1),t(.78,0,0,1,1),t(.9,0,4,.6,.4,0),t(1,0,4,.6,.4,0)],{duration,easing:'ease-in-out'});
     }else if(kind==='candy'){
-      duration=2100;const count=2+(Math.random()*2|0),floor=cy+size*.55;
+      duration=2100;const count=2+(Math.random()*2|0),floor=cy+size*.75*.55;
       for(let i=0;i<count;i++){const sp=art.candy(Math.random()*3|0,art.CANDY_PAIRS[Math.random()*art.CANDY_PAIRS.length|0]),w=sp.w*2,h=sp.h*2,x=cx-w/2,y=cy-h/2,n=at(picture(sp,layer,2,'hw-pixels hw-icon-candy'),x,y,w,h),delay=120+i*80,m=candyMotion(w,h,x,y,(i%2?1:-1)*rnd(26,62),rnd(-230,-170),floor);
         n.style.opacity='0';const frames=m.frames.map(f=>({offset:Math.min(1,f.t/m.T),transform:`translate(${f.x}px,${f.y}px) rotate(${f.ang}deg) scale(${f.sx},${f.sy})`,opacity:f.opacity}));frames[0].offset=0;frames.at(-1).offset=1;play(n,frames,{duration:m.T*1000,delay,fill:'forwards'});duration=Math.max(duration,m.T*1000+delay);}
       play(proxy,[{transform:'scale(1)'},{offset:.25,transform:'scale(1.18,.78)'},{offset:.5,transform:'translateY(-2px) scale(.9,1.14)'},{offset:.75,transform:'scale(1.04,.96)'},{transform:'scale(1)'}],{duration:520,easing:'ease-out'});
