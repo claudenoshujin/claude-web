@@ -14,7 +14,7 @@ export function installHalloween({win, getContext, setRig, refresh, getClawdStat
     if(!holidaySection){holidaySection=doc.createElement('details');holidaySection.className='claude-web-section';holidaySection.id='claude-web-section-holiday';holidaySection.innerHTML='<summary><span>节日</span><span class="claude-web-section-summary" id="claude-web-summary-holiday"></span></summary><div class="claude-web-section-body"></div>';appearance.after(holidaySection);}
     const host=holidaySection.querySelector('.claude-web-section-body');
     if(!settings){
-      settings=doc.createElement('div');settings.className='cw-halloween-settings claude-web-field';
+      settings=doc.createElement('div');settings.className='cw-halloween-settings';
       settings.setAttribute('role','group');settings.setAttribute('aria-label','节日');
       settings.innerHTML='<label class="checkbox_label claude-web-check"><input type="checkbox" id="claude-web-halloween"><span>万圣节装饰</span></label><label class="checkbox_label claude-web-check"><input type="checkbox" id="claude-web-halloween-ambient" aria-describedby="cw-halloween-ambient-help"><span>环境小动作</span></label><div class="claude-web-help" id="cw-halloween-ambient-help">幽灵 Clawd 偶尔在空输入框里打个招呼，装饰偶尔动一下；系统“减少动态效果”优先。</div><small class="claude-web-help cw-halloween-status" role="status"></small>';
       on(settings,'change',e=>{const key=e.target.id==='claude-web-halloween'?'halloween':e.target.id==='claude-web-halloween-ambient'?'halloween-ambient':null;if(!key)return;prefs.setItem('claude-web:'+key,e.target.checked?'on':'off');sync();});
