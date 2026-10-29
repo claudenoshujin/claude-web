@@ -300,7 +300,7 @@ export function buildHalloweenRig() {
   /* ════════════════════════════════════════════════════════════════════
      3. 骨架 —— 各层原点（相对 16×10 的 Clawd 框左上角）、静止帧、层级
      ════════════════════════════════════════════════════════════════════ */
-  PAL['^']='#1a1820';PAL['%']='#c9b3f7';PAL['&']='#ffcd73';
+  PAL['^']='var(--cw-hw-hat-base, #1a1820)';PAL['%']='#c9b3f7';PAL['&']='#ffcd73';
   SPR.hat={witch:F(["............^^^^....","...........^^^^.^...",".........^^^^^^.....","........^^^^^^^^....",".......^^^^&&&&^....",".....%%%%%%&%%&%%...","....%%%%%%%&%%&%%...","...^^^^^^^^&&&&^^...",".^^^^^^^^^^^^^^^^^^.","^^^^^^^^^^^^^^^^^^^^"])};
   const PARTS = ['shadow', 'legs', 'body', 'eyes', 'clawL', 'clawR', 'propA', 'propB', 'sym'];
   const SHEET = { shadow: 'shadow', legs: 'legs', body: 'body', eyes: 'eyes', clawL: 'clawL', clawR: 'clawR', propA: 'prop', propB: 'prop', sym: 'sym' };
@@ -715,7 +715,7 @@ export function buildHalloweenRig() {
   const FLEX_ORIGIN = [(BOX[0] + 8) * PX, (BOX[1] + 10) * PX];   // 脚底中点
 
   function genRestCSS() {
-    let css = `${RB}{--clr-ink:color-mix(in srgb, var(--cl-ink, #121212) 60%, #7a6a5c)}\n`;
+    let css = `${RB}{--clr-ink:color-mix(in srgb, var(--cl-ink, #121212) 60%, #7a6a5c);--cw-hw-hat-base:#1a1820}\n${RB.replace('html','html[data-claude-integrated-theme="night"]')}{--cw-hw-hat-base:#36303f}\n`;
     for (const part of PARTS) {
       css += `${RB} .clr-p-${part}{z-index:${REST_Z[part]};${pxDecl(part, REST_F[part])}}\n`;
     }

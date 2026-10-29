@@ -3,8 +3,8 @@ const PAL={'#':'#d97757',s:'#bf684c',o:'#2b1d17',w:'#fbf8f1',e:'#ece7de',k:'#cdc
 const BODY=['..############..','..############..','..############..','################','################','..############..','..############..','..############..'];
 const CAPE=['C..............C','CR............RC','CR.KKKKKKKKKK.RC','CC.KWKKKKKKWK.CC','CCC.KKK..KKK.CCC','CCCCC......CCCCC','CCCCCCCAACCCCCCC','CCCCCC.AA.CCCCCC','CCCC........CCCC','CCC..........CCC','CC............CC'];
 const HAT=['....PPPP........','...PP..PP.......','...P....PP......','.......KK.......','......KKKK......','......KKDK......','.....KKKKKK.....','.....KDKKKK.....','....KKKKKDKK....','....KKDKKKKK....','...KKKKKKKKKK...','.KKKKKKKKKKKKKK.'];
-export function halloweenPileCells(name,eyes,pose,face,by){
-  let c=[];const grid=(rows,x,y)=>rows.forEach((row,j)=>[...row].forEach((ch,i)=>{if(ch!=='.')c.push([i+x,j+y,PAL[ch]||ch]);}));
+export function halloweenPileCells(name,eyes,pose,face,by,night=false){
+  let c=[];const grid=(rows,x,y)=>rows.forEach((row,j)=>[...row].forEach((ch,i)=>{if(ch!=='.')c.push([i+x,j+y,night&&ch==='K'&&name==='wizard'?'#36303f':night&&ch==='C'?'#40334f':PAL[ch]||ch]);}));
   // The sheet glides at a fixed height; native pose changes must not reveal a body or feet.
   if(name==='cowboy')by=8;else grid(BODY,0,by);
   if(name==='cowboy'){

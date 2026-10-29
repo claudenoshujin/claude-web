@@ -45,14 +45,16 @@ export function createClawdPile({ doc, win, big = null }) {
 
   /* eyes: shut / half / open；pose: crouch / stand / raised（站起来、腿另外画）/ dangleA / dangleB；face: 0 正面 / 1 朝右 / -1 朝左。
      转向照大 Clawd（clawd-rig.js 的 turnL / turnR）：不镜像，背光那一侧暗一列，眼睛（墨镜）往要去的方向偏一格。 */
-  let costume = null;
+  let costume = null, costumeThemeObserver = null;
   function setCostume(next) {
     if(costume === next)return; costume=next; imgCache.clear();
+    if(next&&!costumeThemeObserver){costumeThemeObserver=new win.MutationObserver(()=>{imgCache.clear();for(const k of Object.values(K))look(k);});costumeThemeObserver.observe(doc.documentElement,{attributes:true,attributeFilter:['data-claude-integrated-theme']});}
+    else if(!next){costumeThemeObserver?.disconnect();costumeThemeObserver=null;}
     for(const k of Object.values(K)) look(k);
   }
   function cells(name, eyes, pose, face) {
     const up = pose === 'crouch' ? 0 : pose.startsWith('dangle') ? 3 : 2, by = TOP + 7 - up;
-    if(costume)return costume(name,eyes,pose,face,by);
+    if(costume)return costume(name,eyes,pose,face,by,doc.documentElement.dataset.claudeIntegratedTheme==='night');
     let c = [];
     if (name === 'cowboy') c = c.concat(grid(COWBOY, 0, by - 4));
     if (name === 'wizard') c = c.concat(grid(WIZARD, 0, by - 7));
@@ -607,6 +609,7 @@ html[data-claude-motion="off"] .clawd-pile *{animation:none!important}
     return xs.length ? r.left + Math.min(...xs) : null;
   }
   function destroy() {
+    costumeThemeObserver?.disconnect();costumeThemeObserver=null;
     destroyed = true; win.clearInterval(zTimer); zTimer = 0; win.clearTimeout(resumeTimer);
     ro?.disconnect(); ro = null;
     for (const n of NAMES) if (K[n]) {
