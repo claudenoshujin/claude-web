@@ -527,8 +527,22 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       adaptEdit(s);
       const inspect=item.querySelector('.prompt-manager-inspect-action');
       const more=menu(s,[inspect?['查看实际内容',null,false,()=>inspect.click()]:null,['从列表移除',item.querySelector('.prompt-manager-detach-action'),true]]);
+      if(inspect){const b=more.querySelector('.cw-v4-more-item');more.addEventListener('toggle',()=>{if(more.open)markInspect(item,b);});}
       item.append(more);s.created.push(more);
     });
+  }
+  // ST's handleInspect only opens when the prompt was part of the last dry run (promptManager.messages);
+  // otherwise (off, or empty) the click silently does nothing. Check the same thing when the ⋯ menu opens.
+  let pmModule=null;
+  function markInspect(item,b){
+    if(!pmModule){import(new URL('/scripts/openai.js',win.location.href).href).then(m=>{pmModule=m;markInspect(item,b);},()=>{});return;}
+    const pm=pmModule.promptManager,id=item.dataset.pmIdentifier;if(!pm||!id)return;
+    let can=false;try{can=pm.messages?.hasItemWithIdentifier(id)===true;}catch{}
+    b.disabled=!can;b.style.opacity=can?'':'.45';b.style.cursor=can?'':'default';
+    let note=b.nextElementSibling?.classList.contains('cw-v4-more-note')?b.nextElementSibling:null;
+    if(can){note?.remove();return;}
+    if(!note){note=make('div','cw-v4-more-note',t('这条现在不会发送，没有实际内容可看','Not sent right now, so there is nothing to inspect'));
+      note.style.cssText='font-size:12px;line-height:1.35;opacity:.6;padding:0 12px 6px;white-space:normal';b.after(note);}
   }
 
   /* ---------------- 用户角色 ---------------- */
