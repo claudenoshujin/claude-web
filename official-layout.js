@@ -532,6 +532,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     markSel(cur >= 0 ? cur : selItems.findIndex(it => !it.disabled));
     if (search) {
       search.addEventListener('input', () => { build(search.value.trim().toLocaleLowerCase()); const c = selItems.findIndex(it => it.el.classList.contains('cw-sel')); markSel(c >= 0 ? c : selItems.findIndex(it => !it.disabled)); });
+      search.addEventListener('focus', () => { search.dataset.cwFocusAt = String(Date.now()); });
       if (!mobile()) search.focus({preventScroll: true});
     }
   }
@@ -1114,7 +1115,17 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       }
       if (selMenu) closeSelMenu();
     }, true);
-    on(doc, 'scroll', e => { if (selMenu && !selMenu.contains(e.target)) closeSelMenu(); }, true);
+    // 161 后（TT / 安卓：点列表里的「搜索」，键盘一弹列表就关了）：键盘弹起时 WebView 会滚文档让输入框露出来，
+    // 那次滚动的 target 是 document，不在列表里。手机上搜索框有焦点、或刚聚焦 600ms 内，文档级的滚动不算；列表外的元素真滚了照旧关。
+    on(doc, 'scroll', e => {
+      if (!selMenu || selMenu.contains(e.target)) return;
+      const t = e.target, docLevel = t === doc || t === doc.documentElement || t === doc.body || t === doc.scrollingElement;
+      if (docLevel && mobile()) {
+        const s = selMenu.querySelector('.cw-v4-selmenu-search');
+        if (s && (doc.activeElement === s || Date.now() - (+s.dataset.cwFocusAt || 0) < 600)) return;
+      }
+      closeSelMenu();
+    }, true);
     // 2.0.243（Lulu：预设从 Default 换成 Kemini，预设自带的「首次使用配置」窗口一点，整个设置就关了）：
     // 酒馆 script.js 的 html touchstart/mousedown 把按在 .openDrawer 外面的都当成「点外面」关抽屉。电脑上设置是对话框，
     // 只该由背景（它自己处理）、× 和 Esc 关；浮在设置上面的东西（别的扩展的窗口、我们挂在 body 上的外壳和浮层）按下时不往上传。
