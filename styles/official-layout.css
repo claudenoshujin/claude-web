@@ -769,6 +769,9 @@ html[data-cw-v4] body #top-settings-holder .cw-v4-more>.cw-v4-more-list:popover-
 html[data-cw-v4] body #top-settings-holder .cw-v4-more-list>.cw-v4-more-item{display:block!important;width:100%!important;height:auto!important;text-align:left!important;border:0!important;background:none!important;padding:8px 10px!important;margin:0!important;border-radius:7px!important;font:400 14px/1.35 var(--cw-v4-font)!important;color:var(--v4-text)!important;cursor:pointer;white-space:nowrap;box-shadow:none!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-more-list>.cw-v4-more-item:hover{background:var(--v4-hover)!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-more-list>.cw-v4-more-item.cw-v4-danger{color:var(--v4-danger)!important}
+/* After 161: the linked chat lorebook name, muted, at the right of the character menu item. */
+html[data-cw-v4] body #top-settings-holder#top-settings-holder #form_create:has(#name_div.displayBlock) .cw-v4-more-item.cw-v4-clore-item{display:none!important}
+html[data-cw-v4] body #top-settings-holder .cw-v4-more-item>.cw-v4-more-value{float:right;margin-left:auto;padding-left:16px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--v4-muted)!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-more>.cw-v4-more-park{display:none!important}
 
 html[data-cw-v4] body #top-settings-holder .cw-v4-panel .cw-v4-seg{display:inline-flex!important;background:var(--v4-hover)!important;border-radius:9px!important;padding:3px!important;gap:2px!important;flex:none}

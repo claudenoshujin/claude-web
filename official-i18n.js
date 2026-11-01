@@ -92,7 +92,7 @@ export const EN = {
   '全局设置':'Global settings', '切换时显示通知':'Show notification on switch', '允许一个角色绑定多个用户角色':'Allow multiple personas per character',
   '自动把选中的用户角色绑定到聊天':'Auto-lock the selected persona to the chat', '还没有描述':'No description yet', '全部':'All', '当前':'Current',
   '编辑角色':'Edit character', '标签':'Tags', '内容':'Content', '开场白':'First message', '更多':'More', '高级定义':'Advanced definitions', '打开':'Open',
-  '备选开场白':'Alternate greetings', '完成':'Done', '角色世界书':'Character lorebook', '已绑定的用户角色':'Connected personas', '删除这个角色':'Delete this character',
+  '备选开场白':'Alternate greetings', '完成':'Done', '角色世界书':'Character lorebook', '聊天世界书':'Chat lorebook', '未绑定':'Not linked', '只对当前这段聊天生效':'Only applies to the current chat', '已绑定的用户角色':'Connected personas', '删除这个角色':'Delete this character',
   // 世界书条目弹窗
   '不能被递归激活':'Non-recursable',
   '作者注释之前':"Before Author's Note",
