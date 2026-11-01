@@ -479,6 +479,23 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     s.dispatchEvent(new Event('input', {bubbles: true}));
     s.dispatchEvent(new Event('change', {bubbles: true}));
   }
+  // 161 后（列表标题显示成了「model_custom_select」）：标题只取给人看的字——行标题、API 页的行标题、<label for>、
+  // 紧挨着的标题 / 标签元素、aria-label、title；不再退到 name / id，都没有就不显示标题。labelFor 别处照旧。
+  function selTitle(sel) {
+    const txt = n => (n?.textContent || '').replace(/\s+/g, ' ').trim();
+    const row = sel.closest('.cw-v4-row,.cw-v4-mapped-setting');
+    const api = sel.closest('.cw-v4-api-row,.cw-v4-api-inline-row');
+    const label = sel.id && doc.querySelector(`label[for="${win.CSS.escape(sel.id)}"]`);
+    const prev = sel.previousElementSibling;
+    return [
+      txt(row?.querySelector('.cw-v4-row-title')),
+      txt(api?.querySelector(':scope>.cw-v4-api-label>:is(h3,h4,h5),:scope>:is(h3,h4,h5)')),
+      txt(label),
+      prev?.matches('h3,h4,h5,h6,label,small,span') ? txt(prev) : '',
+      (sel.getAttribute('aria-label') || '').trim(),
+      (sel.title || '').trim(),
+    ].find(Boolean) || '';
+  }
   function openSelMenu(sel) {
     closeSelMenu();
     const m = make('div', 'cw-v4-selmenu'), list = make('div', 'cw-v4-selmenu-list');
@@ -490,7 +507,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     let search = null;
     // 手机：顶上一行灰字写这个下拉是干什么的（行标题），底下一个「取消」；背景压暗，点暗处也关。
     if (mobile()) {
-      const title = (sel.closest('.cw-v4-row,.cw-v4-mapped-setting')?.querySelector('.cw-v4-row-title')?.textContent || labelFor(sel) || '').trim();
+      const title = selTitle(sel);
       if (title && title.length <= 30) m.append(make('div', 'cw-v4-selmenu-title', title));
       m.addEventListener('click', e => { if (e.target === m) closeSelMenu(); });
     }
