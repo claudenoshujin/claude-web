@@ -755,15 +755,17 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   /* 2.0.260：角色编辑页手机上半部（照 Profile）。名字 / 标签 / 角色世界书是字段，Token 数写在卡片下面；
    * 开始聊天、收藏各一张单行卡片；描述、开场白、高级定义、创作者注释是「标题 · 白卡片一行 · 说明」。新建角色时藏掉只对已有角色有用的（CSS）。 */
   const chatLore=()=>{const w=ctxNow()?.chatMetadata?.world_info;return [w||L('未绑定'),!w];};
+  // 每次都弹原生的绑定窗口（能换书、选 None 解绑）：原生普通点击在已绑定时只开编辑器（手机上还翻不过去），Shift 点才弹窗。
+  const linkChatLore=b=>b?.dispatchEvent(new win.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
   function phoneCharTop(s,host,form){
     const h2=doc.querySelector('#rm_button_selected_ch h2'),fav=get('favorite_button'),tags=get('tags_div'),world=get('world_button');
     const sec=pfSec(host,'','cw-v4-pf-first');
     pfField(sec,'名字',()=>pickOption('renameCharButton'),()=>[(h2?.textContent||'').trim(),false],'name').classList.add('cw-v4-pf-existing');
     pfField(sec,'标签',()=>openTags(tags),()=>{const n=tagNames(tags);return [n.join('、')||L('无'),!n.length];},'tags');
     pfField(sec,'角色世界书',()=>world?.click(),()=>{const w=charData()?.extensions?.world;return [w||L('未绑定'),!w];},'world');
-    // 161 后（yam.0766）：单人聊天也接出原生的「聊天世界书」（群聊早有）。点它 = 点原生按钮：绑了就打开，没绑就弹绑定窗口。新建角色时藏（pf-existing）。
+    // 161 后（yam.0766）：单人聊天也接出原生的「聊天世界书」（群聊早有）。新建角色时藏（pf-existing）。
     const clore=form.querySelector('.chat_lorebook_button');
-    if(clore){const f=pfField(sec,'聊天世界书',()=>clore.click(),chatLore,'clore');f.classList.add('cw-v4-pf-existing');f.title=L('只对当前这段聊天生效');}
+    if(clore){const f=pfField(sec,'聊天世界书',()=>linkChatLore(clore),chatLore,'clore');f.classList.add('cw-v4-pf-existing');f.title=L('只对当前这段聊天生效');}
     const tok=pfFoot(host,'cw-v4-pf-existing');paints.push(()=>setText(tok,(get('result_info_text')?.textContent||'').replace(/\s+/g,' ').trim()));
     pfAction(host,'开始聊天',()=>closeSettings?.(),'cw-v4-pf-gap cw-v4-pf-existing');
     pfSwitch(host,'收藏',()=>fav?.classList.contains('fav_on'),()=>fav?.click(),'cw-v4-pf-existing');
@@ -881,7 +883,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       const more=section(body,'更多');more.classList.add('cw-v4-desk-more');row(fs,more,'高级定义','性格摘要、场景、示例对话、作者注释等',[act(fs,get('advanced_div'),'打开')]);
       const alt=form.querySelector('.open_alternate_greetings');if(alt)row(fs,more,'备选开场白','',[act(fs,alt,'管理')]);
       const notes=get('spoiler_free_desc');if(notes){const r=row(fs,more,t('创作者注释','Creator notes'),'',[]),park=make('div','cw-v4-park');r.append(park);move(fs,notes,park);r.querySelector('.cw-v4-row-controls').append(button(L('配置'),()=>openEditor(notes,t('创作者注释','Creator notes'))));}
-      const deskManage=row(fs,more,t('角色管理','Character management'),'',[get('char-management-dropdown'),get('create_button_label'),menu(fs,[['角色世界书',get('world_button')],['聊天世界书',form.querySelector('.chat_lorebook_button')],['已绑定的用户角色',get('char_connections_button')],['导出',get('export_button')],['复制',get('dupe_button')],['删除这个角色',get('delete_button'),true]])]);
+      const deskManage=row(fs,more,t('角色管理','Character management'),'',[get('char-management-dropdown'),get('create_button_label'),menu(fs,[['角色世界书',get('world_button')],['聊天世界书',form.querySelector('.chat_lorebook_button'),false,()=>linkChatLore(form.querySelector('.chat_lorebook_button'))],['已绑定的用户角色',get('char_connections_button')],['导出',get('export_button')],['复制',get('dupe_button')],['删除这个角色',get('delete_button'),true]])]);
       deskManage.classList.add('cw-v4-desk-manage');
       // 电脑「角色管理」⋯ 里的「聊天世界书」：右边灰字写当前绑定的书名，没有就「未绑定」；悬停说明只对当前聊天生效。
       const cloreItem=[...deskManage.querySelectorAll('.cw-v4-more-item')].find(b=>b.textContent===L('聊天世界书'));
