@@ -31,7 +31,9 @@ html[data-cw-v4] body #top-settings-holder #rm_extensions_block .cw-v4-extension
 html[data-cw-v4] body #top-settings-holder #rm_extensions_block .cw-v4-extension-row{display:flex;align-items:center;gap:14px;min-height:64px;padding:12px 0;border-bottom:1px solid var(--cw-v4-line);background:transparent}
 .cw-v4-extension-name{flex:1;min-width:0;font:400 15px/1.5 var(--cw-v4-font)}
 .cw-v4-extension-icon{width:34px;height:34px;border:1px solid var(--cw-v4-line);border-radius:8px;display:grid;place-items:center;flex:none}
-.cw-v4-extension-icon::before{content:'';width:18px;height:18px;background:var(--cw-v4-muted);mask:var(--cw-v4-icon-puzzle) center/contain no-repeat}
+/* 2026-11-02（1solat3d，TT 安卓）：Chromium 120 以前只认带前缀的 -webkit-mask，只写 mask 的话整条声明无效，拼图变成一块实心方块；
+   同一行右边的「›」写了两种，所以照常显示。两种都写。 */
+.cw-v4-extension-icon::before{content:'';width:18px;height:18px;background:var(--cw-v4-muted);-webkit-mask:var(--cw-v4-icon-puzzle) center/contain no-repeat;mask:var(--cw-v4-icon-puzzle) center/contain no-repeat}
 html[data-cw-v4] body #top-settings-holder #rm_extensions_block .cw-v4-editing>.cw-v4-extension-row{display:none!important}
 html[data-cw-v4] body #top-settings-holder #rm_extensions_block .cw-v4-editing .inline-drawer-content{display:block!important}
 html[data-cw-v4] body #top-settings-holder .cw-v4-api-inline-row{display:grid;grid-template-columns:minmax(140px,1fr) minmax(160px,1fr);gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--cw-v4-line)}
