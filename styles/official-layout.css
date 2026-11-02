@@ -139,6 +139,15 @@ html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder .cw-v4-panel:is(
   background:var(--cw-v4-bg)!important;color:var(--cw-v4-text)!important;box-shadow:none!important;
   overflow:auto!important;z-index:3001!important;contain:none!important;
 }
+/* 2026-11-02 TT 2.4 助手接管格式化页（data-tt-assistant="assistant"，nekogunfire）：上面那条让面板自己 overflow:auto、
+   display 也还是 block，TT 的 .ttia-history 没有确定的高度，被内容撑到上万像素，自己滚不了；它又带 overscroll-behavior:contain，
+   手指落在助手内容上时滚动也传不到外面的面板，只有贴边那点面板内边距能划。这里按 TT 自己的 mode CSS 把面板改回
+   flex 竖排、不滚，#tt-assistant 撑满剩下的高度，滚动交给 TT 的 .ttia-history。不改 TT 自己的样式。
+   手机、电脑都适用（上面那条和手机那条都只有两个 id，这里三个）。手机去掉内边距（TT 自己留了）；电脑保留 CW 的内边距，
+   否则 TT 的标题栏会顶到右上角关闭按钮那一条下面。 */
+html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder #AdvancedFormatting#AdvancedFormatting.cw-v4-panel[data-tt-assistant="assistant"].openDrawer:not(.closedDrawer){display:flex!important;flex-direction:column!important;overflow:hidden!important}
+@media(max-width:700px){html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder #AdvancedFormatting#AdvancedFormatting.cw-v4-panel[data-tt-assistant="assistant"].openDrawer:not(.closedDrawer){padding:0!important}}
+html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder #AdvancedFormatting#AdvancedFormatting[data-tt-assistant="assistant"]>#tt-assistant{flex:1 1 auto!important;min-height:0!important;min-width:0!important;height:auto!important}
 html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder {z-index:3001!important}
 html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder:has(>.drawer>.drawer-content.openDrawer){z-index:3001!important}
 html[data-cw-v4][data-cw-v4-settings] body #top-settings-holder {pointer-events:none!important;overflow:visible!important}
