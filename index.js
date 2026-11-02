@@ -2698,6 +2698,32 @@ if (CLAUDE_ENABLED) {
       const root = hostDocument.documentElement;
       if (on) root.dataset.cwGenerating = "1"; else delete root.dataset.cwGenerating;
     }
+    let nativeGenerationSeen = !1;
+    function finishClawdGeneration(outcome) {
+      generationEventActive = !1;
+      nativeGenerationSeen = !1;
+      setGeneratingFlag(!1);
+      setBodyClass(GENERATING_CLASS, !1);
+      stopGenTimer();
+      const replied = !!clawdGenSnapshot && clawdReplyArrived(clawdGenSnapshot);
+      settleClawdGeneration(outcome === "done" && clawdGenSnapshot && !replied ? "error" : outcome, outcome === "done" && replied);
+      clawdGenSnapshot = null;
+      scheduleRefresh();
+    }
+    function syncNativeGeneration() {
+      if (!generationEventActive) return;
+      const stop = hostDocument.getElementById("mes_stop");
+      // CW styles can override computed visibility. Read ST's own inline state
+      // and data-generating marker, which activateSendButtons clears together.
+      const active = hostDocument.body?.dataset.generating === "true" || stop?.style.display === "flex";
+      if (active) {
+        nativeGenerationSeen = !0;
+      } else if (nativeGenerationSeen && stop?.style.display === "none") {
+        finishClawdGeneration("done");
+      }
+      // GENERATION_STARTED precedes prompt preparation / native activation.
+      // An initially hidden stop button must never end that new round.
+    }
     function watchGenerationEvents() {
       if (generationSubscriptions.length || destroyed) return;
       const context = getContext();
@@ -2718,17 +2744,16 @@ if (CLAUDE_ENABLED) {
         const handler = (...args) => {
           const active = outcome === "start";
           if (active && args[2] === !0) return;
+          if (!active) {
+            finishClawdGeneration(outcome);
+            return;
+          }
+          nativeGenerationSeen = !1;
           const wasActive = generationEventActive;
-          generationEventActive = active;
-          setGeneratingFlag(active && String(args[0] ?? "") !== "quiet");
-          active ? startGenTimer() : stopGenTimer();
-          if (!active || wasActive && clawdTracks.settledRound !== clawdTracks.activeRound) {
-            if (!active) {
-              const final = outcome === "done" && clawdGenSnapshot && !clawdReplyArrived(clawdGenSnapshot) ? "error" : outcome;
-              settleClawdGeneration(final, outcome === "done" && !!clawdGenSnapshot && clawdReplyArrived(clawdGenSnapshot));
-              clawdGenSnapshot = null;
-            }
-          } else {
+          generationEventActive = !0;
+          setGeneratingFlag(String(args[0] ?? "") !== "quiet");
+          startGenTimer();
+          if (!wasActive || clawdTracks.settledRound === clawdTracks.activeRound) {
             beginClawdGeneration(String(args[0] || "normal"));
             clawdGenSnapshot = snapshotChatForClawd(args[0]);
           }
@@ -6770,7 +6795,12 @@ if (CLAUDE_ENABLED) {
       chatAttributeObserver.disconnect();
       observedAttributeChat = chat;
       chatAttributeObserver.observe(hostDocument.documentElement, ROOT_ATTRIBUTE_OBSERVER_INIT);
-      chatAttributeObserver.observe(hostDocument.body, ROOT_ATTRIBUTE_OBSERVER_INIT);
+      chatAttributeObserver.observe(hostDocument.body, {
+        ...ROOT_ATTRIBUTE_OBSERVER_INIT,
+        attributeFilter: [ "class", "style", "data-generating" ]
+      });
+      const stop = hostDocument.getElementById("mes_stop");
+      stop && chatAttributeObserver.observe(stop, ROOT_ATTRIBUTE_OBSERVER_INIT);
       chat && chatAttributeObserver.observe(chat, CHAT_ATTRIBUTE_OBSERVER_INIT);
     }
     let externalSurfaceIsolationRaf = 0;
@@ -6794,6 +6824,7 @@ if (CLAUDE_ENABLED) {
       return !!drawer && drawer !== node;
     }
     function handleObservedMutations(records) {
+      syncNativeGeneration();
       if (hostDocument.documentElement.hasAttribute("data-cw-sheet") || hostDocument.querySelector("dialog.cw-v4-editor[open]")) for (const record of records) if (record.type === "childList" && record.target === hostDocument.body) for (const node of record.addedNodes) node instanceof hostWindow.HTMLElement && extraExternalModalCandidates.add(node);
       if (records.some(inClawdPile)) {
         records = records.filter(r => !inClawdPile(r));
@@ -6858,6 +6889,7 @@ if (CLAUDE_ENABLED) {
       if (destroyed) return;
       syncClawdRuntime();
       watchGenerationEvents();
+      syncNativeGeneration();
       setBodyClass(READY_CLASS, !0);
       const typingActive = isTypingActive();
       const continuingGeneration = previousTypingActive && typingActive;
@@ -7177,6 +7209,7 @@ if (CLAUDE_ENABLED) {
       streamFollow = null;
       generationSubscriptions.length = 0;
       generationEventActive = !1;
+      nativeGenerationSeen = !1;
       setGeneratingFlag(false);
       scrollHost?.removeEventListener("scroll", handleChatScroll);
       swipeTrackRaf && hostWindow.cancelAnimationFrame(swipeTrackRaf);
