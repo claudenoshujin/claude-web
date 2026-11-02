@@ -427,6 +427,12 @@ html[data-cw-v4] body:not(.clawd-welcome) #chat>.mes[is_user="true"] {display:fl
 html[data-cw-v4] body #chat>.mes[is_user="true"] .mes_block{display:flex;flex-direction:column;align-items:flex-end;max-width:85%;min-width:0;padding:0!important;margin:0!important;background:none!important;border:0!important;box-shadow:none!important;border-radius:0!important}
 html[data-cw-v4] body #chat>.mes[is_user="true"] .mes_text{background:#efeee9!important;border-radius:18px!important;padding:10px 16px!important;font-family:var(--cw-font-ui,"Noto Sans SC",sans-serif)!important}
 html[data-cw-v4][data-claude-integrated-theme="night"] body #chat>.mes[is_user="true"] .mes_text{background:#393937!important}
+/* 2026-11-02 用户消息里嵌了前端卡（iframe）或正则美化块时（LingerCola「全知数据终端」），这条气泡放宽到聊天列的宽度，
+   卡片跟着铺满；原来气泡最宽 85%（手机 80%），而且按内容收缩，iframe 只剩默认的 300px。普通文字气泡不变。
+   代码块里 CW 自己的复制栏（pre 里的 div）不算。 */
+html[data-cw-v4] body #chat>.mes[is_user="true"]:has(.mes_text :is(iframe,div,section,article,main,figure,details):not(pre *)) .mes_block{width:100%!important;max-width:100%!important}
+html[data-cw-v4] body #chat>.mes[is_user="true"]:has(.mes_text :is(iframe,div,section,article,main,figure,details):not(pre *)) .mes_text{width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+html[data-cw-v4] body #chat>.mes[is_user="true"]:has(.mes_text :is(iframe,div,section,article,main,figure,details):not(pre *)) .mes_text iframe{width:100%!important;max-width:100%!important}
 html[data-cw-v4] body #chat>.mes[is_user="false"]{position:relative;padding-left:0!important;background:none!important;border:0!important}
 html[data-cw-v4] body #chat>.mes .mes_block{margin-left:0!important;padding-left:0!important}
 
