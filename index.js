@@ -1410,6 +1410,8 @@ if (CLAUDE_ENABLED) {
     let observer = null;
     let chatAttributeObserver = null;
     let externalModalObserver = null;
+    let surfaceThemeObserver = null;
+    let surfaceScheme = "";
     let externalModalRailState = [];
     let observedAttributeChat = null;
     let scrollHost = null;
@@ -2849,12 +2851,28 @@ if (CLAUDE_ENABLED) {
       const text = message.querySelector(".mes_text")?.textContent ?? "";
       return /T\s*G\s*D\s*\u601d\u7ef4\u94fe|draft[_\s-]*notes/i.test(text);
     }
+    function embeddedSurfaceScheme() {
+      const rootScheme = hostWindow.getComputedStyle(hostDocument.documentElement).colorScheme || "";
+      return /dark/.test(rootScheme) ? "dark" : /light/.test(rootScheme) || hostDocument.documentElement.dataset.claudeIntegratedTheme === "day" ? "light" : "dark";
+    }
+    // 2026-11-02：切换日夜时，已经渲染好的前端卡还留着旧的 color-scheme，跟页面对不上，浏览器就给 iframe 垫一层白底，
+    // 要刷新才好（LingerCola 的 MVU 栏）。主题属性变了、或者新主题样式表加载完时，配色真的变了才重新上色一次；不轮询。
+    // 只看属性不够：属性先变，新样式表后到，那一刻根元素的 color-scheme 还是旧的。
+    function repaintSurfacesIfSchemeChanged() {
+      if (destroyed) return;
+      const next = embeddedSurfaceScheme();
+      if (next === surfaceScheme) return;
+      surfaceScheme = next;
+      refreshEmbeddedSurfaces();
+    }
+    function onThemeStylesheetLoad(event) {
+      event.target?.id === "claude-integrated-theme-live-style" && repaintSurfacesIfSchemeChanged();
+    }
     function paintEmbeddedFrame(frame) {
       frame.setAttribute("data-claude-transparent-surface", "true");
       frame.style.setProperty("background", "transparent", "important");
       frame.style.setProperty("background-color", "transparent", "important");
-      const rootScheme = hostWindow.getComputedStyle(hostDocument.documentElement).colorScheme || "";
-      const scheme = /dark/.test(rootScheme) ? "dark" : /light/.test(rootScheme) || hostDocument.documentElement.dataset.claudeIntegratedTheme === "day" ? "light" : "dark";
+      const scheme = embeddedSurfaceScheme();
       frame.style.setProperty("color-scheme", scheme, "important");
       const injectedCss = `\n      :root { color-scheme: ${scheme}; }\n      html, body {\n        box-sizing: border-box !important;\n        width: 100% !important;\n        min-width: 0 !important;\n        margin: 0 !important;\n        padding: 0 !important;\n        border: 0 !important;\n        outline: 0 !important;\n        box-shadow: none !important;\n        background: transparent !important;\n        background-color: transparent !important;\n      }\n    `;
       const srcdoc = frame.getAttribute("srcdoc");
@@ -2868,13 +2886,16 @@ if (CLAUDE_ENABLED) {
       try {
         const frameDocument = frame.contentDocument;
         if (!frameDocument?.documentElement) return;
-        let style = frameDocument.getElementById(EMBED_STYLE_ID);
-        if (!style) {
-          style = frameDocument.createElement("style");
+        // 酒馆助手的前端卡里，srcdoc 打的补丁和后来补插的可能各留一份同 id 的 <style>，排在后面的那份说了算。
+        // 只改第一份的话，切换日夜后后面那份还是旧配色，所以每一份都要改。
+        const styles = [ ...frameDocument.querySelectorAll(`style#${EMBED_STYLE_ID}`) ];
+        if (!styles.length) {
+          const style = frameDocument.createElement("style");
           style.id = EMBED_STYLE_ID;
           (frameDocument.head ?? frameDocument.documentElement).append(style);
+          styles.push(style);
         }
-        style.textContent = injectedCss;
+        styles.forEach(style => style.textContent !== injectedCss && (style.textContent = injectedCss));
       } catch {}
     }
     function refreshRegexSurfaceShells() {
@@ -7116,6 +7137,9 @@ if (CLAUDE_ENABLED) {
       hostDocument.documentElement.removeAttribute("data-cw-push");
       cleanupClawdRigEffects();
       externalModalObserver?.disconnect();
+      surfaceThemeObserver?.disconnect();
+      surfaceThemeObserver = null;
+      hostDocument.removeEventListener("load", onThemeStylesheetLoad, true);
       externalModalObserver = null;
       hostDocument.removeEventListener("transitionend", onExternalModalAnimationEnd);
       hostDocument.removeEventListener("animationend", onExternalModalAnimationEnd);
@@ -7400,6 +7424,13 @@ if (CLAUDE_ENABLED) {
       });
       syncExternalSurfaceIsolation();
       syncExternalModalRailLayer();
+      surfaceScheme = embeddedSurfaceScheme();
+      surfaceThemeObserver = new hostWindow.MutationObserver(repaintSurfacesIfSchemeChanged);
+      surfaceThemeObserver.observe(hostDocument.documentElement, {
+        attributes: !0,
+        attributeFilter: [ "data-claude-integrated-theme" ]
+      });
+      hostDocument.addEventListener("load", onThemeStylesheetLoad, true);
       installVirtualKeyboardOverlay();
       watchGenerationEvents();
       syncClawdRuntime();
