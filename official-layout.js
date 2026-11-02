@@ -1732,6 +1732,29 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       root.style.setProperty('--cw-v4-menu-maxh', Math.max(160, Math.floor(extBtn.getBoundingClientRect().top - 28)) + 'px');
     }, true);
     disposers.push(() => { root.style.removeProperty('--cw-v4-menu-w'); root.style.removeProperty('--cw-v4-menu-shift'); root.style.removeProperty('--cw-v4-menu-maxh'); });
+    // 2026-11-02 输入框左边的顺序（QR助手 6.0.0「输入框区域」排序，terpsichorewest）：ST 自己用 order 排（选项菜单 2、魔棒 4，
+    // 跟 DOM 顺序无关），CW 用 !important 的 order 改成魔棒在前、选项菜单在后，于是插件设的 order 也被盖掉了。
+    // 把 CW 的 order 临时拿掉量一下：两个按钮的 order 不是 ST 原来的 2 / 4，或者左边哪个按钮有 inline order，
+    // 就是别的插件排过，标 data-cw-v4-third-order，CW 不再摆（styles/official-layout.css）。插件撤掉排序后又回到 CW 的默认。
+    const leftForm = doc.getElementById('leftSendForm');
+    if (leftForm) {
+      const syncOrder = () => {
+        const wand = doc.getElementById('extensionsMenuButton'), opt = doc.getElementById('options_button');
+        let third = false;
+        if (wand && opt) {
+          const was = leftForm.hasAttribute('data-cw-v4-third-order');
+          if (!was) leftForm.setAttribute('data-cw-v4-third-order', '');
+          third = win.getComputedStyle(opt).order !== '2' || win.getComputedStyle(wand).order !== '4' || [...leftForm.children].some(k => k.style.order !== '');
+          if (!third) leftForm.removeAttribute('data-cw-v4-third-order');
+        } else leftForm.removeAttribute('data-cw-v4-third-order');
+      };
+      let orderFrame = 0;
+      const queueOrder = () => { if (!orderFrame) orderFrame = win.requestAnimationFrame(() => { orderFrame = 0; syncOrder(); }); };
+      syncOrder();
+      observe(leftForm, queueOrder, {childList:true, subtree:true, attributes:true, attributeFilter:['style','class']});
+      observe(doc.head, queueOrder, {childList:true});   // 插件用自己的 <style> 设 order
+      disposers.push(() => { win.cancelAnimationFrame(orderFrame); leftForm.removeAttribute('data-cw-v4-third-order'); });
+    }
     const ctx = win.SillyTavern?.getContext?.();
     for (const key of ['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MESSAGE_SWIPED','SETTINGS_LOADED','APP_READY']) {
       const event = ctx?.eventTypes?.[key]; if (event && ctx.eventSource?.on) { ctx.eventSource.on(event,schedule); disposers.push(() => ctx.eventSource.removeListener?.(event,schedule)); }

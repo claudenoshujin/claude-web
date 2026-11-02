@@ -535,8 +535,9 @@ html[data-cw-v4] body #form_sheld #send_form #send_textarea::placeholder{text-al
   html[data-cw-v4] body.clawd-welcome #form_sheld #send_form{background:var(--cw-v4-bg)!important;border:1px solid var(--cw-v4-line)!important;box-shadow:0 1px 2px #0000000a,0 6px 22px #0000000d!important;border-radius:20px!important}
   html[data-cw-v4] body.clawd-welcome #chat>div.clawd-welcome-shortcuts{display:none!important}
   html[data-cw-v4] body #form_sheld #send_form #leftSendForm{display:flex!important;align-items:center!important;gap:6px!important}
-  html[data-cw-v4] body #form_sheld #send_form #leftSendForm #extensionsMenuButton{order:0!important}
-  html[data-cw-v4] body #form_sheld #send_form #leftSendForm #options_button{order:1!important}
+  /* 魔棒在前、选项菜单在后；别的插件排过这两个按钮时（official-layout.js 标 data-cw-v4-third-order）按它们的顺序 */
+  html[data-cw-v4] body #form_sheld #send_form #leftSendForm:not([data-cw-v4-third-order]) #extensionsMenuButton{order:0!important}
+  html[data-cw-v4] body #form_sheld #send_form #leftSendForm:not([data-cw-v4-third-order]) #options_button{order:1!important}
   html[data-cw-v4] body.clawd-welcome #send_textarea{text-align:left!important;font:400 calc(15.5px * var(--fontScale, 1))/1.5 var(--cw-v4-font)!important;padding:8px 0!important}
   html[data-cw-v4] body:not(.claude-generation-active) #send_form #rightSendForm #send_but{display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 32px!important;width:32px!important;height:32px!important;min-width:32px!important;border-radius:50%!important;margin:0!important}
   html[data-cw-v4] body:not(.claude-generation-active):not(.cw-v4-filled) #send_form #rightSendForm #send_but{background:transparent!important;color:var(--cw-v4-text)!important}
@@ -583,12 +584,20 @@ html[data-cw-v4] body #form_sheld #send_form #send_textarea::placeholder{text-al
   html[data-cw-v4] body #send_form .clawd-character-switcher,html[data-cw-v4] body #send_form .clawd-fake-mic{display:none!important}
   html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm{display:flex!important;width:auto!important;min-width:82px!important;max-width:none!important;gap:6px!important;flex:none!important}
   
-  html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm #extensionsMenuButton{display:grid!important;place-items:center!important;order:0!important;flex:none!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:38px!important;margin:0!important;border-radius:50%!important;background:rgba(31,30,29,.05)!important}
-  html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm #options_button{display:grid!important;place-items:center!important;order:1!important;flex:none!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:38px!important;margin:0!important;border-radius:50%!important;background:rgba(31,30,29,.05)!important}
+  html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm #extensionsMenuButton{display:grid!important;place-items:center!important;flex:none!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:38px!important;margin:0!important;border-radius:50%!important;background:rgba(31,30,29,.05)!important}
+  html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm #options_button{display:grid!important;place-items:center!important;flex:none!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:38px!important;margin:0!important;border-radius:50%!important;background:rgba(31,30,29,.05)!important}
   html[data-cw-v4][data-claude-integrated-theme="night"] body #send_form #nonQRFormItems #leftSendForm :is(#extensionsMenuButton,#options_button){background:rgba(255,255,255,.05)!important}
+  html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm:not([data-cw-v4-third-order]) #extensionsMenuButton{order:0!important}
+  html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm:not([data-cw-v4-third-order]) #options_button{order:1!important}
   
   html[data-cw-v4] body #send_form #leftSendForm>:not(#extensionsMenuButton):not(#options_button):not(.clawd-character-switcher):not(.clawd-fake-mic),html[data-cw-v4] body #send_form #rightSendForm>:not(#send_but):not(#mes_stop):not(.mes_stop){flex:none!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:38px!important;min-height:38px!important;margin:0!important;padding:0!important;border-radius:50%!important;background:rgba(31,30,29,.05)!important;align-items:center!important;justify-content:center!important;place-items:center!important;font-size:17px!important;line-height:1!important;opacity:1!important}
   html[data-cw-v4][data-claude-integrated-theme="night"] body #send_form #leftSendForm>:not(#extensionsMenuButton):not(#options_button):not(.clawd-character-switcher):not(.clawd-fake-mic),html[data-cw-v4][data-claude-integrated-theme="night"] body #send_form #rightSendForm>:not(#send_but):not(#mes_stop):not(.mes_stop){background:rgba(255,255,255,.05)!important}
+  /* 2026-11-02 插件放到输入框右边的按钮（QR助手「推进重Roll」等）：day-mobile.css 在手机上把 #rightSendForm 里发送 / 停止以外的都藏了，
+     插件的按钮也跟着不见。这里只放出第三方的按钮（插件自己藏起来的除外），原生的 stscript / 继续 / 代入 / QR 火箭照旧；有这种按钮时右边按内容变宽。
+     欢迎页跟左边一样只留 CW 自己的按钮。 */
+  html[data-cw-v4] body:not(.clawd-welcome) #send_form #rightSendForm>:not(#send_but,#mes_stop,.mes_stop,.stscript_btn,#mes_impersonate,#mes_continue,#quick-reply-rocket-button,.displayNone,[hidden],[style*="display: none"],[style*="display:none"]){display:flex!important}
+  html[data-cw-v4] body:not(.clawd-welcome) #send_form #nonQRFormItems:has(>#rightSendForm>:not(#send_but,#mes_stop,.mes_stop,.stscript_btn,#mes_impersonate,#mes_continue,#quick-reply-rocket-button,.displayNone,[hidden],[style*="display: none"],[style*="display:none"])){grid-template-columns:auto minmax(0,1fr) auto!important}
+  html[data-cw-v4] body:not(.clawd-welcome) #send_form #rightSendForm:has(>:not(#send_but,#mes_stop,.mes_stop,.stscript_btn,#mes_impersonate,#mes_continue,#quick-reply-rocket-button,.displayNone,[hidden],[style*="display: none"],[style*="display:none"])){flex:0 0 auto!important;width:auto!important;max-width:none!important;gap:6px!important}
   html[data-cw-v4] body #send_form #nonQRFormItems #leftSendForm{width:auto!important;max-width:none!important}
   html[data-cw-v4] .cw-v4-api-row{grid-template-columns:1fr;gap:10px}
   html[data-cw-v4] .clawd-welcome-hero{font-weight:420!important;font-size:32px!important}
