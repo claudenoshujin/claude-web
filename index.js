@@ -3970,8 +3970,8 @@ if (CLAUDE_ENABLED) {
       }
       for (const {message, next} of updates) {
         message.querySelectorAll(`:scope > button.${LEFT_SWIPE_PROXY_CLASS}, :scope > button.${SWIPE_PROXY_CLASS}`).forEach(button => {
-          // Desktop legacy short replies need clearance below the avatar.
-          const top = next === '50%' && !hostDocument.documentElement.hasAttribute('data-cw-v4') && button.classList.contains(LEFT_SWIPE_PROXY_CLASS) ? 'max(50%, 84px)' : next;
+          // Desktop legacy arrows must clear the avatar, including long replies entering view.
+          const top = !hostDocument.documentElement.hasAttribute('data-cw-v4') && button.classList.contains(LEFT_SWIPE_PROXY_CLASS) ? `max(${next}, 84px)` : next;
           if (button.style.getPropertyValue('top') === top) return;
           button.style.setProperty('top', top, 'important');
         });
