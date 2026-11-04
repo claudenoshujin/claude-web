@@ -3825,5 +3825,3 @@ html[data-cw-v4][data-claude-layout="mobile"] body:not(.clawd-welcome) #chat[dat
 @media(max-width:700px){
   html[data-cw-v4][data-claude-layout="mobile"] body:not([data-clawd-menu]) #top-settings-holder#top-settings-holder{height:54px!important;min-height:0!important;padding-top:0!important;padding-bottom:0!important;overflow:visible!important}
 }
-/* Legacy short replies: keep the left arrow's hit area below the avatar. */
-@media(min-width:701px){html:not([data-cw-v4]) #chat>.mes[is_user="false"]>button.claude-swipe-left-proxy{top:max(50%,84px)!important}}
