@@ -1531,6 +1531,7 @@ if (CLAUDE_ENABLED) {
       });
     }
     let streamFollow = null;
+    let deleteAnchor = null;
     let chatTools = null;
     let previousTypingActive = !1;
     let generationEventActive = !1;
@@ -2736,6 +2737,12 @@ if (CLAUDE_ENABLED) {
         getContext: getContext,
         enabled: () => isMobileLayout() && !0
       });
+      // 只有 TT 会在删除时重建后面的消息；原生 ST 不跳，不装。
+      isTauriTavernHost() && (deleteAnchor ??= installDeleteAnchor({
+        win: hostWindow,
+        doc: hostDocument,
+        getContext: getContext
+      }));
       const seen = new Set;
       const subscribe = (key, fallback, outcome) => {
         const type = types[key] || fallback;
@@ -2793,6 +2800,141 @@ if (CLAUDE_ENABLED) {
       subscribe("GENERATION_ENDED", "generation_ended", "done");
       subscribe("GENERATION_STOPPED", "generation_stopped", "stopped");
       subscribe("GENERATION_FAILED", "generation_failed", "error");
+    }
+    // 2026-11-04（蛋糕，iOS TT）：删除消息后跳回好多条之前。只在 TauriTavern 里装（isTauriTavernHost）。
+    // TT 的 ChatSurface 删除第 k 条时会把 k 之后的消息全部换成新元素，TT 的 style.css 又给 .mes 设了
+    // content-visibility:auto + 200px 占位；新元素第一次排版按占位算，聊天高度临时变小，浏览器把 scrollTop
+    // 压到新的最大值，内容长回来后位置不恢复（CW 移除也一样跳；原生 ST 不重建元素，不跳，所以不装）。
+    // 两层：① MESSAGE_DELETED 里同步给新换上的消息临时加 content-visibility:visible（1 秒后撤），让第一次排版
+    // 就用真实高度；② 记住可视区最上面那条消息（存数据对象，编号和元素都会变）和偏移，删除后约 700ms 内逐帧
+    // 放回原偏移，作最后一道保险。用户 wheel / touchstart / keydown / pointerdown 任何一下就停。
+    // 原生多选删除（一次少了不止一条）和删到最后一条都跳过。复现与验证：Claude outputs\删除消息跳楼层-20261103。
+    function installDeleteAnchor({ win, doc, getContext }) {
+      const chat = doc.getElementById("chat");
+      const context = getContext();
+      const source = context?.eventSource;
+      const types = context?.eventTypes || context?.event_types || {};
+      if (!chat || !source?.on) return null;
+      const RELEASE_MS = 1e3, HOLD_MS = 700, PIN_TAIL = 20;
+      let anchor = null, known = null, holding = !1, userMoved = !1, stopAt = 0, captureFrame = 0, holdFrame = 0, releaseTimer = 0, destroyed = !1;
+      let pinned = [];
+      const messages = () => chat.querySelectorAll(":scope > .mes");
+      const capture = () => {
+        if (destroyed || holding || doc.querySelector("dialog[open]")) return;
+        const list = getContext()?.chat;
+        if (!Array.isArray(list)) return;
+        const top = chat.getBoundingClientRect().top;
+        for (const message of messages()) {
+          const rect = message.getBoundingClientRect();
+          if (rect.bottom <= top + 1) continue;
+          const id = Number(message.getAttribute("mesid"));
+          const data = list[id];
+          anchor = data ? { data, after: list.slice(id + 1, id + 4), offset: rect.top - top, count: list.length, last: list[list.length - 1] } : null;
+          return;
+        }
+        anchor = null;
+      };
+      const scheduleCapture = () => {
+        captureFrame || (captureFrame = win.requestAnimationFrame(() => { captureFrame = 0; capture(); }));
+      };
+      const release = () => {
+        win.clearTimeout(releaseTimer);
+        releaseTimer = 0;
+        for (const message of pinned) message.style.removeProperty("content-visibility");
+        pinned = [];
+      };
+      const stopHolding = () => {
+        win.cancelAnimationFrame(holdFrame);
+        holdFrame = 0;
+        holding = !1;
+      };
+      const restore = () => {
+        const saved = anchor, list = getContext()?.chat, before = known;
+        known = null;
+        if (destroyed || !saved || !Array.isArray(list)) return;
+        // 只处理"删了一条、而且不是最后一条"：多选删除、删最后一条、列表被整个换掉都跳过。
+        if (list.length !== saved.count - 1 || list[list.length - 1] !== saved.last) return;
+        let id = list.indexOf(saved.data), offset = saved.offset;
+        if (id < 0) {
+          id = saved.after.map(data => list.indexOf(data)).find(index => index >= 0) ?? -1;
+          offset = Math.max(0, offset);
+        }
+        if (id < 0) return;
+        // ① TT 刚换上的元素（点删除前不在的）先按真实高度排版。被压只发生在靠近底部的时候，
+        //    所以只看最后 PIN_TAIL 条，长聊天里删很早的消息也不会一下子渲染几百条。这里不能读布局。
+        release();
+        if (before) {
+          const tail = [...messages()].slice(-PIN_TAIL);
+          for (const message of tail) {
+            if (before.has(message) || message.style.getPropertyValue("content-visibility")) continue;
+            message.style.setProperty("content-visibility", "visible");
+            pinned.push(message);
+          }
+        }
+        pinned.length && (releaseTimer = win.setTimeout(release, RELEASE_MS));
+        // ② 把原来最上面那条放回原偏移。
+        const apply = () => {
+          const message = chat.querySelector(`:scope > .mes[mesid="${id}"]`);
+          if (!message) return;
+          const drift = message.getBoundingClientRect().top - chat.getBoundingClientRect().top - offset;
+          Math.abs(drift) > 1 && (chat.scrollTop += drift);
+        };
+        stopHolding();
+        holding = !0;
+        userMoved = !1;
+        stopAt = win.performance.now() + HOLD_MS;
+        apply();
+        const tick = () => {
+          holdFrame = 0;
+          if (destroyed) return;
+          if (userMoved || win.performance.now() > stopAt) { holding = !1; capture(); return; }
+          apply();
+          holdFrame = win.requestAnimationFrame(tick);
+        };
+        holdFrame = win.requestAnimationFrame(tick);
+      };
+      const reset = () => { anchor = null; known = null; stopHolding(); release(); win.setTimeout(capture, 300); };
+      const onPointerDown = () => {
+        // 点删除、点确认框都会先经过这里：记下此刻在页的消息元素，删除后据此认出 TT 新换上的元素。
+        userMoved = !0;
+        known = new WeakSet(messages());
+        capture();
+      };
+      const moved = () => { userMoved = !0; };
+      const onScroll = event => { event.target === chat && scheduleCapture(); };
+      const listeners = [
+        [doc, "scroll", onScroll, { capture: !0, passive: !0 }],
+        [doc, "pointerdown", onPointerDown, { capture: !0, passive: !0 }],
+        ...["wheel", "touchstart", "keydown"].map(type => [doc, type, moved, { capture: !0, passive: !0 }])
+      ];
+      for (const [target, type, fn, options] of listeners) target.addEventListener(type, fn, options);
+      const subscriptions = [];
+      const subscribe = (key, fallback, fn) => {
+        const type = types[key] || fallback;
+        source.on(type, fn);
+        subscriptions.push({ type, fn });
+      };
+      subscribe("MESSAGE_DELETED", "message_deleted", restore);
+      subscribe("CHAT_CHANGED", "chat_id_changed", reset);
+      subscribe("MORE_MESSAGES_LOADED", "more_messages_loaded", reset);
+      capture();
+      return {
+        destroy() {
+          if (destroyed) return;
+          destroyed = !0;
+          win.cancelAnimationFrame(captureFrame);
+          stopHolding();
+          release();
+          for (const [target, type, fn, options] of listeners) target.removeEventListener(type, fn, options);
+          for (const { type, fn } of subscriptions) {
+            source.removeListener?.(type, fn);
+            source.off?.(type, fn);
+          }
+          subscriptions.length = 0;
+          anchor = null;
+          known = null;
+        }
+      };
     }
     function getMessageData(message) {
       const id = Number(message.getAttribute("mesid"));
@@ -7207,6 +7349,8 @@ if (CLAUDE_ENABLED) {
       chatTools = null;
       streamFollow?.destroy();
       streamFollow = null;
+      deleteAnchor?.destroy();
+      deleteAnchor = null;
       generationSubscriptions.length = 0;
       generationEventActive = !1;
       nativeGenerationSeen = !1;
