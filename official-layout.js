@@ -882,24 +882,23 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       chrome.append(temp);
     }
     const last = [...chat.querySelectorAll('.mes[is_user="false"]:not([is_system="true"])')].at(-1);
-    let disclaimer = chat.querySelector('.cw-v4-disclaimer');
+    chat.querySelector('.cw-v4-disclaimer')?.remove();
+    const setChatNote = v => { if (v) { if (chat.dataset.cwDisclaimer !== v) chat.dataset.cwDisclaimer = v; } else { chat.removeAttribute('data-cw-disclaimer'); chat.style.removeProperty('--cw-disclaimer-inset'); } };
     /* 2.0.232 电脑：照 Claude Desktop 把这句放在输入框下面、靠右（Lulu 截图）。不挪元素——试过把它挪到 #form_sheld 里，
        进对话时停不到最底下（别的脚本在加载对话时对它的进出有反应）。改成在 #send_form 上写 data-cw-disclaimer，由 CSS 的 ::after 画出来。
        手机照旧是聊天最后的一行。 */
     const sendForm = doc.getElementById('send_form');
     const setFormNote = v => { if (!sendForm) return; if (v) { if (sendForm.getAttribute('data-cw-disclaimer') !== v) sendForm.setAttribute('data-cw-disclaimer', v); } else if (sendForm.hasAttribute('data-cw-disclaimer')) sendForm.removeAttribute('data-cw-disclaimer'); };
-    if (!last || doc.body.classList.contains('clawd-welcome') || !enabled()) { disclaimer?.remove(); setFormNote(''); return; }
+    if (!last || doc.body.classList.contains('clawd-welcome') || !enabled()) { setChatNote(''); setFormNote(''); return; }
     const name = last.querySelector('.name_text')?.textContent.trim() || ctx?.name2 || 'AI';
     const text = `${name} is AI and can make ${root.dataset.cwHalloween === "on" ? "mischief" : "mistakes"}.`;
-    if (preferencesFor(win).getItem('claude-web:ai-disclaimer') === 'off') { disclaimer?.remove(); setFormNote(''); }
-    else if (!mobile()) { disclaimer?.remove(); setFormNote(text); }
+    if (preferencesFor(win).getItem('claude-web:ai-disclaimer') === 'off') { setChatNote(''); setFormNote(''); }
+    else if (!mobile()) { setChatNote(''); setFormNote(text); }
     else {
       setFormNote('');
-      if (!disclaimer) { disclaimer = make('div','cw-v4-disclaimer'); chat.append(disclaimer); }
-      if (disclaimer.textContent !== text) disclaimer.textContent = text;
-      if (disclaimer !== chat.lastElementChild) chat.append(disclaimer);
+      setChatNote(text);
       const offset=Math.max(0,last.getBoundingClientRect().left-chat.getBoundingClientRect().left-parseFloat(win.getComputedStyle(chat).paddingLeft||0));
-      const inset=`${offset}px`;if(disclaimer.style.marginLeft!==inset)disclaimer.style.marginLeft=inset;
+      const inset=`${offset}px`;if(chat.style.getPropertyValue('--cw-disclaimer-inset')!==inset)chat.style.setProperty('--cw-disclaimer-inset',inset);
     }
     if (input && !(root.dataset.cwHalloween === "on" && root.dataset.cwGenerating === "1")) { const placeholder = t(`回复 ${name}`,`Reply to ${name}`); if (input.placeholder !== placeholder) input.placeholder = placeholder; }
   }
@@ -2390,6 +2389,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     doc.querySelectorAll('[data-cw-sheet-under],[data-cw-sheet-lvl2]').forEach(n=>{n.removeAttribute('data-cw-sheet-under');n.removeAttribute('data-cw-sheet-lvl2');});
     doc.getElementById('send_form')?.removeAttribute('data-cw-disclaimer');
     doc.querySelector('.cw-v4-disclaimer')?.remove();
+    doc.getElementById('chat')?.removeAttribute('data-cw-disclaimer');
+    doc.getElementById('chat')?.style.removeProperty('--cw-disclaimer-inset');
     restoreAdaptedContainers();
     ttPanels.destroy();
     promptScroll.destroy();
