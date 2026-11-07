@@ -801,6 +801,10 @@ if (CLAUDE_ENABLED) {
     const LIVE_CSS = typeof CLAUDE_LIVE_CSS !== "undefined" ? CLAUDE_LIVE_CSS : CLAUDE_THEME.custom_css;
     const THEME_VALUES = Object.fromEntries(Object.entries(CLAUDE_THEME).filter(([key]) => key !== "name"));
     const RESTORE_KEY = "claude-integrated-theme-restore:v2";
+  const FOREIGN_CSS_KEY = 'claude-web:foreign-theme-css:v1';
+  let themeChoiceTimer = 0, nativeThemeChosen = false;
+  let foreignCss = [];
+  try { const saved = JSON.parse(hostWindow.localStorage.getItem(FOREIGN_CSS_KEY) || '[]'); if (Array.isArray(saved)) foreignCss = saved.filter(x => typeof x === 'string').slice(-24); } catch { /* private storage */ }
     const WATCHDOG_KEY = "__claudeIntegratedThemeWatchdog";
     const HOST_DELETE_MODE_SELECTOR_MARKS = [ "body.documentstyle", "#chat", ".last_mes:has(", ".del_checkbox[style", ".mes_text" ];
     const INSTANCE_TOKEN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -823,9 +827,43 @@ if (CLAUDE_ENABLED) {
       const bridge = hostWindow.SillyTavern ?? (typeof SillyTavern !== "undefined" ? SillyTavern : null);
       return typeof bridge?.getContext === "function" ? bridge.getContext() : bridge;
     }
-    function isClaudeThemeName(value) {
-      return typeof value === "string" && (value === THEME_NAME || value.startsWith("Claude Web ·"));
-    }
+  function isClaudeThemeName(value) {
+    return typeof value === 'string' && (value === THEME_NAME || value.startsWith('Claude Web ·') || Object.values(CLAUDE_THEMES).some(theme => theme.name === value));
+  }
+
+  function cssFingerprint(css) {
+    const text = String(css ?? ''); let a = 2166136261, b = 2246822519;
+    for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); a = Math.imul(a ^ c, 16777619); b = Math.imul(b ^ c, 3266489917); }
+    return `${text.length}:${a >>> 0}:${b >>> 0}`;
+  }
+  function rememberForeignCss(css) {
+    if (!String(css ?? '').trim()) return;
+    const fingerprint = cssFingerprint(css);
+    foreignCss = [...foreignCss.filter(x => x !== fingerprint), fingerprint].slice(-24);
+    try { hostWindow.localStorage.setItem(FOREIGN_CSS_KEY, JSON.stringify(foreignCss)); } catch { /* retain this session */ }
+  }
+  function onNativeThemeChange(event) {
+    const select = event.target;
+    if (!(select instanceof hostWindow.HTMLSelectElement) || select !== findThemeSelect(getContext()?.powerUserSettings?.theme)) return;
+    const settings = getContext()?.powerUserSettings, choice = select.value;
+    if (!settings) return;
+    if (isClaudeThemeName(choice) && !isClaudeThemeName(settings.theme)) rememberForeignCss(settings.custom_css);
+    nativeThemeChosen = !isClaudeThemeName(choice);
+    hostWindow.clearTimeout(themeChoiceTimer);
+    // Run after the native direct change handler has applied its theme.
+    themeChoiceTimer = hostWindow.setTimeout(() => {
+      themeChoiceTimer = 0;
+      if (destroyed || select.value !== choice) return;
+      if (!isClaudeThemeName(choice)) { rememberForeignCss(getContext()?.powerUserSettings?.custom_css); return; }
+      const variant = Object.keys(CLAUDE_THEMES).find(key => CLAUDE_THEMES[key].name === choice);
+      if (variant) {
+        const control = hostDocument.getElementById('claude-web-variant');
+        if (control && control.value !== variant) { control.value = variant; control.dispatchEvent(new hostWindow.Event('change', { bubbles: true })); }
+        applyThemeValuesFor(variant, true);
+      } else persistFullTheme({ resetTheme: true });
+    }, 0);
+  }
+
     function readRestorePoint() {
       try {
         const raw = hostWindow.localStorage.getItem(RESTORE_KEY);
@@ -979,11 +1017,18 @@ if (CLAUDE_ENABLED) {
       Number(settings.chat_display) === 2 && body.classList.add("documentstyle");
       hostDocument.querySelector("#send_form")?.classList.toggle("compact", Boolean(settings.compact_input_area));
     }
-    function setControl(selector, value, checked = !1) {
-      const element = hostDocument.querySelector(selector);
-      if (!element) return;
-      checked ? element.checked = Boolean(value) : element.value = String(value);
+  function setControl(selector, value, checked = false) {
+    const element = hostDocument.querySelector(selector);
+    if (!element) return;
+    if (checked) element.checked = Boolean(value);
+    else {
+      element.value = String(value);
+      if (element.matches('input[type="range"]')) {
+        for (const counter of hostDocument.querySelectorAll('input[data-for="' + element.id + '"]')) counter.value = element.value;
+      }
     }
+  }
+
     function findThemeSelect() {
       // Theme names also occur in provider lists. Never discover a theme by option text.
       return [...hostDocument.querySelectorAll('#themes,#theme_select,#theme-select,#ui_theme,#ui-theme')]
@@ -1033,105 +1078,134 @@ if (CLAUDE_ENABLED) {
         else hostWindow.__claudeSafety?.notify?.(message);
       }
     }
-    function syncControls(settings, previousName, installThemeOption = !0) {
-      cleanupMisplacedThemeOptions();
-      const controls = {
-        "#blur_strength": settings.blur_strength,
-        "#shadow_width": settings.shadow_width,
-        "#font_scale": settings.font_scale,
-        "#chat_width": settings.chat_width,
-        "#avatar_style": settings.avatar_style,
-        "#chat_display": settings.chat_display,
-        "#toastr_position": settings.toastr_position,
-        "#media_display": settings.media_display
-      };
-      Object.entries(controls).forEach(([selector, value]) => setControl(selector, value));
-      const checks = {
-        "#fast_ui_mode": settings.fast_ui_mode,
-        "#waifuMode": settings.waifuMode,
-        "#noShadows": settings.noShadows,
-        "#messageTimerEnabled": settings.timer_enabled,
-        "#messageTimestampsEnabled": settings.timestamps_enabled,
-        "#messageModelIconEnabled": settings.timestamp_model_icon,
-        "#mesIDDisplayEnabled": settings.mesIDDisplay_enabled,
-        "#hideChatAvatarsEnabled": settings.hideChatAvatars_enabled,
-        "#messageTokensEnabled": settings.message_token_count_enabled,
-        "#expandMessageActions": settings.expand_message_actions,
-        "#enableZenSliders": settings.enableZenSliders,
-        "#enableLabMode": settings.enableLabMode,
-        "#hotswapEnabled": settings.hotswap_enabled,
-        "#reduced_motion": settings.reduced_motion,
-        "#compact_input_area": settings.compact_input_area,
-        "#show_swipe_num_all_messages": settings.show_swipe_num_all_messages,
-        "#click_to_edit": settings.click_to_edit,
-        "#reasoning_auto_expand": settings.reasoning_auto_expand
-      };
-      Object.entries(checks).forEach(([selector, value]) => setControl(selector, value, !0));
-      const customCss = hostDocument.querySelector("#customCSS, #custom_css");
-      customCss && (customCss.value = settings.custom_css);
-      const themeSelect = findThemeSelect();
-      if (themeSelect) {
-        let option = [ ...themeSelect.options ].find(item => item.value === THEME_NAME);
-        if (!option && installThemeOption) {
-          option = hostDocument.createElement("option");
-          option.className = OPTION_CLASS;
-          option.value = THEME_NAME;
-          option.textContent = THEME_NAME;
-          themeSelect.append(option);
-        }
-        const targetTheme = installThemeOption ? THEME_NAME : String(settings.theme ?? "");
-        [ ...themeSelect.options ].some(item => item.value === targetTheme) && (themeSelect.value = targetTheme);
+  function syncControls(settings, previousName, installThemeOption = true) {
+    cleanupMisplacedThemeOptions();
+    const controls = {
+      '#blur_strength': settings.blur_strength,
+      '#shadow_width': settings.shadow_width,
+      '#font_scale': settings.font_scale,
+      '#chat_width': settings.chat_width,
+      '#chat_width_slider': settings.chat_width,
+      '#avatar_style': settings.avatar_style,
+      '#chat_display': settings.chat_display,
+      '#toastr_position': settings.toastr_position,
+      '#media_display': settings.media_display,
+    };
+    Object.entries(controls).forEach(([selector, value]) => setControl(selector, value));
+    const checks = {
+      '#fast_ui_mode': settings.fast_ui_mode,
+      '#waifuMode': settings.waifuMode,
+      '#noShadows': settings.noShadows,
+      '#messageTimerEnabled': settings.timer_enabled,
+      '#messageTimestampsEnabled': settings.timestamps_enabled,
+      '#messageModelIconEnabled': settings.timestamp_model_icon,
+      '#mesIDDisplayEnabled': settings.mesIDDisplay_enabled,
+      '#hideChatAvatarsEnabled': settings.hideChatAvatars_enabled,
+      '#messageTokensEnabled': settings.message_token_count_enabled,
+      '#expandMessageActions': settings.expand_message_actions,
+      '#enableZenSliders': settings.enableZenSliders,
+      '#enableLabMode': settings.enableLabMode,
+      '#hotswapEnabled': settings.hotswap_enabled,
+      '#reduced_motion': settings.reduced_motion,
+      '#compact_input_area': settings.compact_input_area,
+      '#show_swipe_num_all_messages': settings.show_swipe_num_all_messages,
+      '#click_to_edit': settings.click_to_edit,
+      // 思维链默认折叠。这个开关不在酒馆的主题设置里，是「回复设置」下的独立项，
+      // 但同样能靠勾选框写进去，所以一并带上。
+      '#reasoning_auto_expand': settings.reasoning_auto_expand,
+    };
+    Object.entries(checks).forEach(([selector, value]) => setControl(selector, value, true));
+
+    const customCss = hostDocument.querySelector('#customCSS, #custom_css');
+    if (customCss && customCss.value !== String(settings.custom_css ?? '')) {
+      customCss.value = String(settings.custom_css ?? '');
+      customCss.dispatchEvent(new hostWindow.Event('input', { bubbles: true }));
+    }
+
+    const themeSelect = findThemeSelect(previousName);
+    if (themeSelect) {
+      const ownName = isClaudeThemeName(settings.theme) ? settings.theme : THEME_NAME;
+      let option = [...themeSelect.options].find(item => item.value === ownName);
+      if (!option && installThemeOption) {
+        option = hostDocument.createElement('option');
+        option.className = OPTION_CLASS;
+        option.value = ownName;
+        option.textContent = ownName;
+        themeSelect.append(option);
+      }
+      const targetTheme = installThemeOption ? ownName : String(settings.theme ?? '');
+      if ([...themeSelect.options].some(item => item.value === targetTheme)) themeSelect.value = targetTheme;
+    }
+  }
+
+  function valuesWithPreservedQuote(settings, values, resetTheme = false) {
+    const next = { ...values };
+    if (!resetTheme && isClaudeThemeName(settings?.theme)) {
+      // Keep the established non-color user overrides; color policy is unchanged.
+      for (const key of ['font_scale', 'chat_width', 'timer_enabled', 'timestamps_enabled', 'timestamp_model_icon', 'mesIDDisplay_enabled', 'message_token_count_enabled', 'hideChatAvatars_enabled', 'expand_message_actions', 'show_swipe_num_all_messages', 'click_to_edit', 'reasoning_auto_expand', 'compact_input_area', 'hotswap_enabled', 'enableZenSliders', 'enableLabMode', 'reduced_motion', 'media_display', 'toastr_position']) {
+        if (Object.hasOwn(settings, key) && Object.hasOwn(next, key)) next[key] = settings[key];
+      }
+      const css = String(settings.custom_css ?? ''), snapshot = readRestorePoint();
+      const fromNativeSnapshot = snapshot && !isClaudeThemeName(snapshot.theme) && css.trim() && css === snapshot.custom_css;
+      if (!fromNativeSnapshot && !foreignCss.includes(cssFingerprint(css))) {
+        const base = Object.values(CLAUDE_THEMES).find(theme => css.startsWith(theme.custom_css));
+        next.custom_css = base ? String(values.custom_css ?? '') + css.slice(base.custom_css.length) : css;
       }
     }
-    function valuesWithPreservedQuote(settings, values) {
-      const next = {
-        ...values
-      };
-      // These are interaction/display preferences, not a day/night palette.
-      // Keep the initial CW defaults only when entering from a native theme.
-      if (isClaudeThemeName(settings?.theme) || Object.values(CLAUDE_THEMES).some(theme => theme.name === settings?.theme)) {
-        for (const key of [
-          'font_scale', 'chat_width',
-          'timer_enabled', 'timestamps_enabled', 'timestamp_model_icon',
-          'mesIDDisplay_enabled', 'message_token_count_enabled',
-          'hideChatAvatars_enabled', 'expand_message_actions',
-          'show_swipe_num_all_messages', 'click_to_edit', 'reasoning_auto_expand',
-          'compact_input_area', 'hotswap_enabled', 'enableZenSliders',
-          'enableLabMode', 'reduced_motion', 'media_display', 'toastr_position'
-        ]) {
-          if (Object.hasOwn(settings, key) && Object.hasOwn(next, key)) next[key] = settings[key];
-        }
-        // Preserve user additions only when CW is already active.
-        if (Object.hasOwn(settings, 'custom_css') && !Object.values(CLAUDE_THEMES).some(theme => theme.custom_css === settings.custom_css)) {
-          next.custom_css = settings.custom_css;
-        }
-      }
-      if (hostDocument.documentElement.dataset.claudeQuoteBodyColor !== "off") {
-        next.quote_text_color = next.main_text_color ?? values.quote_text_color;
-        return next;
-      }
-      const current = settings?.quote_text_color;
-      const defaults = Object.values(CLAUDE_THEMES).map(theme => theme?.quote_text_color).filter(Boolean);
-      const isClaudeDefault = defaults.some(value => valuesMatch(current, value));
-      current == null || current === "" || isClaudeDefault || (next.quote_text_color = current);
+    if (hostDocument.documentElement.dataset.claudeQuoteBodyColor !== 'off') {
+      next.quote_text_color = next.main_text_color ?? values.quote_text_color;
       return next;
     }
-    function persistFullTheme() {
-      const context = getContext();
-      const settings = context?.powerUserSettings;
-      if (!settings) return null;
-      const previousName = settings.theme;
-      rememberRestorePoint(settings);
-      const values = valuesWithPreservedQuote(settings, THEME_VALUES);
-      const changed = settings.theme !== THEME_NAME || Object.entries(values).some(([key, value]) => !valuesMatch(settings[key], value));
-      Object.assign(settings, values);
-      settings.theme = THEME_NAME;
-      applyCssVariables(settings);
-      applyUiState(settings);
-      syncControls(settings, previousName);
-      context.saveSettingsDebounced?.();
-      return changed;
-    }
+    const current = settings?.quote_text_color;
+    const defaults = typeof CLAUDE_THEMES !== 'undefined'
+      ? Object.values(CLAUDE_THEMES).map(theme => theme?.quote_text_color).filter(Boolean)
+      : [values.quote_text_color].filter(Boolean);
+    const isClaudeDefault = defaults.some(value => valuesMatch(current, value));
+    if (current != null && current !== '' && !isClaudeDefault) next.quote_text_color = current;
+    return next;
+  }
+
+  function persistFullTheme({ resetTheme = false } = {}) {
+    const context = getContext();
+    const settings = context?.powerUserSettings;
+    if (!settings) return null;
+
+    const previousName = settings.theme;
+    rememberRestorePoint(settings);
+    const values = valuesWithPreservedQuote(settings, THEME_VALUES, resetTheme);
+    const changed = settings.theme !== THEME_NAME
+      || Object.entries(values).some(([key, value]) => !valuesMatch(settings[key], value));
+    Object.assign(settings, values);
+    settings.theme = THEME_NAME;
+    applyCssVariables(settings);
+    applyUiState(settings);
+    syncControls(settings, previousName);
+    context.saveSettingsDebounced?.();
+    return changed;
+  }
+
+  function applyThemeValuesFor(variant, resetTheme = false) {
+    const theme = typeof CLAUDE_THEMES !== 'undefined' ? CLAUDE_THEMES?.[variant] : null;
+    if (!theme) return false;
+    const context = getContext();
+    const settings = context?.powerUserSettings;
+    if (!settings) return false;
+    const previousName = settings.theme;
+    rememberRestorePoint(settings);
+    const values = valuesWithPreservedQuote(
+      settings,
+      Object.fromEntries(Object.entries(theme).filter(([key]) => key !== 'name')),
+      resetTheme,
+    );
+    Object.assign(settings, values);
+    settings.theme = theme.name;
+    applyCssVariables(settings);
+    applyUiState(settings);
+    syncControls(settings, previousName);
+    context.saveSettingsDebounced?.();
+    return true;
+  }
+
     function nativeThemeFallback(themeSelect) {
       if (!(themeSelect instanceof hostWindow.HTMLSelectElement)) return !1;
       const candidates = [ ...themeSelect.options ].filter(option => !option.disabled && !option.classList.contains(OPTION_CLASS) && option.value !== THEME_NAME && !isClaudeThemeName(option.value));
@@ -1222,6 +1296,8 @@ if (CLAUDE_ENABLED) {
     }
     function destroy({restore: restore = !1} = {}) {
       if (destroyed) return restoreResult;
+      hostWindow.clearTimeout(themeChoiceTimer);
+      hostDocument.removeEventListener('change', onNativeThemeChange, true);
       destroyed = !0;
       retryTimer && hostWindow.clearTimeout(retryTimer);
       runnerRemovalTimer && hostWindow.clearTimeout(runnerRemovalTimer);
@@ -1281,23 +1357,7 @@ if (CLAUDE_ENABLED) {
       token: INSTANCE_TOKEN,
       destroy: destroy,
       apply: persistFullTheme,
-      applyVariant: function(variant) {
-        const theme = CLAUDE_THEMES?.[variant];
-        if (!theme) return !1;
-        const context = getContext();
-        const settings = context?.powerUserSettings;
-        if (!settings) return !1;
-        const previousName = settings.theme;
-        rememberRestorePoint(settings);
-        const values = valuesWithPreservedQuote(settings, Object.fromEntries(Object.entries(theme).filter(([key]) => key !== "name")));
-        Object.assign(settings, values);
-        settings.theme = theme.name;
-        applyCssVariables(settings);
-        applyUiState(settings);
-        syncControls(settings, previousName);
-        context.saveSettingsDebounced?.();
-        return !0;
-      }
+      applyVariant: applyThemeValuesFor
     };
     hostWindow[INSTANCE_KEY] = api;
     hostWindow.addEventListener("beforeunload", markHostPageUnloading, !0);
@@ -1330,6 +1390,7 @@ if (CLAUDE_ENABLED) {
         console.warn("[Claude Theme] Could not install parent cleanup watchdog.", error);
       }
     })();
+    hostDocument.addEventListener('change', onNativeThemeChange, true);
     $(function start(attempt = 0) {
       if (destroyed) return;
       installLiveStyle();
@@ -1340,7 +1401,7 @@ if (CLAUDE_ENABLED) {
         return;
       }
       hostWindow.setTimeout(() => {
-        if (!destroyed) {
+        if (!destroyed && !nativeThemeChosen) {
           neutralizeStyleAttributeRules();
           persistFullTheme();
         }
