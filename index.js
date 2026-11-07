@@ -2869,16 +2869,17 @@ if (CLAUDE_ENABLED) {
     // 两层：① MESSAGE_DELETED 里同步给新换上的消息临时加 content-visibility:visible（1 秒后撤），让第一次排版
     // 就用真实高度；② 记住可视区最上面那条消息（存数据对象，编号和元素都会变）和偏移，删除后约 700ms 内逐帧
     // 放回原偏移，作最后一道保险。用户 wheel / touchstart / keydown / pointerdown 任何一下就停。
-    // 原生多选删除（一次少了不止一条）和删到最后一条都跳过。复现与验证：Claude outputs\删除消息跳楼层-20261103。
-    function installDeleteAnchor({ win, doc, getContext }) {
+    // 原生多选删除仍跳过；末条删除/进入删除模式按原位置保持，用户操作立即退出。复现与验证：Claude outputs\删除消息跳楼层-20261103。
+  function installDeleteAnchor({ win, doc, getContext }) {
       const chat = doc.getElementById("chat");
       const context = getContext();
       const source = context?.eventSource;
       const types = context?.eventTypes || context?.event_types || {};
       if (!chat || !source?.on) return null;
-      const RELEASE_MS = 1e3, HOLD_MS = 700, PIN_TAIL = 20;
-      let anchor = null, known = null, holding = !1, userMoved = !1, stopAt = 0, captureFrame = 0, holdFrame = 0, releaseTimer = 0, destroyed = !1;
+      const RELEASE_MS = 1e3, HOLD_MS = 700, LAST_HOLD_MS = 1500, BOTTOM_PX = 80, PIN_TAIL = 20;
+      let anchor = null, known = null, holding = !1, holdKind = '', userMoved = !1, stopAt = 0, captureFrame = 0, holdFrame = 0, releaseTimer = 0, destroyed = !1;
       let pinned = [];
+      let frameObserver = null, frameCleanups = [];
       const messages = () => chat.querySelectorAll(":scope > .mes");
       const capture = () => {
         if (destroyed || holding || doc.querySelector("dialog[open]")) return;
@@ -2890,7 +2891,11 @@ if (CLAUDE_ENABLED) {
           if (rect.bottom <= top + 1) continue;
           const id = Number(message.getAttribute("mesid"));
           const data = list[id];
-          anchor = data ? { data, after: list.slice(id + 1, id + 4), offset: rect.top - top, count: list.length, last: list[list.length - 1] } : null;
+          const before = list.slice(Math.max(0, id - 3), id).map((data, index) => {
+            const prior = chat.querySelector(`:scope > .mes[mesid="${Math.max(0, id - 3) + index}"]`);
+            return { data, offset: prior ? prior.getBoundingClientRect().top - top : 0 };
+          }).reverse();
+          anchor = data ? { data, before, after: list.slice(id + 1, id + 4), offset: rect.top - top, count: list.length, last: list[list.length - 1], beforeLast: list[list.length - 2], atBottom: chat.scrollHeight - chat.clientHeight - chat.scrollTop <= BOTTOM_PX } : null;
           return;
         }
         anchor = null;
@@ -2901,38 +2906,90 @@ if (CLAUDE_ENABLED) {
       const release = () => {
         win.clearTimeout(releaseTimer);
         releaseTimer = 0;
-        for (const message of pinned) message.style.removeProperty("content-visibility");
+        for (const {message, value, priority} of pinned) {
+          if (value) message.style.setProperty("content-visibility", value, priority);
+          else message.style.removeProperty("content-visibility");
+        }
         pinned = [];
       };
       const stopHolding = () => {
         win.cancelAnimationFrame(holdFrame);
         holdFrame = 0;
         holding = !1;
+        holdKind = '';
+        frameObserver?.disconnect(); frameObserver = null;
+        for (const cleanup of frameCleanups.splice(0)) cleanup();
+      };
+      const watchFrameInput = () => {
+        const seen = new WeakSet(), options = {capture:true, passive:true};
+        const scan = root => { if (root.matches?.('iframe')) watch(root); for (const frame of root.querySelectorAll?.('iframe') || []) watch(frame); };
+        const watch = frame => {
+          if (seen.has(frame)) return; seen.add(frame);
+          let unbind = () => {};
+          const bind = () => {
+            unbind();
+            try {
+              const child = frame.contentDocument; if (!child) return;
+              for (const type of ['pointerdown','touchstart','wheel','keydown']) child.addEventListener(type, moved, options);
+              unbind = () => { for (const type of ['pointerdown','touchstart','wheel','keydown']) child.removeEventListener(type, moved, options); };
+              frameObserver?.observe(child, {childList:true, subtree:true}); scan(child);
+            } catch { /* Cross-origin frames yield through host focus below. */ }
+          };
+          frame.addEventListener('load', bind); frameCleanups.push(() => { unbind(); frame.removeEventListener('load', bind); }); bind();
+        };
+        frameObserver = new win.MutationObserver(records => { if (!holding) return; for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1) scan(node); });
+        frameObserver.observe(chat, {childList:true, subtree:true}); scan(chat);
+      };
+      const pinTail = (before, all, duration) => {
+        release();
+        for (const message of [...messages()].slice(-PIN_TAIL)) {
+          const value = message.style.getPropertyValue('content-visibility');
+          if (value === 'visible' || !all && (before?.has(message) || value)) continue;
+          pinned.push({message, value, priority: message.style.getPropertyPriority('content-visibility')});
+          message.style.setProperty('content-visibility', 'visible');
+        }
+        if (pinned.length) releaseTimer = win.setTimeout(release, Math.max(RELEASE_MS, duration + 100));
+      };
+      const startHold = (apply, duration, kind) => {
+        stopHolding(); holding = !0; holdKind = kind; userMoved = !1;
+        watchFrameInput();
+        stopAt = win.performance.now() + duration;
+        apply();
+        const tick = () => {
+          holdFrame = 0;
+          if (destroyed) return;
+          if (userMoved || win.performance.now() > stopAt) { stopHolding(); release(); capture(); return; }
+          apply(); holdFrame = win.requestAnimationFrame(tick);
+        };
+        holdFrame = win.requestAnimationFrame(tick);
       };
       const restore = () => {
         const saved = anchor, list = getContext()?.chat, before = known;
         known = null;
         if (destroyed || !saved || !Array.isArray(list)) return;
-        // 只处理"删了一条、而且不是最后一条"：多选删除、删最后一条、列表被整个换掉都跳过。
-        if (list.length !== saved.count - 1 || list[list.length - 1] !== saved.last) return;
+        // Identity checks distinguish a single last deletion from a replaced chat.
+        if (list.length !== saved.count - 1) return;
+        const lastDeleted = !list.includes(saved.last) && list[list.length - 1] === saved.beforeLast;
+        if (!lastDeleted && list[list.length - 1] !== saved.last) return;
+        if (lastDeleted && saved.atBottom) {
+          pinTail(before, true, LAST_HOLD_MS);
+          startHold(() => { chat.scrollTop = chat.scrollHeight; }, LAST_HOLD_MS, 'delete');
+          return;
+        }
         let id = list.indexOf(saved.data), offset = saved.offset;
         if (id < 0) {
           id = saved.after.map(data => list.indexOf(data)).find(index => index >= 0) ?? -1;
           offset = Math.max(0, offset);
         }
+        if (id < 0 && lastDeleted) {
+          const prior = saved.before.find(item => list.includes(item.data));
+          if (prior) { id = list.indexOf(prior.data); offset = prior.offset; }
+        }
         if (id < 0) return;
         // ① TT 刚换上的元素（点删除前不在的）先按真实高度排版。被压只发生在靠近底部的时候，
         //    所以只看最后 PIN_TAIL 条，长聊天里删很早的消息也不会一下子渲染几百条。这里不能读布局。
-        release();
-        if (before) {
-          const tail = [...messages()].slice(-PIN_TAIL);
-          for (const message of tail) {
-            if (before.has(message) || message.style.getPropertyValue("content-visibility")) continue;
-            message.style.setProperty("content-visibility", "visible");
-            pinned.push(message);
-          }
-        }
-        pinned.length && (releaseTimer = win.setTimeout(release, RELEASE_MS));
+        const duration = lastDeleted ? LAST_HOLD_MS : HOLD_MS;
+        if (before) pinTail(before, false, duration);
         // ② 把原来最上面那条放回原偏移。
         const apply = () => {
           const message = chat.querySelector(`:scope > .mes[mesid="${id}"]`);
@@ -2940,35 +2997,51 @@ if (CLAUDE_ENABLED) {
           const drift = message.getBoundingClientRect().top - chat.getBoundingClientRect().top - offset;
           Math.abs(drift) > 1 && (chat.scrollTop += drift);
         };
-        stopHolding();
-        holding = !0;
-        userMoved = !1;
-        stopAt = win.performance.now() + HOLD_MS;
-        apply();
-        const tick = () => {
-          holdFrame = 0;
-          if (destroyed) return;
-          if (userMoved || win.performance.now() > stopAt) { holding = !1; capture(); return; }
-          apply();
-          holdFrame = win.requestAnimationFrame(tick);
-        };
-        holdFrame = win.requestAnimationFrame(tick);
+        startHold(apply, duration, 'delete');
       };
       const reset = () => { anchor = null; known = null; stopHolding(); release(); win.setTimeout(capture, 300); };
       const onPointerDown = () => {
         // 点删除、点确认框都会先经过这里：记下此刻在页的消息元素，删除后据此认出 TT 新换上的元素。
         userMoved = !0;
+        stopHolding(); release();
         known = new WeakSet(messages());
         capture();
       };
-      const moved = () => { userMoved = !0; };
+      const moved = () => { userMoved = !0; stopHolding(); release(); };
+      const onHostBlur = event => {
+        if (!holding || event.target !== win) return;
+        const frame = doc.activeElement;
+        if (frame?.tagName !== 'IFRAME' || !chat.contains(frame)) { moved(); return; }
+        try { if (!frame.contentDocument) moved(); } catch { moved(); }
+      };
       const onScroll = event => { event.target === chat && scheduleCapture(); };
       const listeners = [
         [doc, "scroll", onScroll, { capture: !0, passive: !0 }],
         [doc, "pointerdown", onPointerDown, { capture: !0, passive: !0 }],
+        [win, "blur", onHostBlur, {passive:true}],
         ...["wheel", "touchstart", "keydown"].map(type => [doc, type, moved, { capture: !0, passive: !0 }])
       ];
       for (const [target, type, fn, options] of listeners) target.addEventListener(type, fn, options);
+      const deleteMode = doc.getElementById('dialogue_del_mes');
+      // CW mirrors this bar and hides its paint; the native inline toggle is the state.
+      const deleteModeActive = () => !!deleteMode && !deleteMode.hidden && (deleteMode.style.display ? deleteMode.style.display !== 'none' : win.getComputedStyle(deleteMode).display !== 'none');
+      let modeOpen = deleteModeActive();
+      const modeObserver = deleteMode ? new win.MutationObserver(() => {
+        const open = deleteModeActive();
+        if (open === modeOpen) return;
+        modeOpen = open;
+        if (!open) { if (holdKind === 'mode') { stopHolding(); release(); } return; }
+        const saved = anchor, list = getContext()?.chat;
+        if (!saved || !Array.isArray(list) || list.length !== saved.count) return;
+        const id = list.indexOf(saved.data); if (id < 0) return;
+        pinTail(known, saved.atBottom, LAST_HOLD_MS);
+        startHold(() => {
+          if (saved.atBottom) { chat.scrollTop = chat.scrollHeight; return; }
+          const message = chat.querySelector(`:scope > .mes[mesid="${id}"]`);
+          if (message) chat.scrollTop += message.getBoundingClientRect().top - chat.getBoundingClientRect().top - saved.offset;
+        }, LAST_HOLD_MS, 'mode');
+      }) : null;
+      modeObserver?.observe(deleteMode, {attributes:true, attributeFilter:['style','hidden']});
       const subscriptions = [];
       const subscribe = (key, fallback, fn) => {
         const type = types[key] || fallback;
@@ -2983,6 +3056,7 @@ if (CLAUDE_ENABLED) {
         destroy() {
           if (destroyed) return;
           destroyed = !0;
+          modeObserver?.disconnect();
           win.cancelAnimationFrame(captureFrame);
           stopHolding();
           release();
