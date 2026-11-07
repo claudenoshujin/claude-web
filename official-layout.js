@@ -1,3 +1,4 @@
+import { retainRangeCounter } from './official-extension-settings.js?v=2.0.163';
 import { preferencesFor } from './preferences.js?v=2.0.163';
 import { installOfficialWeb } from './official-web.js?v=2.0.163';
 import { officialIcons } from './official-icons.js?v=2.0.163';
@@ -111,7 +112,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const prefMoves = [], prefParts = [], prefClasses = [];
   const chatMoves=[];
   const messageInfoMoves = new Map();
-  function pm(node,host){if(!node||node===host)return;if(node.parentNode){const mark=doc.createComment('cw-v4-pref-return');node.before(mark);prefMoves.push([node,mark]);}host.append(node);}
+  const prefRangeUndos=[];
+  function pm(node,host){if(!node||node===host)return;for(const counter of node.matches?.('input[data-for]')?[node]:node.querySelectorAll?.('input[data-for]')||[]){const undo=retainRangeCounter(counter);if(undo)prefRangeUndos.push(undo);}if(node.parentNode){const mark=doc.createComment('cw-v4-pref-return');node.before(mark);prefMoves.push([node,mark]);}host.append(node);}
   const take = id => { const n=doc.getElementById(id); return n && prefPanel?.contains(n) && !n.closest('.cw-v4-pref-pages') ? n : null; };
   const addClass=(n,...c)=>{if(!n)return;n.classList.add(...c);prefClasses.push([n,c]);};
   const clean = s => (s || '').replace(/\s+/g, ' ').replace(/[:：]\s*$/, '').trim();
@@ -148,6 +150,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   };
   const drawerLayouts=createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu,rememberTTMove:ttPanels.remember});
   function restorePrefs() {
+    for(const undo of prefRangeUndos.splice(0).reverse())undo();
     const panel = panels.get('user-settings-block'), pages = panel?.querySelector('.cw-v4-pref-pages');
     if (!pages) return;
     const remaining = pages.querySelector('.cw-v4-pref-remaining');

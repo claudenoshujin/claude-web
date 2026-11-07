@@ -3,6 +3,29 @@
  * 文本框、滑杆整个搬进行里（事件、ID 都不变）；按钮不搬，画一行代它点。关掉时全部搬回原处。
  * 原来的外层还在原处（藏着），酒馆按来源 / 开关显示隐藏的那些块，用 gates 同步到我们的行上。
  * 2.0.264–265 是在酒馆排版上直接套样式，扩展之间结构差太多，排不齐，这一版换成重画。 */
+const rangeCounterBridges=new WeakMap();
+// Keep the native delegated input path after reparenting. Native rejection warns,
+// but retains the rejected text in ST 1.18; resync only that text from its slider.
+export function retainRangeCounter(node){
+  if(!node?.matches?.('input[data-for]'))return null;
+  // A preference row can still be detached while its counter is being moved.
+  const current=node.ownerDocument.getElementById(node.dataset.for);if(current&&current.type!=='range')return null;
+  let bridge=rangeCounterBridges.get(node);
+  if(!bridge){const added=!node.classList.contains('neo-range-input');if(added)node.classList.add('neo-range-input');
+    bridge={refs:0,active:true,added,timer:0,editing:false,startValue:null};
+    const beginEdit=()=>{if(bridge.editing)return;bridge.editing=true;bridge.startValue=node.ownerDocument.getElementById(node.dataset.for)?.value??null;};
+    const settle=event=>{if(event.type==='keydown'&&event.key!=='Enter')return;clearTimeout(bridge.timer);bridge.timer=setTimeout(()=>{
+      bridge.timer=0;if(!bridge.active)return;const slider=node.ownerDocument.getElementById(node.dataset.for);if(slider?.type!=='range')return;
+      const value=Number(node.value);if(!Number.isFinite(value)||value<Number(node.min)||value>Number(node.max)){
+        if(bridge.startValue!==null&&slider.value!==bridge.startValue){slider.value=bridge.startValue;const w=node.ownerDocument.defaultView;if(w.jQuery)w.jQuery(slider).trigger('input',{forced:true});else slider.dispatchEvent(new w.Event('input',{bubbles:true}));}
+        node.value=slider.value;
+      }
+      bridge.editing=false;bridge.startValue=null;
+    },0);};
+    node.addEventListener('focus',beginEdit,true);node.addEventListener('input',beginEdit,true);node.addEventListener('keydown',settle);node.addEventListener('blur',settle);bridge.beginEdit=beginEdit;bridge.settle=settle;rangeCounterBridges.set(node,bridge);
+  }
+  bridge.refs++;return ()=>{if(--bridge.refs)return;bridge.active=false;clearTimeout(bridge.timer);node.removeEventListener('focus',bridge.beginEdit,true);node.removeEventListener('input',bridge.beginEdit,true);node.removeEventListener('keydown',bridge.settle);node.removeEventListener('blur',bridge.settle);if(bridge.added)node.classList.remove('neo-range-input');rangeCounterBridges.delete(node);};
+}
 export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
   const doc=win.document, sessions=new Set(), popups=new Map();
   const FIELD='input:not([type=hidden]):not([type=file]),select,textarea';
@@ -68,6 +91,7 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
   function move(s,n,host,before){
     if(!n||n===host||n.contains(host))return;
     const companion=n.matches?.('select.select2-hidden-accessible')&&n.nextElementSibling?.matches('.select2-container')?n.nextElementSibling:null;
+    for(const counter of n.matches?.('input[data-for]')?[n]:n.querySelectorAll?.('input[data-for]')||[]){const undoRange=retainRangeCounter(counter);if(undoRange)s.undo.push(undoRange);}
     const mark=doc.createComment('cwx-return');n.before(mark);s.moves.push([n,mark]);
     before?host.insertBefore(n,before):host.append(n);if(companion)move(s,companion,host);
   }
