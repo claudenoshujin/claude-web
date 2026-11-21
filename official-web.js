@@ -1,5 +1,5 @@
-import { preferencesFor } from './preferences.js?v=2.0.164';
-import { parseRecentTime } from './recent-time.js?v=2.0.164';
+import { preferencesFor } from './preferences.js?v=2.0.165';
+import { parseRecentTime } from './recent-time.js?v=2.0.165';
 /* 2.0.315（Lulu 2026-10-11 定，预览 Claude outputs/design-web-v1/design-web-v3.html）：
  * 电脑端从 Claude Desktop 的样子改成照 claude.ai 网页版。只在 rail + classic 的电脑布局里生效，
  * 手机不动。这里只加装饰和入口，不碰酒馆原生节点；样式全在 styles/official-web.css，
@@ -32,7 +32,6 @@ export function installOfficialWeb(win = window) {
     chev: '<path d="m9 4.6 7.4 7.4L9 19.4"/>',
     down: '<path d="m6 9 6 6 6-6"/>',
     filter: '<path d="M7 4v6M7 14v6M17 4v2M17 10v10"/><circle cx="7" cy="12" r="2"/><circle cx="17" cy="8" r="2"/>',
-    file: '<path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5"/>',
     apps: '<circle cx="7.5" cy="7.5" r="2.6"/><circle cx="16.5" cy="7.5" r="2.6"/><circle cx="7.5" cy="16.5" r="2.6"/><path d="M16.5 13.5v6M13.5 16.5h6"/>',
   };
   const zh = () => (doc.querySelector('#ui_language_select')?.value || win.localStorage.getItem('language') || win.navigator.language || 'en').startsWith('zh');
@@ -53,7 +52,6 @@ export function installOfficialWeb(win = window) {
   const teardown = () => {
     searchGen++; win.clearTimeout(searchTimer); query = ''; results = null; mode = null;
     mine().forEach(n => n.remove());
-    doc.querySelectorAll('.cw-web-miss').forEach(n => n.classList.remove('cw-web-miss'));
     for (const k of ['cwWeb', 'cwWebPhone', 'cwWebMore', 'cwWebSearch']) delete root.dataset[k];
   };
   // 「更多」：收起时 CSS 把背景、扩展两行压成 0 高（不 display:none 整个 .drawer——它们的设置页是 fixed 的、挂在里面，
@@ -67,7 +65,8 @@ export function installOfficialWeb(win = window) {
   };
   const toggleMore = () => { try { preferencesFor(win).setItem(MORE_KEY, moreOpen() ? 'closed' : 'open'); } catch {} syncMore(); };
 
-  // Date boundaries apply to every non-favorite chat, including repeat rows.
+  // 最近对话按日期分组（正式 2.0.155）：每一条非收藏对话都按自己的日期分组，同角色连续的几条跨天也拆开。
+  // 时间解析和侧栏排序、会话日期共用 recent-time.js：认 ISO、旧版「October 12, 2026 9:01am」、数字时间戳和「2026-10-12@09h01m」。
   const dayLabel = raw => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const ms = parseRecentTime(raw); if (ms === null) return null; const d = new Date(ms); d.setHours(0, 0, 0, 0);
@@ -89,7 +88,7 @@ export function installOfficialWeb(win = window) {
     const kids = [...list.children];
     let header = null, headerHits = 0, head = null, headHit = false, groupHit = false, previousKey = null;
     const flushGroup = () => { if (head) { const keep = headHit || groupHit; head.classList.toggle('cw-web-miss', !keep); if (keep) headerHits++; } head = null; headHit = groupHit = false; };
-    const flushHeader = () => { flushGroup(); if (header) header.classList.toggle('cw-web-miss', !!q && !headerHits); header = null; headerHits = 0; };
+    const flushHeader = () => { flushGroup(); if (header) header.classList.toggle('cw-web-miss', !!q && !headerHits && !header.dataset.cwFilterHeader); header = null; headerHits = 0; };
     for (const n of kids) {
       if (n.classList.contains('cw-web-date')) { flushHeader(); header = n; previousKey = null; continue; }
       if (!n.classList.contains('recentChat')) { previousKey = null; continue; }
@@ -262,17 +261,21 @@ export function installOfficialWeb(win = window) {
   const groupRecents = list => {
     const want = []; let last = null;
     for (const r of list.children) {
-      if (!r.classList.contains('recentChat') || r.dataset.cwFavorite === '1') continue;
-      const g = dayLabel(r.querySelector('.chatDate')?.title || '') || 'Unknown date'; if (g === last) continue;
+      if (!r.classList.contains('recentChat')) continue;
+      const g = r.dataset.cwFavorite === '1' ? t('已收藏','Starred') : (dayLabel(r.querySelector('.chatDate')?.title || '') || 'Unknown date');
+      if (g === last) continue;
       last = g; want.push([r, g]);
     }
+    const filter=win.__claudeClawdInteraction?.recentsFilter?.();
+    const filterHeader=mode==='desk'&&filter?.enabled&&!want.length&&(filter.value==='starred'||!!list.querySelector('.recentChat'));
+    if(filterHeader)want.push([[...list.children].find(n=>!n.classList.contains('cw-web-date'))||null,t('最近','Recents')]);
     const have = [...list.querySelectorAll(':scope > .cw-web-date')];
     const same = have.length === want.length && have.every((h, i) => h.nextElementSibling === want[i][0] && h.dataset.label === want[i][1]);
     if (same) return;
     have.forEach(h => h.remove());
     want.forEach(([r, g], i) => {
       const h = deco(make('div', 'cw-web-date cw-web-x', `<span>${g}</span>` + (i === 0 && mode === 'desk' ? SV(P.filter, 'cw-web-filter') : '')));
-      h.dataset.label = g; r.before(h);
+      h.dataset.label = g;if(filterHeader)h.dataset.cwFilterHeader='1';if(r)r.before(h);else list.append(h);
     });
   };
 
@@ -358,12 +361,11 @@ export function installOfficialWeb(win = window) {
     if (persona && !persona.querySelector('.cw-web-apps')) persona.append(deco(make('span', 'cw-web-apps cw-web-x', SV(P.apps))));
     const form = doc.getElementById('send_form');
     if (form && !form.querySelector(':scope > .cw-web-proj')) form.append(deco(make('div', 'cw-web-proj cw-web-x', `<span>${t('项目', 'Project')}</span>` + SV(P.down))));
-    if (!doc.querySelector('body > .cw-web-share')) doc.body.append(deco(make('div', 'cw-web-share cw-web-x', SV(P.file) + `<b>${t('分享', 'Share')}</b>`)));
   };
 
   if (!doc.getElementById('cw-web-style')) {
     const link = doc.createElement('link'); link.id = 'cw-web-style'; link.rel = 'stylesheet';
-    link.href = new URL('styles/official-web.css?v=2.0.164', import.meta.url).href; doc.head.append(link);
+    link.href = new URL('styles/official-web.css?v=2.0.165', import.meta.url).href; doc.head.insertBefore(link, doc.getElementById('cw-rail-layout-style'));
   }
   let raf = 0;
   const schedule = () => { if (!raf) raf = win.requestAnimationFrame(() => { raf = 0; ensure(); }); };
@@ -389,3 +391,4 @@ export function installOfficialWeb(win = window) {
   };
 }
 
+if (typeof window !== 'undefined' && !window.__cwOfficialWeb) window.__cwOfficialWeb = installOfficialWeb(window);

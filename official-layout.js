@@ -1,19 +1,23 @@
-import { retainRangeCounter } from './official-extension-settings.js?v=2.0.164';
-import { preferencesFor } from './preferences.js?v=2.0.164';
-import { installOfficialWeb } from './official-web.js?v=2.0.164';
-import { officialIcons } from './official-icons.js?v=2.0.164';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.164';
-import { tr } from './official-i18n.js?v=2.0.164';
-import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.164';
-import { createBackgroundFilters } from './background-filters.js?v=2.0.164';
-import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.164';
+import { createBackgroundFilters } from './background-filters.js?v=2.0.165';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.165';
+import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.165';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.165';
+import { createSettingsScale } from './settings-scale.js?v=2.0.165';
+import { createFontWeightControl } from './font-weight.js?v=2.0.165';
+import { preferencesFor } from './preferences.js?v=2.0.165';
+import { officialIcons } from './official-icons.js?v=2.0.165';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.165';
+import { retainRangeCounter } from './official-extension-settings.js?v=2.0.165';
+import { tr } from './official-i18n.js?v=2.0.165';
+import { normalizeSettingsSections } from './settings-sections.js?v=2.0.165';
+import { installDisplayState } from './display-state.js?v=2.0.165';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
  */
 export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = {}) {
   const doc = win.document, root = doc.documentElement;
-  const stopOfficialWeb = installOfficialWeb(win);
+  root.setAttribute("data-cw-settings-unified", "");
   const ids = [
     ['left-nav-panel', '预设', 'Presets'], ['rm_api_block', 'API 连接', 'API connection'],
     ['AdvancedFormatting', '格式化', 'Formatting'], ['WorldInfo', '世界书', 'World info'],
@@ -29,7 +33,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const iconProperties = Object.keys(officialIcons).map(name => { const key = '--cw-v4-icon-' + name; return [key, root.style.getPropertyValue(key), root.style.getPropertyPriority(key)]; });
   for (const [name,path] of Object.entries(officialIcons)) root.style.setProperty('--cw-v4-icon-'+name,`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`)}")`);
   const installedIconValues = new Map(iconProperties.map(([key]) => [key, root.style.getPropertyValue(key)]));
-  const enabled = () => !destroyed && root.dataset.claudeEnabled !== 'off' && root.dataset.claudeStructure === 'rail' && root.dataset.claudeSkin === 'classic' && root.dataset.claudeUi !== 'classic';
+  const enabled = () => !destroyed && root.dataset.claudeEnabled !== 'off' && root.dataset.claudeStructure === 'rail' && root.dataset.claudeSkin === 'classic';
+  const backgroundFilters = createBackgroundFilters({win, enabled});
   // The mobile skin can also run in a wide desktop window. Match the CSS
   // breakpoint rather than treating the skin preference as viewport size.
   // Phones use the phone layout at any width (the stylesheets are pinned the
@@ -37,15 +42,35 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const mobile = () => root.dataset.claudeLayout === 'mobile' || win.innerWidth <= 700;
   let shell, current, requestedPanel, previousFocus, raf = 0, destroyed = false;
   const observers = [], disposers = [], dialogs = new Set(), panels = new Map();
-  const ttPanels = createTTPanelRuntime(win);
-  const promptScroll = createPromptScroll({win,enabled,schedule});
-  const backgroundFilters = createBackgroundFilters({win,enabled});
   const panelDecorations = new Map();
   const formattedForms = new WeakSet();
   const enhancedMenus = new WeakSet();
+  let closeDelegatedMenu=null;
   const formSet = new Set();
-  const on = (node, event, fn, options) => { node.addEventListener(event, fn, options); disposers.push(() => node.removeEventListener(event, fn, options)); };
+  const promptListenerCleanup = new win.FinalizationRegistry(dispose => { const i=disposers.indexOf(dispose);if(i>=0)disposers.splice(i,1); });
+  const promptDisposer=(target,listener,event,options)=>{
+    const dispose=()=>{const n=target.deref(),f=listener.deref();if(n&&f)n.removeEventListener(event,f,options);promptListenerCleanup.unregister(dispose);};
+    return dispose;
+  };
+  const popoverDisposer=target=>{
+    const dispose=()=>{const list=target.deref();if(list?.matches(':popover-open'))list.hidePopover();promptListenerCleanup.unregister(dispose);};
+    return dispose;
+  };
+  const on = (node, event, fn, options) => {
+    node.addEventListener(event, fn, options);
+    if(node instanceof win.Element&&(node.matches('.cw-v4-more,.cw-v4-more-list,.cw-v4-more-item,.cw-v4-more-cancel')||node.closest('#completion_prompt_manager_list'))){
+      // Replaced prompt menus must not stay alive just for eventual uninstall.
+      // Native fragment ownership still keeps both target and listener restorable.
+      const dispose=promptDisposer(new win.WeakRef(node),new win.WeakRef(fn),event,options);
+      disposers.push(dispose);promptListenerCleanup.register(node,dispose,dispose);
+    }else disposers.push(() => node.removeEventListener(event, fn, options));
+  };
   const observe = (node, fn, options) => { const mo = new win.MutationObserver(fn); mo.observe(node, options); observers.push(mo); return mo; };
+  // data-cw-off mirrors a few native nodes' inline display (see display-state.js); installed before any CW style can match.
+  const displayState = installDisplayState(win); disposers.push(() => displayState.destroy());
+  // One delegated pair replaces document listeners that captured every old menu.
+  on(doc,'click',e=>{for(const menu of doc.querySelectorAll('.cw-v4-more[open]'))if(enhancedMenus.has(menu)&&!menu.contains(e.target)&&!menu.cwAnchor?.contains?.(e.target))menu.open=false;});
+  on(doc,'keydown',e=>{if(e.key!=='Escape')return;let closed=false;if(closeDelegatedMenu){closeDelegatedMenu(true);closed=true;}for(const menu of doc.querySelectorAll('.cw-v4-more[open]'))if(enhancedMenus.has(menu)){menu.open=false;closed=true;}if(closed){e.preventDefault();e.stopPropagation();}},true);
   const nativeToggle = panel => panel.closest('.drawer')?.querySelector(':scope > .drawer-toggle');
   /* Preferences: the design's PAGES table (app.js). R.* take the real
    * controls out of ST's panel and put them into "title left, control right"
@@ -53,12 +78,17 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
    * the design. Everything unmapped ends up in Advanced › Other. */
   const PAGES = [
     {key:'look',title:'外观',icon:'palette',group:'偏好设置',lede:'主题、显示样式、尺寸与颜色',sections:[
+      ['风格',()=>{const rows=[];for(const [id,label]of [['claude-web-preset','风格预设'],['claude-web-theme-auto','主题切换'],['claude-web-variant','当前明暗']]){const n=doc.getElementById(id);if(n)rows.push(prow(t(label,label),'',[n]));}return rows;}],
+      ['文字',()=>{const font=doc.getElementById('claude-web-font'),custom=doc.getElementById('claude-web-font-custom'),quote=doc.getElementById('claude-web-quote-body-color');const rows=[];if(font){const r=prow(t('字体','Font'),'',[font]);if(custom)pm(custom,r);rows.push(r);}const weight=createFontWeightControl({win,t,make,button});prefParts.push(weight.node);disposers.push(()=>weight.destroy());rows.push(weight.node);if(quote)rows.push(prow(t('引号内文字变色','Quote color'),'',[quote]));return rows;}],
       ['主题',()=>{const sel=take('themes');addClass(sel,'cw-v4-wide');const r1=prow(t('UI 主题','UI Theme'),'当前使用的界面主题预设',[sel],'cw-v4-stack');
         const r2=R.btns('主题文件',['ui-preset-update-button','ui-preset-save-button','ui_preset_import_button','ui_preset_export_button','ui-preset-delete-button'],{icons:{'ui-preset-update-button':'save','ui-preset-save-button':'saveplus','ui_preset_import_button':'import','ui_preset_export_button':'export','ui-preset-delete-button':'trash'},desc:'覆盖保存 · 另存为新主题 · 导入 · 导出 · 删除',cls:'cw-v4-textbtns',labels:{'ui-preset-update-button':'覆盖保存','ui-preset-save-button':'另存为','ui_preset_import_button':'导入','ui_preset_export_button':'导出','ui-preset-delete-button':'删除'}});
         addClass(doc.getElementById('ui-preset-delete-button'),'cw-v4-danger');const file=take('ui_preset_import_file');if(file&&r2)pm(file,r2);return [r1,r2];}],
       ['显示样式',()=>[R.sel('avatar_style'),R.sel('chat_display'),R.sel('media_display'),R.sel('toastr_position'),R.tog('waifuMode')]],
       ['尺寸',()=>[R.range('chat_width_slider','chat_width_slider_counter'),R.range('font_scale','font_scale_counter'),R.range('blur_strength','blur_strength_counter'),R.range('shadow_width','shadow_width_counter')]],
-      ['颜色',()=>['main-text-color-picker','italics-color-picker','underline-color-picker','quote-color-picker','shadow-color-picker','chat-tint-color-picker','blur-tint-color-picker','border-color-picker','user-mes-blur-tint-color-picker','bot-mes-blur-tint-color-picker'].map(id=>R.color(id))],
+      ['颜色',()=>{const rows=['main-text-color-picker','italics-color-picker','underline-color-picker','quote-color-picker','shadow-color-picker','chat-tint-color-picker','blur-tint-color-picker','border-color-picker','user-mes-blur-tint-color-picker','bot-mes-blur-tint-color-picker'].map(id=>R.color(id));
+        // 用户在 CW 下改的颜色按日 / 夜分开保留；这里只清当前这一套（主题运行时在 index.js）。
+        if(rows.some(Boolean))rows.push(prow(t('恢复默认颜色','Restore default colors'),t('只恢复当前日间或夜间这一套','Only the current day or night set'),[button(t('恢复默认','Restore defaults'),()=>win.__claudeIntegratedTheme?.resetUserColors?.(),'cw-v4-button cw-color-reset')]));
+        return rows;}],
     ]},
     {key:'ui',title:'界面',icon:'window',group:'偏好设置',lede:'动效、消息上显示的信息、交互方式',sections:[
       ['性能与效果',()=>['reduced_motion','fast_ui_mode','noShadowsmode'].map(i=>R.tog(i))],
@@ -85,7 +115,13 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     {key:'adv',title:'高级',icon:'terminal',group:'系统',lede:'宏与脚本、自动补全、窗口拖动、自定义 CSS、调试',sections:[
       ['宏与 STscript',()=>[R.tog('experimental_macro_engine'),R.tog('stscript_parser_flag_strict_escaping'),R.tog('stscript_parser_flag_replace_getvar')]],
       ['自动补全',()=>{const rows=[R.sel('stscript_autocomplete_state'),R.tog('stscript_autocomplete_autoHide'),R.tog('stscript_autocomplete_showInAllMacroFields'),R.sel('stscript_matching'),R.sel('stscript_autocomplete_style'),R.sel('stscript_autocomplete_select'),R.range('stscript_autocomplete_font_scale','stscript_autocomplete_font_scale_counter')];
-        const w=make('div','cw-v4-width-pair');prefParts.push(w);for(const id of ['stscript_autocomplete_width_left','stscript_autocomplete_width_right','stscript_autocomplete_width_left_values','stscript_autocomplete_width_right_values']){const n=take(id);if(n)pm(n,w);}
+        const w=make('div','cw-v4-width-pair');prefParts.push(w);
+        for(const side of ['left','right']){
+          const id='stscript_autocomplete_width_'+side, input=take(id), ticks=take(id+'_values');
+          const nativeRange=input?.closest('.doubleRangeInputContainer');
+          if(input)pm(nativeRange||input,w);
+          if(ticks&&!nativeRange?.contains(ticks))pm(ticks,w);
+        }
         const r=prow(t('宽度','Width'),'左右两侧宽度',[]);r.lastElementChild.append(w);return [...rows,r];}],
       ['窗口拖动（MovingUI）',()=>{const r=R.sel('movingUIPresets');const b=take('movingui-preset-save-button');if(r&&b){addClass(b,'cw-v4-pref-btn','cw-v4-icononly');const ic=icon('saveplus');b.prepend(ic);prefParts.push(ic);pm(b,r.querySelector('.cw-v4-row-controls'));}
         return [R.tog('movingUImode'),R.btns('重置面板位置',['movingUIreset'],{cls:''}),r];}],
@@ -113,6 +149,64 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const chatMoves=[];
   const messageInfoMoves = new Map();
   const prefRangeUndos=[];
+  const prefSegmentUndos=[];
+  const segmentIds=['stscript_autocomplete_state','stscript_matching','claude-web-theme-auto','claude-web-variant','send_on_enter'];
+  function mountNativeSegment(select){
+    if(!select)return;
+    const row=select.closest('.cw-v4-row');
+    const title=row?.querySelector('.cw-v4-row-title');
+    if(!title)return;
+    const group=make('div','cww-seg cw2-segment');
+    group.setAttribute('role','group');
+    group.setAttribute('aria-label',title.textContent.trim());
+    group.inert=true;
+    select.after(group);
+    let frame=0,signature='';
+    function sync(){
+      frame=0;
+      const options=[...select.options];
+      const next=JSON.stringify(options.map(o=>[o.value,o.label]));
+      if(next!==signature){
+        signature=next;
+        group.replaceChildren(...(options.length>1&&options.length<=3?options.map(o=>button(o.label,()=>{
+          if(select.disabled||o.disabled||select.value===o.value)return;
+          select.value=o.value;
+          select.dispatchEvent(new win.Event('input',{bubbles:true}));
+          select.dispatchEvent(new win.Event('change',{bubbles:true}));
+          schedule();
+        },'')):[]));
+      }
+      for(const [i,b] of [...group.children].entries()){
+        b.disabled=select.disabled||options[i].disabled;
+        b.setAttribute('aria-pressed',String(options[i].selected));
+      }
+      const style=win.getComputedStyle(row);
+      const content=row.clientWidth-parseFloat(style.paddingInlineStart)-parseFloat(style.paddingInlineEnd);
+      const text=doc.createRange();text.selectNodeContents(title);
+      const titleWidth=text.getBoundingClientRect().width/(row.currentCSSZoom||1);
+      const available=style.flexDirection==='column'?content:content-titleWidth-12;
+      const fits=group.childElementCount>1&&group.offsetWidth<=Math.min(available,260);
+      group.toggleAttribute('data-cw-fit',fits);
+      group.inert=!fits;
+      select.toggleAttribute('data-cw-segmented',fits);
+    }
+    function schedule(){if(!frame)frame=win.requestAnimationFrame(sync);}
+    const changes=new win.MutationObserver(schedule);
+    changes.observe(select,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['value','label','selected','disabled']});
+    const size=new win.ResizeObserver(schedule);size.observe(row);
+    select.addEventListener('input',schedule);select.addEventListener('change',schedule);
+    win.jQuery?.(select).on('change.cwPrefSegment',schedule);
+    function destroy(){
+      changes.disconnect();size.disconnect();win.cancelAnimationFrame(frame);
+      select.removeEventListener('input',schedule);select.removeEventListener('change',schedule);
+      win.jQuery?.(select).off('change.cwPrefSegment',schedule);
+      select.removeAttribute('data-cw-segmented');group.remove();
+    }
+    // Build the controls on mount. Later frames only remeasure or reflect
+    // actual changes to the native options.
+    sync();
+    return {refresh:schedule,destroy};
+  }
   function pm(node,host){if(!node||node===host)return;for(const counter of node.matches?.('input[data-for]')?[node]:node.querySelectorAll?.('input[data-for]')||[]){const undo=retainRangeCounter(counter);if(undo)prefRangeUndos.push(undo);}if(node.parentNode){const mark=doc.createComment('cw-v4-pref-return');node.before(mark);prefMoves.push([node,mark]);}host.append(node);}
   const take = id => { const n=doc.getElementById(id); return n && prefPanel?.contains(n) && !n.closest('.cw-v4-pref-pages') ? n : null; };
   const addClass=(n,...c)=>{if(!n)return;n.classList.add(...c);prefClasses.push([n,c]);};
@@ -130,7 +224,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const R = {
     tog(id,extra){const el=take(id);if(!el)return null;const lab=el.closest('label')||el.parentElement;const text=[...lab.children].find(c=>!['INPUT','I','A','AUDIO'].includes(c.tagName));
       const r=prow(textOf(text)||labelFor(el),titleOf(lab),[el],'',tagsOf(lab));lab.querySelectorAll('audio').forEach(a=>pm(a,r));if(extra)extra(r,lab);return r;},
-    sel(id,o={}){const el=take(id);if(!el)return null;const wrap=el.closest('div')||el.parentElement;const lab=prefPanel.querySelector(`label[for="${id}"]`)||[...wrap.children].find(c=>c!==el&&/^(SPAN|SMALL|LABEL)$/.test(c.tagName))||wrap.querySelector('label');
+    sel(id,o={}){const el=take(id);if(!el)return null;if(id==='ui_language_select'&&el.selectedIndex<0){const saved=win.localStorage.getItem('language')||'',match=[...el.options].find(o=>o.value.toLowerCase()===saved.toLowerCase());if(match){el.value=match.value;disposers.push(()=>{if(el.value===match.value&&win.localStorage.getItem('language')===saved)el.selectedIndex=-1;});}}const wrap=el.closest('div')||el.parentElement;const lab=prefPanel.querySelector(`label[for="${id}"]`)||[...wrap.children].find(c=>c!==el&&/^(SPAN|SMALL|LABEL)$/.test(c.tagName))||wrap.querySelector('label');
       return prow(o.label||textOf(lab)||labelFor(el),o.desc??titleOf(el,wrap,wrap.parentElement),[el],'cw-v4-stackm');},
     range(id,num,o={}){const el=take(id);if(!el)return null;const n=num?take(num):null,box=el.parentElement;const lab=box.querySelector('small span, label, small');const info=box.querySelector('.fa-circle-info');
       let desc=o.desc??titleOf(info,box);const more=[...box.querySelectorAll(':scope > small')].slice(1).map(s=>clean(s.textContent)).join(' ');if(more)desc=desc?`${desc} ${more}`:more;
@@ -148,9 +242,12 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     color(id){const el=take(id);if(!el)return null;return prow(textOf(el.nextElementSibling),'',[el]);},
     area(id,label,desc,cls='cw-v4-area'){const el=take(id);if(!el)return null;addClass(el,...cls.split(' '));el.dataset.cwV4Text='1';let lab=el.previousElementSibling;while(lab&&!/^(SMALL|SPAN|LABEL)$/.test(lab.tagName))lab=lab.previousElementSibling;if(!lab)lab=el.parentElement?.previousElementSibling;return prow(label||textOf(lab),desc,[el],'cw-v4-stack');},
   };
-  const drawerLayouts=createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu,rememberTTMove:ttPanels.remember});
+  // Formal 2.0.152: keep CW-shown native content resident under TauriTavern's Panel Runtime.
+  const ttPanels = createTTPanelRuntime(win);
+  const drawerLayouts=createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu,mountNativeSegment,bindRowMenu,rememberTTMove:ttPanels.remember});
   function restorePrefs() {
     for(const undo of prefRangeUndos.splice(0).reverse())undo();
+    for(const undo of prefSegmentUndos.splice(0).reverse())undo();
     const panel = panels.get('user-settings-block'), pages = panel?.querySelector('.cw-v4-pref-pages');
     if (!pages) return;
     const remaining = pages.querySelector('.cw-v4-pref-remaining');
@@ -163,13 +260,13 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   }
   function restoreAdaptedContainers() {
     doc.querySelectorAll('.cw-v4-swipes,.cw-v4-model').forEach(n=>n.remove());
+    for(const [node,mark] of chatMoves.splice(0).reverse())if(mark.parentNode)mark.replaceWith(node);
     for (const [node, mark] of [...messageInfoMoves].reverse()) if (mark.parentNode) mark.replaceWith(node);
     messageInfoMoves.clear();
     doc.querySelectorAll('[data-cw-info-icon]').forEach(n => n.remove());
     doc.querySelectorAll('.cw-v4-message-info').forEach(n => n.remove());
     doc.querySelectorAll('.cw-ruby-scroll').forEach(n => n.replaceWith(...n.childNodes));
     rubyDirty.clear(); rubyFullMeasure = true;
-    for(const [node,mark] of chatMoves.splice(0).reverse())if(mark.parentNode)mark.replaceWith(node);
     drawerLayouts.restore();
     restorePrefs();
     for (const panel of panels.values()) {
@@ -196,6 +293,84 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     if (p && !mobile()) p.scrollTop = 0;
     schedule();
   }
+  /* 设置页 v2d（稿 design-settings-pages-v2d.html，修改单第 1 / 4 / 7 节）：偏好页改成「标题行 + 两栏」。
+     页面和行都是这里新建的（restorePrefs 整页移除），原生控件仍由 pm() 记录、还原。手机和窄窗口单栏，按 style.order 回到原来的分组顺序。 */
+  const V2D_PREFS = new Set(['look', 'ui', 'char', 'chat', 'gen', 'adv', 'acct']);
+  function v2dSplit(secs) {
+    // 第一组固定在左栏；其余组在「两栏高度最接近、尽量少打乱原顺序」里挑（同稿子 _pages2d.js 的 split()）。
+    const h = secs.map(sec => 44 + [...sec.children].filter(n => n.matches('.cw-v4-row,.cwr-font-weight,.cw2-cgrid')).reduce((t, r) => t + (r.matches('.cw2-cgrid') ? Math.ceil(r.children.length / 2) * 52 : r.matches('.cwr-font-weight') ? 380 : r.querySelector('textarea') ? 150 : r.querySelector('.cw-v4-row-info>p') ? 62 : 52), 0));
+    const n = secs.length; let best = null;
+    for (let m = 1; m < (1 << n); m += 2) { let l = 0, r = 0, brk = 0, last = 1; for (let i = 0; i < n; i++) { const left = (m >> i) & 1; if (left) l += h[i]; else r += h[i]; if (i && left !== last) brk++; last = left; } const sc = Math.abs(l - r) + brk * 14; if (!best || sc < best.sc) best = { sc, m }; }
+    return [secs.filter((_, i) => (best.m >> i) & 1), secs.filter((_, i) => !((best.m >> i) & 1))];
+  }
+  function v2dPref(page) {
+    const key = page.dataset.page; page.classList.add('cw2', 'cw2-pref', 'cw2-p-' + key);
+    const title = page.querySelector(':scope>.cw-v4-pref-title'), lede = page.querySelector(':scope>.cw-v4-lede');
+    const bar = make('div', 'cw2-bar cw2-pbar'); page.insertBefore(bar, title || page.firstChild); if (title) bar.append(title); if (lede) { lede.classList.add('cw2-note'); bar.append(lede); }
+    const secs = [...page.querySelectorAll(':scope>.cw-v4-pref-sec')], by = k => secs.find(sec => sec.dataset.cwSec === k);
+    // 说明只占一行，鼠标停上去看全文（G5）。
+    for (const p of page.querySelectorAll('.cw-v4-row-info>p')) if (!p.title && p.textContent.trim()) p.title = p.textContent.trim();
+    // R4 颜色：电脑两个一行（名字 / 色值 / 色块），手机一个一行。
+    const colors = by('颜色'), pickRows = colors ? [...colors.querySelectorAll(':scope>.cw-v4-row')].filter(r => r.querySelector('toolcool-color-picker')) : [];
+    if (pickRows.length) {
+      const grid = make('div', 'cw2-cgrid'); pickRows[0].before(grid);
+      for (const r of pickRows) {
+        grid.append(r); const pk = r.querySelector('toolcool-color-picker'), hex = make('span', 'cw2-hex'); pk.before(hex);
+        const paint = () => { let v = ''; try { v = pk.hex || pk.getAttribute('color') || ''; } catch { v = pk.getAttribute('color') || ''; } v = String(v).replace(/^#?([0-9a-f]{6})(ff)?$/i, '#$1').toLowerCase(); if (hex.textContent !== v) hex.textContent = v; };
+        paint(); on(pk, 'change', paint); win.setTimeout(paint, 400);
+      }
+    }
+    let left, right;
+    if (key === 'adv') { right = ['自定义 CSS', '窗口拖动（MovingUI）', '调试与维护'].map(by).filter(Boolean); left = secs.filter(sec => !right.includes(sec)); v2dAdv(page, by); }
+    else if (key === 'acct' || secs.length < 2) { left = secs; right = []; }
+    else [left, right] = v2dSplit(secs);
+    const g = make('div', 'cw2-cols'), l = make('div', 'cw2-col'), r = make('div', 'cw2-col'); g.append(l, r); page.append(g);
+    const order = key === 'adv' ? [...left, ...right] : secs; order.forEach((sec, i) => { sec.style.order = String(i); });
+    left.forEach(sec => l.append(sec)); right.forEach(sec => r.append(sec));
+  }
+  // 高级（第 4 节）：自定义 CSS 提到右栏最上面并伸长补齐；自动补全按稿子的顺序，宽度拆成左右两行；按钮行用小按钮。
+  function v2dAdv(page, by) {
+    // 这时偏好页还没挂进文档（buildPrefs 最后才 append），只能在页面里找。
+    const $ = id => page.querySelector('#' + win.CSS.escape(id));
+    const css = by('自定义 CSS'), ta = css && $('customCSS'), row = ta?.closest('.cw-v4-row');
+    if (css && row) {
+      css.classList.add('cw2-grow'); row.classList.add('cw2-fill', 'cw2-css');
+      const zoom = row.querySelector('.editor_maximize'); const h2 = css.querySelector(':scope>h2');
+      if (zoom && h2) { const lab = make('span', 'cw2-link-t', L('放大')); zoom.append(lab); prefParts.push(lab); addClass(zoom, 'cw2-link'); pm(zoom, h2); }
+      // 手机：一行预览 + ›，点进去整页编辑。
+      const prev = button('', () => openEditor(ta, L('自定义 CSS')), 'cw2-prev'), tx = make('span', 'cw2-prev-t'); prev.append(tx, icon('chev'));
+      const paint = () => { const v = (ta.value || '').replace(/\s+/g, ' ').trim() || t('（空）', '(Empty)'); if (tx.textContent !== v) tx.textContent = v; }; paint(); on(ta, 'input', paint); row.after(prev);
+    }
+    const ac = by('自动补全');
+    if (ac) {
+      const rowOf = id => $(id)?.closest('.cw-v4-row');
+      const want = ['stscript_autocomplete_state', 'stscript_matching', 'stscript_autocomplete_style', 'stscript_autocomplete_select', 'stscript_autocomplete_font_scale'].map(rowOf).filter(Boolean);
+      const pair = ac.querySelector('.cw-v4-width-pair'), widthRow = pair?.closest('.cw-v4-row');
+      const tail = ['stscript_autocomplete_autoHide', 'stscript_autocomplete_showInAllMacroFields'].map(rowOf).filter(Boolean);
+      const extra = [];
+      if (pair && widthRow) {
+        for (const [id, label] of [['stscript_autocomplete_width_left', '左侧宽度'], ['stscript_autocomplete_width_right', '右侧宽度']]) {
+          const input = $(id); if (!input) continue;
+          const r = prow(t(label, label === '左侧宽度' ? 'Left width' : 'Right width'), '', [], 'cw-v4-range cw2-wrange');
+          // ST 1.19's input handler updates the native slider container before saving.
+          const nativeRange = input.closest('.doubleRangeInputContainer');
+          const box = nativeRange || make('div', 'cw-v4-rangebox');
+          if (nativeRange) { addClass(box, 'cw-v4-rangebox'); pm(box, r.lastElementChild); }
+          else { r.lastElementChild.append(box); pm(input, box); }
+          const ticks = $(id + '_values'); if (ticks && !box.contains(ticks)) pm(ticks, box);
+          extra.push(r);
+          // v2d 补充：滑杆右边的数字框（宽 62），和滑杆双向同步；范围、步长照原生滑杆，写回走原生滑杆的 input 事件。
+          const num = make('input', 'cw-v4-num cw2-wnum'); num.type = 'number'; num.min = input.min; num.max = input.max; num.step = input.step || '1'; num.value = input.value; num.setAttribute('aria-label', t(label, label === '左侧宽度' ? 'Left width' : 'Right width')); r.lastElementChild.append(num);
+          on(num, 'input', () => { if (num.value === '') return; const v = Math.min(+input.max, Math.max(+input.min, +num.value)); if (String(v) === input.value) return; input.value = String(v); input.dispatchEvent(new win.Event('input', { bubbles: true })); });
+          on(num, 'change', () => { num.value = input.value; });
+          on(input, 'input', () => { if (num.value !== input.value) num.value = input.value; });
+        }
+      }
+      for (const r of [...want, ...extra, ...tail]) ac.append(r); if (widthRow && extra.length) widthRow.remove();
+    }
+    const mv = by('窗口拖动（MovingUI）');
+    if (mv) addClass($('movingUIPresets'), 'cw2-short');
+  }
   function buildPrefs(panel) {
     if (panel.querySelector('.cw-v4-pref-pages')) return;
     prefPanel = panel;
@@ -208,7 +383,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       page.append(prefTitle);
       if (p.lede) page.append(make('p','cw-v4-lede',L(p.lede)));
       for (const [title,build] of p.sections) {
-        const sec = make('div','cw-v4-section cw-v4-pref-sec'); sec.append(make('h2','',L(title)));
+        const sec = make('div','cw-v4-section cw-v4-pref-sec'); sec.dataset.cwSec = title; sec.append(make('h2','',L(title)));
         for (const r of build()) if (r) sec.append(r);
         page.append(sec);
       }
@@ -223,9 +398,12 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       for (const n of left) other.append(prow(labelFor(n) || n.id, '', [n]));
       pages.querySelector('[data-page="adv"]')?.append(other);
     }
+    for (const page of pages.querySelectorAll(':scope>.cw-v4-pref-page')) if (V2D_PREFS.has(page.dataset.page)) v2dPref(page);
     const remaining = make('div','cw-v4-pref-remaining');
     while (panel.firstChild) remaining.append(panel.firstChild);
     pages.append(remaining); panel.append(pages);
+    normalizeSettingsSections(pages,make);
+    for(const id of segmentIds){const segment=mountNativeSegment(doc.getElementById(id));if(segment)prefSegmentUndos.push(segment.destroy);}
     selectPrefs(prefPage);
   }
   const isOpen = p => p.classList.contains('openDrawer') && !p.classList.contains('closedDrawer');
@@ -248,25 +426,31 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     for (const dialog of dialogs) dialog.close();
     for (const p of panels.values()) if (isOpen(p)) nativeToggle(p)?.click();
   }
-  function closeSettings() {
-    if (mobile() || !current || calm()) { closeNow(); return; }
+  function closeSettings(immediate=false) {
+    if (immediate===true || mobile() || !current || calm()) { closeNow(); return; }
     if (deskClosing) return;
     deskAnim('out', DESK_BD_OUT + 40);
     deskClosing = win.setTimeout(closeNow, DESK_OUT);
   }
+  function closeOtherPanels(target) {
+    for (const panel of panels.values()) {
+      if (panel === target || !isOpen(panel)) continue;
+      // ST counts the hidden PromptManager popup as an open drawer.
+      if (panel.id === 'left-nav-panel') drawerLayouts.leavePreset();
+      if (!panel.classList.contains('pinnedOpen')) nativeToggle(panel)?.click();
+    }
+  }
   function activate(id) {
     if (deskClosing) { win.clearTimeout(deskClosing); deskClosing = 0; deskAnim(null); }
-    const p = panels.get(id);
-    if (!p) return false;
     requestedPanel = id;
     if (enabled()) ttPanels.set('page', id);
+    const p = panels.get(id);
     if (p && !isOpen(p)) {
       // ST waits for its closing animation when another unpinned drawer is
       // open. Close it synchronously first, keeping our shared shell mounted.
-      for (const old of panels.values()) if (old !== p && isOpen(old) && !old.classList.contains('pinnedOpen')) nativeToggle(old)?.click();
+      closeOtherPanels(p);
       nativeToggle(p)?.click();
     }
-    return true;
   }
   function buildShell() {
     shell = make('div', 'cw-v4-shell'); shell.id = 'cw-v4-settings'; shell.hidden = true;
@@ -292,44 +476,16 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const back = button('', () => { const rail = mobile() && doc.querySelector('.clawd-mobile-menu-button'); if (!rail) { shell.classList.toggle('cw-v4-show-nav'); return; } if (!doc.body.hasAttribute('data-clawd-menu')) rail.click(); }, 'cw-v4-menu'); back.append(icon('menu')); back.setAttribute('aria-label', t('设置导航', 'Settings navigation'));
     const title = make('h1', 'cw-v4-title');
     const close = button('', closeSettings, 'cw-v4-close'); close.append(icon('close')); close.setAttribute('aria-label', t('关闭设置', 'Close settings'));
-    head.append(back, title, close);
-    const grip = make('div', 'cw-v4-grip'); grip.title = t('拖动移动 · 双击复位', 'Drag to move · Double click to reset');
-    shell.append(nav, head, grip); doc.body.append(shell);
+    const newCharacter = button('', () => doc.getElementById('rm_button_create')?.click(), 'cw2-char-mobile-create');
+    newCharacter.append(icon('plus'));
+    newCharacter.setAttribute('aria-label', L('新建角色'));
+    head.append(back, title, newCharacter, close);
+    shell.append(nav, head); doc.body.append(shell);
     const backdrop = make('div','cw-v4-backdrop');
     doc.querySelector('#top-settings-holder')?.append(backdrop);
     on(backdrop,'mousedown',e=>e.stopPropagation());
     on(backdrop,'click',closeSettings);
     disposers.push(()=>backdrop.remove());
-    on(grip, 'dblclick', resetGeometry);
-    on(grip, 'pointerdown', e => drag(e, 'move'));
-    for (const edge of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']) {
-      const handle = make('div', `cw-v4-resize cw-v4-${edge}`);
-      on(handle, 'pointerdown', e => drag(e, edge)); shell.append(handle);
-    }
-  }
-  function resetGeometry() {
-    for (const k of ['x','y','w','h']) root.style.removeProperty('--cw-v4-' + k);
-  }
-  function drag(e, mode) {
-    if (mobile() || e.button !== 0 || e.isPrimary === false) return;
-    e.preventDefault(); const b = shell.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
-    const handle = e.currentTarget; handle.setPointerCapture?.(e.pointerId);
-    const move = ev => {
-      if (ev.pointerId !== e.pointerId) return;
-      let x = b.x, y = b.y, w = b.width, h = b.height;
-      const dx = ev.clientX - x0, dy = ev.clientY - y0;
-      const minW = Math.min(620, win.innerWidth), minH = Math.min(420, win.innerHeight);
-      if (mode === 'move') { x = Math.max(0, Math.min(win.innerWidth-w, x+dx)); y = Math.max(0, Math.min(win.innerHeight-h, y+dy)); }
-      else {
-        if (mode.includes('e')) w = Math.min(win.innerWidth-x, Math.max(minW,w+dx));
-        if (mode.includes('s')) h = Math.min(win.innerHeight-y, Math.max(minH,h+dy));
-        if (mode.includes('w')) { x = Math.max(0, Math.min(b.right-minW,x+dx)); w = b.right-x; }
-        if (mode.includes('n')) { y = Math.max(0, Math.min(b.bottom-minH,y+dy)); h = b.bottom-y; }
-      }
-      for (const [k,v] of Object.entries({x,y,w,h})) root.style.setProperty('--cw-v4-'+k, v+'px');
-    };
-    const end = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', end); handle.removeEventListener('pointercancel', end); handle.removeEventListener('lostpointercapture', end); };
-    handle.addEventListener('pointermove', move); ['pointerup','pointercancel','lostpointercapture'].forEach(type => handle.addEventListener(type,end));
   }
   // Dialog stays inside the original form / world entry / extension container
   // (just outside our row wrapper). Delegated events and closest() still work.
@@ -339,6 +495,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     if (!node.isConnected || node.classList.contains('cw-v4-editing')) return;
     const ttOwner = {};
     ttPanels.set(ttOwner, node.closest('.drawer-content')?.id);
+    if(node.id==='claude-web-settings')drawerLayouts.checkUpdates?.();
     // 2.0.222：扩展标题里带着帮助链接的「?」（图像生成 ?），弹窗标题不要它。
     if (typeof title === 'string') title = title.replace(/\s*[?？]$/, '');
     const anchor = doc.createComment('cw-v4-return'); node.before(anchor);
@@ -362,6 +519,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const backLabel = (parentEditor ? parentEditor.querySelector(':scope>.cw-v4-editor-head>h2')?.textContent : doc.querySelector('.cw-v4-shell .cw-v4-title')?.textContent)?.trim() || L('返回');
     const back = button('', shut, 'cw-v4-button cw-v4-editor-back'); back.append(icon('chevl'), make('span', '', backLabel)); back.setAttribute('aria-label', backLabel); head.prepend(back);
     const footer=make('footer','cw-v4-editor-footer');if(opts.foot){footer.append(opts.foot,make('span','cw-v4-grow'));}else footer.classList.add('cw-v4-editor-footer-done');footer.append(button(L('完成'),shut,'cw-v4-button cw-v4-primary'));
+    // v2d 补充：故事字符串、系统提示词内容、用户角色描述放大时，底栏左边显示「约 N Token」（自定义 CSS 等不显示）。
+    let tokenWatch = null;
+    if (node.matches?.('textarea') && ['context_story_string', 'sysprompt_content', 'persona_description'].includes(node.id)) { const tk = make('span', 'cw2-etok'); footer.prepend(tk); tokenWatch = watchTokens(win, node, n => { const v = tokenText(t, n); if (tk.textContent !== v) tk.textContent = v; }); }
     const body = make('div', 'cw-v4-editor-body');
     if (desc) body.append(make('p','cw-v4-editor-desc',desc));
     if (node.matches('textarea')) dialog.classList.add('cw-v4-text-editor');
@@ -372,8 +532,10 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 2.0.214：要编辑的东西在收起的 <details> 里（Claude Web「自定义配色」）时，放在 details 里面的 <dialog> 画不出来；挪到最外层收起的 details 后面。
     let place = host || anchor;
     for (let d = place.parentElement?.closest('details:not([open])'); d; d = d.parentElement?.closest('details:not([open])')) place = d;
-    // Older Chromium sizes fixed popovers against clipped desktop-only sections.
+    // Formal 2.0.143: older Chromium sizes fixed popovers against clipped desktop-only sections.
     for (let d = place.parentElement?.closest('.cw-v4-desk-only:not(.cw-v4-editing)'); d; d = d.parentElement?.closest('.cw-v4-desk-only:not(.cw-v4-editing)')) place = d;
+    // 334 反馈：挂的位置在藏起来（display:none）的祖先里时，showModal 照样让别处点不动，弹窗却画不出来。挂到最外层藏起来的祖先旁边。
+    for (let n = place.parentElement; n && n !== doc.body; n = n.parentElement) if (win.getComputedStyle(n).display === 'none') place = n;
     place.after(dialog); body.append(node); dialog.append(head, body,footer);
     // Select2 normally attaches results to body, which is behind a modal's
     // top layer. Preserve its existing adapter/options and change only host.
@@ -389,6 +551,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     let restored = false;
     const restoreEditor = () => {
       if (restored) return; restored = true;
+      tokenWatch?.stop();
       for(const [adapter,parent,select] of pickerHosts){win.jQuery(select).select2('close');adapter.$dropdownParent=parent;}
       node.hidden = oldHidden; node.style.setProperty('display',oldDisplay,oldPriority); node.classList.remove('cw-v4-editing');
       if (anchor.parentNode) anchor.replaceWith(node);
@@ -417,14 +580,19 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
      不读布局（sync 很频繁）；只在类型变化时才写属性。 */
   const GENERIC_BTN = /^(编辑|配置|选择|设置|管理|打开|Edit|Configure|Choose|Open|Manage|Settings)$/i;
   const hiddenEl = k => k.hidden || k.style.display === 'none' || k.classList.contains('displayNone') || k.classList.contains('cw-v4-hidden-native');
+  const fieldRows=new Map();
   function tagRows(panel) {
     for (const row of panel.querySelectorAll('.cw-v4-row,.cw-v4-api-row')) {
+      if(row.closest('.cwr-page')||row.matches('.cwr-preset-entry,.cwr-connection-row'))continue;
       const ctl = row.querySelector(':scope>.cw-v4-row-controls,:scope>.cw-v4-api-controls');
       let kind = '';
       if (ctl) {
         const kids = [...ctl.children].filter(k => !hiddenEl(k));
         // 用户角色页的「设为默认 / 绑定到当前角色」是画成开关的按钮，保持开关，不改成「›」行。
         const isBtn = k => k.matches('.cw-v4-as-btn,.cw-v4-pref-btn,.cw-v4-button,.menu_button,button') && !k.matches('[id^=lock_],[role=switch],[aria-pressed]');
+        if(!fieldRows.has(row))fieldRows.set(row,row.getAttribute('data-cw-field'));
+        const field = kids.length > 2 ? '1' : '';
+        if((row.dataset.cwField||'')!==field){if(field)row.dataset.cwField=field;else delete row.dataset.cwField;}
         const btns = kids.filter(isBtn), more = kids.filter(k => k.matches('details.cw-v4-more')), others = kids.filter(k => !isBtn(k) && !k.matches('details.cw-v4-more'));
         if (btns.length >= 2 && !others.length) kind = 'actions';
         else if (btns.length === 1 && more.length && !others.length) kind = 'actions';
@@ -520,7 +688,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const build = q => {
       list.replaceChildren(); selItems = []; let group = null;
       for (const o of opts) {
-        const label = (o.textContent || '').trim() || o.value;
+        const label = (o.getAttribute('label') || o.textContent || '').trim() || o.value;
         if (q && !label.toLocaleLowerCase().includes(q)) continue;
         const g = o.parentElement?.tagName === 'OPTGROUP' ? o.parentElement.label : null;
         if (g && g !== group) list.append(make('div', 'cw-v4-selmenu-group', g));
@@ -568,6 +736,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     for (const b of seg.children) { const on = b.dataset.value === sel.value; if ((b.getAttribute('aria-pressed') === 'true') !== on) b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
   }
   function buildSegs(panel) {
+    if(root.hasAttribute('data-cw-settings-unified'))return; // Retain original boxed selects.
     if (mobile()) return;
     panel.querySelectorAll('.cw-v4-row-controls>select:not([multiple]):not(.select2-hidden-accessible)').forEach(sel => {
       if (segSel.has(sel) || !segFits(sel)) return;
@@ -577,12 +746,61 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     });
   }
   disposers.push(() => { for (const [sel, seg] of segSel) { seg.remove(); sel.classList.remove('cw-v4-has-seg'); } segSel.clear(); });
+  function positionMenu(list,anchor,pop){
+    const a=anchor.getBoundingClientRect(),box=list.getBoundingClientRect();
+    const x=Math.max(8,Math.min(a.right-box.width,win.innerWidth-box.width-8));
+    const y=a.bottom+6+box.height>win.innerHeight-8?Math.max(8,a.top-6-box.height):a.bottom+6;
+    const z=list.currentCSSZoom||1;
+    list.style.left=x/z+'px';list.style.top=y/z+'px';
+    if(pop){list.style.setProperty('--cw-mx',x/z+'px');list.style.setProperty('--cw-my',y/z+'px');}
+  }
+  function bindRowMenu(container,selector,build,panel=container.closest('.cw-v4-panel')){
+    let active=null;
+    const close=(restoreFocus=false)=>{
+      if(!active)return;
+      const {trigger,menu,list}=active;active=null;
+      observer.disconnect();
+      if(closeDelegatedMenu===close)closeDelegatedMenu=null;
+      trigger.setAttribute('aria-expanded','false');
+      if(list.matches(':popover-open'))list.hidePopover();
+      menu.remove();
+      if(restoreFocus&&trigger.isConnected)trigger.focus({preventScroll:true});
+    };
+    const click=e=>{
+      const trigger=e.target.closest?.(selector);
+      if(!trigger||!container.contains(trigger))return;
+      e.stopPropagation();
+      if(active?.trigger===trigger){close();return;}
+      closeDelegatedMenu?.();
+      const menu=build(trigger),list=menu?.querySelector(':scope>.cw-v4-more-list');
+      if(!list?.showPopover)return;
+      menu.classList.add('cw-v4-delegated-menu');menu.open=true;
+      list.setAttribute('popover','auto');
+      container.after(menu);
+      active={trigger,menu,list};
+      closeDelegatedMenu=close;
+      trigger.setAttribute('aria-expanded','true');
+      menu.addEventListener('toggle',()=>{if(!menu.open&&active?.menu===menu)close();});
+      list.addEventListener('toggle',e=>{if(e.newState==='closed'&&active?.menu===menu)close();});
+      list.showPopover({source:trigger});
+      positionMenu(list,trigger,true);
+      observer.observe(container,{childList:true,subtree:true});
+      if(panel)observer.observe(panel,{attributes:true,attributeFilter:['class']});
+      const view=container.closest('.cww-view');
+      if(view)observer.observe(view,{attributes:true,attributeFilter:['hidden']});
+    };
+    const observer=new win.MutationObserver(()=>{
+      if(active&&(!container.contains(active.trigger)||panel?.matches('.closedDrawer,.cw-v4-inactive')||container.closest('[hidden]')))close();
+    });
+    container.addEventListener('click',click);
+    return ()=>{close();observer.disconnect();container.removeEventListener('click',click);};
+  }
   function enhance(panel) {
-    drawerLayouts.mount(panel);
-    if (panel.id === 'AdvancedFormatting' && (panel.hasAttribute('data-tt-assistant') || panel.querySelector('#tt-assistant'))) return;
-    if (panel.id === 'user-settings-block') buildPrefs(panel);
     if (panel.id === 'rm_api_block') {
-      panel.querySelectorAll('#openai_api > form,#openai_api > [id$="_form"],#azure_openai_settings').forEach(form => {
+      // The drawer adapter sizes these input rows during its first mount.
+      // v2f: the other API types get the same title-over-control rows. Text Completion is wrapped per
+      // [data-tg-type] block, so ST's own per-server-type show/hide keeps working on those blocks.
+      panel.querySelectorAll('#openai_api > form,#openai_api > [id$="_form"],#azure_openai_settings,#kobold_horde_block,#kobold_api_block,#novel_api > form,#textgenerationwebui_api > form > [data-tg-type]').forEach(form => {
         if (formattedForms.has(form)) return;
         formattedForms.add(form);
         formSet.add(form);
@@ -605,6 +823,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         });
       });
     }
+    drawerLayouts.mount(panel);
+    if(panel.id==='rm_extensions_block')return;
+    if (panel.id === 'user-settings-block') buildPrefs(panel);
     // Keep source-specific and plugin ancestors: ST toggles their visibility.
     panel.querySelectorAll('label.checkbox_label:not([data-v-app] *):not(:has(.sr-only))').forEach(n => { if (!n.classList.contains('cw-v4-setting-row')) n.classList.add('cw-v4-setting-row'); });
     panel.querySelectorAll('.range-block').forEach(n => { if (!n.classList.contains('cw-v4-range-row')) n.classList.add('cw-v4-range-row'); });
@@ -630,7 +851,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         list.append(action);
       }
     }
-    panel.querySelectorAll('.cw-v4-more').forEach(menu=>{
+    const menus=[...panel.querySelectorAll('.cw-v4-more:not(.cw-v4-delegated-menu)')];
+    if(panel.id==='right-nav-panel')menus.push(...shell.querySelectorAll('.cw2-char-phone-head .cw-v4-more'));
+    menus.forEach(menu=>{
       if(enhancedMenus.has(menu))return;enhancedMenus.add(menu);
       const list=menu.querySelector(':scope>.cw-v4-more-list'),summary=menu.querySelector('summary');
       if(!list||!list.showPopover)return;
@@ -640,16 +863,18 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       on(menu,'toggle',()=>{
         if(!menu.open){if(list.matches(':popover-open'))list.hidePopover();return;}
         doc.querySelectorAll('.cw-v4-more[open]').forEach(other=>{if(other!==menu)other.open=false;});
-        if(mobile())list.append(cancel);else cancel.remove();
+        // 341：v2 的 .pop 菜单（共用 menu() 带图标 / 分隔线时）手机上也照稿子从 ⋯ 下方弹出，不用底部抽屉和「取消」。
+        // 顶栏上的 ⋯ 打开别处的菜单时，菜单上挂 cwAnchor，按它定位。
+        // v2d：项多的菜单（.cw2-sheet）手机上仍是底部抽屉，顶上一行灰色小标题写当前对象的名字（menu.cw2Title()）。
+        const sheet=menu.classList.contains('cw2-sheet'),pop=menu.classList.contains('cwr-pop')&&!sheet;
+        if(mobile()&&!pop)list.append(cancel);else cancel.remove();
+        list.querySelector(':scope>.cw2-sheet-t')?.remove();
+        if(mobile()&&sheet&&typeof menu.cw2Title==='function'){const name=String(menu.cw2Title()||'').trim();if(name)list.prepend(make('div','cw2-sheet-t',name));}
         list.showPopover();
-        const anchor=summary.getBoundingClientRect(),box=list.getBoundingClientRect();
-        list.style.left=Math.max(8,Math.min(anchor.right-box.width,win.innerWidth-box.width-8))+'px';
-        list.style.top=Math.max(8,Math.min(anchor.bottom+6,win.innerHeight-box.height-8))+'px';
+        positionMenu(list,menu.cwAnchor?.isConnected?menu.cwAnchor:summary,pop);
       });
-      on(doc,'click',e=>{if(menu.open&&!menu.contains(e.target))menu.open=false;});
-      on(doc,'keydown',e=>{if(e.key==='Escape'&&menu.open){menu.open=false;e.preventDefault();e.stopPropagation();}},true);
       on(list,'click',e=>{if(e.target===list||e.target.closest('.menu_button,button'))menu.open=false;});
-      disposers.push(()=>{if(list.matches(':popover-open'))list.hidePopover();});
+      const dispose=popoverDisposer(new win.WeakRef(list));disposers.push(dispose);promptListenerCleanup.register(list,dispose,dispose);
     });
     // Native textareas continue to save using their original input handlers.
     // 2.0.214：色块都在行的最右边，取色器默认往右展开会跑出屏幕；改成往左展开。
@@ -657,7 +882,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     /* 2.0.297 bug：颜色选择器自带的色块按钮 48×24，比我们 34 的框宽，露在框外成了两层。让它画成 22 的方块，居中在框里。 */
     panel.querySelectorAll('toolcool-color-picker:not([button-width])').forEach(c => { c.setAttribute('button-width', '22px'); c.setAttribute('button-height', '22px'); c.setAttribute('button-padding', '0'); });
     panel.querySelectorAll('textarea').forEach(ta => {
-      if (ta.dataset.cwV4Text || ta.matches('.select2-search__field') || ta.closest('.select2-container,[data-v-app],#extensions_settings,#extensions_settings2,.world_entry,dialog') || ta.id === 'settingsSearch' || ta.classList.contains('displayNone') || ta.style.display === 'none') return;
+      if (ta.closest('.cwr-page') || ta.dataset.cwV4Text || ta.matches('.select2-search__field') || ta.closest('.select2-container,[data-v-app],#extensions_settings,#extensions_settings2,.world_entry,.cww-view,.cww-big,.cwp-edit,#completion_prompt_manager_popup,dialog') || ta.id === 'settingsSearch' || ta.classList.contains('displayNone') || ta.style.display === 'none') return;
       ta.dataset.cwV4Text = '1';
       const row = make('div', 'cw-v4-text-row'), preview = make('span', 'cw-v4-text-preview');
       const title = labelFor(ta);
@@ -720,8 +945,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       let tag = mes.querySelector('.cw-v4-model');
       if (!model) { tag?.remove(); return; }
       if (!tag) { tag = make('span', 'cw-v4-model'); }
-      const row = mes.querySelector('.cw-v4-message-info');
-      if (row) { if (tag.parentNode !== row || row.lastElementChild !== tag) row.append(tag); }
+      const modelGroup = mes.querySelector('.cw-v4-message-model');
+      if (modelGroup) { if (tag.parentNode !== modelGroup) modelGroup.append(tag); }
       else if (tag.previousElementSibling !== time) time.after(tag);
       const text = shortModel(model);
       if (tag.textContent !== text) tag.textContent = text;
@@ -746,12 +971,16 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         image.src = '/img/' + encodeURIComponent(extra.api) + '.svg';
         row.append(image);
       }
-      const selectors = ['.mesIDDisplay','.timestamp','.timestamp-icon','.mes_timer','.tokenCounterDisplay','.cw-v4-model'];
+      const nativeIcon = mes.querySelector('.timestamp-icon:not([data-cw-info-icon])');
+      if (nativeIcon) row.querySelector('[data-cw-info-icon]')?.remove();
+      let modelGroup = row.querySelector('.cw-v4-message-model');
+      if (!modelGroup) modelGroup = make('span', 'cw-v4-message-model');
+      const selectors = ['.mesIDDisplay','.timestamp','.mes_timer','.tokenCounterDisplay','.timestamp-icon','.cw-v4-model'];
       const nodes = selectors.flatMap(selector => [...mes.querySelectorAll(selector)]);
       for (const node of nodes) {
         if (node.classList.contains('cw-v4-model') || node.hasAttribute('data-cw-info-icon') || messageInfoMoves.has(node)) continue;
         const mark = doc.createComment('cw-v4-message-info-return');
-        if (node.parentNode !== row) node.before(mark);
+        if (!row.contains(node)) node.before(mark);
         else {
           // ST may replace the provider icon asynchronously, next to the time.
           const time = mes.querySelector('.timestamp'), timeMark = messageInfoMoves.get(time);
@@ -760,7 +989,11 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         }
         messageInfoMoves.set(node,mark);
       }
-      if (nodes.some((node,i) => row.children[i] !== node) || row.children.length !== nodes.length) row.append(...nodes);
+      const modelNodes = nodes.filter(node => node.matches('.timestamp-icon,.cw-v4-model'));
+      const fields = nodes.filter(node => !modelNodes.includes(node));
+      if (modelNodes.length) fields.push(modelGroup);
+      if (fields.length !== row.children.length || fields.some((node, i) => row.children[i] !== node)) row.replaceChildren(...fields);
+      if (modelNodes.length !== modelGroup.children.length || modelNodes.some((node, i) => modelGroup.children[i] !== node)) modelGroup.replaceChildren(...modelNodes);
       const shown = nodes.some(node => {
         const key = node.matches('.mesIDDisplay') ? 'mesIDDisplay_enabled' : node.matches('.timestamp') ? 'timestamps_enabled' : node.matches('.mes_timer') ? 'timer_enabled' : node.matches('.tokenCounterDisplay') ? 'message_token_count_enabled' : 'timestamp_model_icon';
         return settings[key] && (node.matches('.timestamp-icon') || node.textContent.trim());
@@ -771,35 +1004,43 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const rubyDirty = new Set();
   let rubyFullMeasure = true, rubyOwnMoves = new WeakSet();
   function markRubyChanges(records) {
+    let needsSync = false;
     for (const record of records) {
-      const moved = [...record.addedNodes, ...record.removedNodes];
+      const moved = record.type === 'childList' ? [...record.addedNodes, ...record.removedNodes] : [];
       if (record.type === 'childList' && moved.length && moved.every(n => rubyOwnMoves.has(n))) continue;
       const element = record.target.nodeType === 1 ? record.target : record.target.parentElement;
       const text = element?.closest('.mes_text');
-      if (text) { const mes = text.closest('.mes'); if (mes) rubyDirty.add(mes); }
+      if (text && (text.querySelector('ruby') || text.querySelector('.cw-ruby-scroll'))) {
+        const mes = text.closest('.mes');
+        if (mes) { rubyDirty.add(mes); needsSync = true; }
+      }
+      if (record.type === 'childList' || element?.closest('.cw-v4-message-info')) needsSync = true;
       for (const node of record.addedNodes) {
         if (node.nodeType !== 1) continue;
-        if (node.matches('.mes,.mes_text') || node.querySelector('.mes_text')) {
+        if (node.querySelector('ruby') && (node.matches('.mes,.mes_text') || node.querySelector('.mes_text'))) {
           const mes = node.closest('.mes'); if (mes) rubyDirty.add(mes);
           node.querySelectorAll('.mes').forEach(m => rubyDirty.add(m));
         }
       }
     }
     rubyOwnMoves = new WeakSet();
-    schedule();
+    if (needsSync) schedule();
   }
   function syncRubyScroll(chat, ctx) {
-    if (!chat.querySelector('ruby')) { rubyDirty.clear(); rubyFullMeasure = false; return; }
+    if (!rubyFullMeasure && !rubyDirty.size) return;
     if (rubyFullMeasure) {
-      chat.querySelectorAll('.mes').forEach(m => rubyDirty.add(m));
+      for (const ruby of chat.querySelectorAll('.mes_text ruby')) {
+        const mes = ruby.closest('.mes');
+        if (mes) rubyDirty.add(mes);
+      }
       rubyFullMeasure = false;
     }
     const generating = ctx?.isGenerating?.() || doc.body.classList.contains('claude-generation-active');
-    const last = generating ? [...chat.querySelectorAll(':scope > .mes')].at(-1) : null;
+    const last = generating ? chat.querySelector(':scope > .mes.last_mes') : null;
     const measurements = [], blockWidths = new Map();
     for (const mes of [...rubyDirty]) {
       if (!chat.contains(mes)) { rubyDirty.delete(mes); continue; }
-      if (generating && mes !== last) continue;
+      if (last && mes !== last) continue;
       rubyDirty.delete(mes);
       for (const ruby of mes.querySelectorAll('.mes_text ruby')) {
         if (ruby.parentElement?.closest('ruby')) continue;
@@ -836,15 +1077,17 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const setBodyClass = (name, on) => { if (doc.body.classList.contains(name) !== Boolean(on)) doc.body.classList.toggle(name, Boolean(on)); };
   function syncChat() {
     const chat = doc.querySelector('#chat'); if (!chat) return;
-    const ctx = win.SillyTavern?.getContext?.();
-    if (enabled()) { syncModelNames(chat, ctx); syncMessageInfo(chat, ctx); syncRubyScroll(chat, ctx); }
+    if (enabled()) {
+      const ctx = win.SillyTavern?.getContext?.();
+      syncModelNames(chat, ctx);
+      syncMessageInfo(chat, ctx);
+      syncRubyScroll(chat, ctx);
+    }
     if(enabled())chat.querySelectorAll('.mes[is_user="false"] .mes_buttons').forEach(bar=>{
       for(const selector of ['.mes_copy','.mes_narrate']){const n=bar.querySelector(selector);if(n&&n.parentElement!==bar){const mark=doc.createComment('cw-v4-chat-return');n.before(mark);chatMoves.push([n,mark]);bar.append(n);}}
       const message=bar.closest('.mes'),source=message.querySelector('.swipes-counter');
-      const data=ctx?.chat?.[Number(message.getAttribute('mesid'))];
-      const total=data?.swipes?.length || Number(source?.textContent.trim().split('/').at(-1)) || 1;
       let swipes=bar.querySelector('.cw-v4-swipes');
-      if(total>1&&message.querySelector(':scope>.claude-swipe-right-proxy')){
+      if(source&&message.querySelector(':scope>.claude-swipe-right-proxy')){
         if(!swipes){
           swipes=make('div','cw-v4-swipes');const count=make('span','cw-v4-swipe-count');
           for(const [direction,glyph,cn,en] of [['left','‹','上一条回复','Previous reply'],['right','›','下一条回复','Next reply']]){
@@ -852,10 +1095,11 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
             arrow.setAttribute('aria-label',t(cn,en));swipes.append(arrow);if(direction==='left')swipes.append(count);
           }bar.prepend(swipes);
         }
-        const count=swipes.querySelector('.cw-v4-swipe-count'),value=source?.textContent.trim() || `${(data?.swipe_id ?? 0)+1}/${total}`;if(count.textContent!==value)count.textContent=value;
+        const count=swipes.querySelector('.cw-v4-swipe-count'),value=source.textContent.trim();if(count.textContent!==value)count.textContent=value;
         for(const direction of ['left','right']){const original=message.querySelector(`:scope>.claude-swipe-${direction}-proxy`),arrow=swipes.querySelector(`.cw-v4-swipe-${direction}`);if(arrow.disabled!==Boolean(original?.disabled))arrow.disabled=Boolean(original?.disabled);}
       }else swipes?.remove();
     });
+    const ctx = win.SillyTavern?.getContext?.();
     const group = ctx?.groupId != null && ctx.groupId !== '';
     setBodyClass('cw-v4-group-chat', group);
     const input = doc.querySelector('#send_textarea');
@@ -873,13 +1117,13 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       }, 'cw-v4-temporary');
       temp.setAttribute('aria-label',t('临时聊天','Temporary chat'));temp.title=t('临时聊天','Temporary chat');
       temp.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d=\"M3.6 20.3V12.05a8.45 8.45 0 0 1 16.9 0V20.3Q17.64 16.1 14.83 20.3 12.02 16.1 9.22 20.3 6.41 16.1 3.6 20.3Z\"/><circle cx=\"8.15\" cy=\"11.9\" r=\"1.25\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15.9\" cy=\"11.9\" r=\"1.25\" fill=\"currentColor\" stroke=\"none\"/></svg>';
-      /* 2.0.286（design-flavor-v3，Lulu 定）：照 Claude App，对话页右上角换成「新建对话」气泡 + ⋯；欢迎页仍是幽灵。
+      /* 对话页右上角是「新建对话」气泡和原生聊天操作入口；欢迎页仍是幽灵。
          显隐交给 CSS 看 body.clawd-welcome。气泡点了等于侧栏底部「+ 新对话」。 */
-      const fresh = button('', () => (doc.getElementById('option_start_new_chat') || doc.querySelector('.clawd-mobile-new-chat'))?.click(), 'cw-v4-newchat-top');
+      const fresh = button('', () => doc.querySelector('.clawd-mobile-new-chat')?.click(), 'cw-v4-newchat-top');
       fresh.setAttribute('aria-label',t('新对话','New chat'));fresh.title=t('新对话','New chat');
       fresh.innerHTML='<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.6c-4.75 0-8.6 3.35-8.6 7.5 0 2.15 1.03 4.08 2.7 5.45l-.75 3.85 4.05-2.05c.83.2 1.7.3 2.6.3 4.75 0 8.6-3.35 8.6-7.55S16.75 3.6 12 3.6Z" fill="currentColor"/><path d="M12 7.9v6.4M8.8 11.1h6.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>';
-      const more = make('button', 'cw-v4-more-top'); more.type = 'button';
-      more.setAttribute('aria-label',t('当前对话操作','Current chat actions')); more.title = t('当前对话操作','Current chat actions');
+      const more = button('', () => doc.getElementById('options_button')?.click(), 'cw-v4-more-top');
+      more.setAttribute('aria-label', t('聊天操作','Chat options'));
       more.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
       chrome.append(fresh, more);
       chrome.append(temp);
@@ -895,8 +1139,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     if (!last || doc.body.classList.contains('clawd-welcome') || !enabled()) { setChatNote(''); setFormNote(''); return; }
     const name = last.querySelector('.name_text')?.textContent.trim() || ctx?.name2 || 'AI';
     const text = `${name} is AI and can make ${root.dataset.cwHalloween === "on" ? "mischief" : "mistakes"}.`;
-    if (preferencesFor(win).getItem('claude-web:ai-disclaimer') === 'off') { setChatNote(''); setFormNote(''); }
-    else if (!mobile()) { setChatNote(''); setFormNote(text); }
+    if (preferencesFor(win).getItem('claude-web:ai-disclaimer') === 'off') {
+      setChatNote(''); setFormNote('');
+    } else if (!mobile()) { setChatNote(''); setFormNote(text); }
     else {
       setFormNote('');
       setChatNote(text);
@@ -916,6 +1161,185 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const v = h > 0 ? (h + 8) + 'px' : '0px';
     if (sheld.style.getPropertyValue('--cw-qr-h') !== v) sheld.style.setProperty('--cw-qr-h', v);
   }
+  // S04: one scrollHeight measurement at most per scheduled frame.
+  let composerFrame=0,composerSignature='',composerArea=null;
+  function clearComposerSizing(){root.removeAttribute('data-cw-composer-sized');root.style.removeProperty('--cw-composer-height');}
+  function syncComposerLines(force=false){
+    const phone=mobile(),fallback=phone?2:1,max=phone?6:8;
+    const raw=Number(preferencesFor(win).getItem('claude-web:composer-lines-'+(phone?'mobile':'pc'))||fallback);
+    const lines=Number.isFinite(raw)?Math.max(1,Math.min(max,Math.round(raw))):fallback;
+    if(root.dataset.cwComposerLines!==String(lines))root.dataset.cwComposerLines=String(lines);
+    const area=doc.getElementById('send_textarea');
+    const inactive=!enabled()||doc.body.classList.contains('clawd-welcome')||root.hasAttribute('data-cw-v4-landscape')&&root.hasAttribute('data-cw-v4-kb');
+    const signature=[phone,lines,inactive,area?.value].join('|');
+    if(!force&&signature===composerSignature&&area===composerArea)return;
+    composerSignature=signature;composerArea=area;
+    if(composerFrame)win.cancelAnimationFrame(composerFrame);
+    composerFrame=0;
+    if(!area||inactive||!area.value&&lines===fallback){clearComposerSizing();return;}
+    composerFrame=win.requestAnimationFrame(()=>{
+      composerFrame=0;if(destroyed||!area.isConnected)return;
+      root.setAttribute('data-cw-composer-sized','');
+      const css=win.getComputedStyle(area),lh=parseFloat(css.lineHeight)||parseFloat(css.fontSize)*1.5;
+      const padding=parseFloat(css.paddingTop)+parseFloat(css.paddingBottom),border=parseFloat(css.borderTopWidth)+parseFloat(css.borderBottomWidth);
+      const old=['height','min-height'].map(k=>[k,area.style.getPropertyValue(k),area.style.getPropertyPriority(k)]);
+      area.style.setProperty('height','0px','important');area.style.setProperty('min-height','0px','important');
+      const needed=area.scrollHeight+border;
+      for(const [k,v,priority] of old){if(v)area.style.setProperty(k,v,priority);else area.style.removeProperty(k);}
+      const min=lines*lh+padding+border,limit=Math.max(lines,phone?6:10)*lh+padding+border;
+      const value=Math.ceil(Math.max(min,Math.min(limit,needed)))+'px';
+      if(root.style.getPropertyValue('--cw-composer-height')!==value)root.style.setProperty('--cw-composer-height',value);
+    });
+  }
+  disposers.push(()=>{if(composerFrame)win.cancelAnimationFrame(composerFrame);clearComposerSizing();root.removeAttribute('data-cw-composer-lines');});
+
+  // S05: stable native IDs; only presentation is reordered, native nodes stay put.
+  const railMoreDefaults=new Set(['advanced-formatting-button','user-settings-button','backgrounds-button','extensions-settings-button']);
+  const layoutPrefs=preferencesFor(win),layoutStyles=new Map(),layoutSignatures=new Map();
+  let layoutBox=null,layoutBoxKind=null;
+  const layoutKey=kind=>'claude-web:'+(kind==='rail'?'rail':'extensions')+'-layout';
+  function storedLayout(kind){try{const v=JSON.parse(layoutPrefs.getItem(layoutKey(kind))||'null');return v?.v===1&&Array.isArray(v.items)?v:null}catch{return null}}
+  function railLayoutItems(){return [...doc.querySelectorAll('#top-settings-holder>.drawer:not(#persona-management-button)')].filter(n=>n.id).map((node,i)=>({id:node.id,node,label:node.querySelector('.clawd-rail-label')?.textContent?.trim()||node.getAttribute('aria-label')||node.id,place:railMoreDefaults.has(node.id)?'more':'main',rank:railMoreDefaults.has(node.id)?4:node.id==='rightNavHolder'?3:2,i})).sort((a,b)=>a.rank-b.rank||a.i-b.i);}
+  let extensionLayoutCatalog=[],extensionHost=null,extensionLoading=null;
+  const extensionRowsSeen=new WeakSet(),extensionNativeOrder=new Map();
+  const extensionMetadata=new Map(),extensionAliases={assets_container:'assets',expressions_container:'expressions',sd_container:'stable-diffusion',tts_container:'tts',qr_container:'quick-reply',translation_container:'translate',caption_container:'caption',summarize_container:'memory',regex_container:'regex',vectors_container:'vectors'};
+  const ownLayoutExtension='third-party/'+decodeURIComponent(new URL('.',import.meta.url).pathname.replace(/\/$/,'').split('/').pop());
+  const protectedLayout=(kind,id)=>kind==='rail'?id==='user-settings-button':id===ownLayoutExtension||extensionLayoutCatalog.some(i=>i.id===id&&i.protected);
+  const extensionNorm=value=>String(value||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');
+  let unknownExtensionRows=[];
+  async function ensureExtensionCatalog(){
+    if(extensionLoading)return extensionLoading;
+    extensionLoading=(async()=>{extensionHost||=await import(new URL('/scripts/extensions.js',win.location.href).href);
+      const names=Array.isArray(extensionHost.extensionNames)?extensionHost.extensionNames:(await win.fetch('/api/extensions/discover').then(r=>r.json())).map(x=>x.name);
+      await Promise.all(names.filter(n=>!extensionMetadata.has(n)).map(async name=>{let manifest=extensionHost.getExtensionManifest?.(name);if(!manifest){try{const r=await win.fetch('/scripts/extensions/'+name+'/manifest.json');if(r.ok)manifest=await r.json()}catch{}}extensionMetadata.set(name,{name,display:manifest?.display_name||name.split('/').pop()});}));
+      const catalog=new Map();unknownExtensionRows=[];
+      for(const row of doc.querySelectorAll('#rm_extensions_block .cw-v4-extension-item:not(.cw-v4-standin)>.cw-v4-extension-row')){
+        extensionRowsSeen.add(row);const parent=row.parentElement,label=row.querySelector('.cw-v4-extension-name')?.textContent.trim()||parent.id;
+        const labelled=[...extensionMetadata.values()].filter(m=>extensionNorm(m.display)===extensionNorm(label));
+        let name=parent.id==='claude-web-settings'?ownLayoutExtension:labelled.length===1?labelled[0].name:extensionAliases[parent.id];
+        if(!name){const byId=[...extensionMetadata.values()].filter(m=>extensionNorm(parent.id).startsWith(extensionNorm(m.name.split('/').pop())));const matches=byId.length===1?byId:[...extensionMetadata.values()].filter(m=>extensionNorm(m.display)===extensionNorm(label));if(matches.length===1)name=matches[0].name;}
+        // Global scripts can add settings rows without an installed extension folder.
+        if(!name&&parent.id)name='ui:'+parent.id;
+        if(!name){unknownExtensionRows.push(label);continue;}
+        if(!extensionNativeOrder.has(name))extensionNativeOrder.set(name,extensionNativeOrder.size);
+        if(row.dataset.cwLayoutExtension!==name)row.dataset.cwLayoutExtension=name;
+        if(catalog.has(name))catalog.get(name).nodes.push(row);else catalog.set(name,{id:name,node:parent,nodes:[row],label,place:'show',protected:parent.id==='claude-web-settings'});
+      }
+      extensionLayoutCatalog=[...catalog.values()].sort((a,b)=>extensionNativeOrder.get(a.id)-extensionNativeOrder.get(b.id));
+    })().finally(()=>extensionLoading=null);return extensionLoading;
+  }
+  const layoutItems=kind=>kind==='rail'?railLayoutItems():extensionLayoutCatalog;
+  function layoutRecords(kind){
+    const live=layoutItems(kind),saved=storedLayout(kind),seen=new Set(),places=kind==='rail'?['main','more','hidden']:['show','hidden'];
+    const records=[];for(const item of saved?.items||[]){if(typeof item?.id!=='string'||seen.has(item.id))continue;seen.add(item.id);let place=places.includes(item.place)?item.place:places[0];if(protectedLayout(kind,item.id)&&place==='hidden')place=kind==='rail'?'more':'show';records.push({id:item.id,place});}
+    for(const item of live)if(!seen.has(item.id)){seen.add(item.id);records.push({id:item.id,place:saved?places[0]:item.place});}
+    return records;
+  }
+  // The editor starts from presentation currently supplied by native scripts.
+  // A folded More drawer has zero height, which does not mean it is hidden.
+  function currentLayoutRecords(kind){
+    if(storedLayout(kind))return layoutRecords(kind);
+    const visibleOrder=item=>Number.parseFloat(win.getComputedStyle(item.nodes?.[0]||item.node).order)||0;
+    const hidden=item=>{let node=item.nodes?.[0]||item.node;const stop=kind==='rail'?doc.getElementById('top-settings-holder'):doc.getElementById('rm_extensions_block');while(node&&node!==stop){if(win.getComputedStyle(node).display==='none'||node.classList.contains('mc3-hidden'))return true;node=node.parentElement;}return false;};
+    return layoutItems(kind).map((item,i)=>({item,i,order:visibleOrder(item)})).sort((a,b)=>a.order-b.order||a.i-b.i).map(({item})=>({id:item.id,place:hidden(item)&&!protectedLayout(kind,item.id)?'hidden':item.place}));
+  }
+  const railScope='html[data-cw-v4]'+Array.from({length:8},(_,i)=>':not(#cwl'+i+')').join('')+' body #top-settings-holder';
+  function applyRailLayout(){
+    const records=layoutRecords('rail'),custom=!!storedLayout('rail'),signature=JSON.stringify([custom,records]);if(layoutSignatures.get('rail')===signature)return;layoutSignatures.set('rail',signature);
+    const more=records.filter(r=>r.place==='more').map(r=>'#'+win.CSS.escape(r.id)).join(',');
+    let css='';if(more)for(const phone of [false,true]){
+      const base='html['+(phone?'data-cw-web-phone':'data-cw-web')+']'+Array.from({length:phone?6:3},(_,i)=>':not(#cw'+(i+1)+')').join('');
+      const target=' body #top-settings-holder > :is('+more+')';
+      css+=base+target+'{order:4!important}'+base+':not([data-cw-web-more="open"])'+target+'{height:0!important;min-height:0!important;'+(phone?'position:absolute!important;top:0!important;left:0!important;margin:0!important;padding:0!important;overflow:visible!important':'')+'}'+base+':not([data-cw-web-more="open"])'+target+'>.drawer-toggle{display:none!important}';
+    }
+    if(custom){for(const [selector,order]of [['.cw-desk-tool',0],['.clawd-rail-brand',0],['.cw-web-search',10],['.cw-web-new',20],['.clawd-mobile-new-chat',20],['.cw-web-more',400],['.clawd-rail-recents',800],['#persona-management-button',1001]])css+=railScope+'>'+selector+'{order:'+order+'!important}';}
+    if(custom)records.forEach((r,i)=>{const selector=railScope+'>#'+win.CSS.escape(r.id),order=custom?(r.place==='more'?500:r.place==='hidden'?900:100)+i:r.place==='more'?4:r.id==='rightNavHolder'?3:2;
+      css+=selector+'{order:'+order+'!important}'+selector+'.mc3-hidden{display:flex!important}';
+      if(custom){css+=selector+'{display:flex!important;position:relative!important;inset:auto!important;height:auto!important;min-height:0!important;max-height:none!important}'+selector+'>.drawer-toggle{display:flex!important}';
+        const folded=selector.replace('html[data-cw-v4]','html[data-cw-v4]'+(r.place==='more'?':not([data-cw-web-more="open"])':''));
+        if(r.place!=='main')css+=folded+'{height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important;overflow:visible!important}'+folded+'>.drawer-toggle{display:none!important}'+folded.replace('html[data-cw-v4]','html[data-cw-v4][data-cw-web-phone]')+'{position:absolute!important;top:0!important;left:0!important}';
+      }
+    });
+    let style=layoutStyles.get('rail');if(!style){style=make('style','');style.id='cw-rail-layout-style';doc.head.append(style);layoutStyles.set('rail',style);}style.textContent=css;
+  }
+  function applyExtensionLayout(){
+    if(doc.querySelector("#rm_extensions_block.cw-ext-reordered")){layoutStyles.get("extensions")?.remove();layoutStyles.delete("extensions");return;}
+    if(!storedLayout('extensions')){layoutStyles.get('extensions')?.remove();layoutStyles.delete('extensions');layoutSignatures.delete('extensions');return;}
+    if(!doc.querySelector('#rm_extensions_block .cw-v4-extension-row'))return;
+    if(!extensionHost){ensureExtensionCatalog().then(()=>{layoutSignatures.delete('extensions');applyExtensionLayout();}).catch(error=>win.console.warn('[CW] extension layout',error));return;}
+    // Reconcile late additions without replacing native roots or event handlers.
+    const liveRows=[...doc.querySelectorAll('#rm_extensions_block .cw-v4-extension-item:not(.cw-v4-standin)>.cw-v4-extension-row')];
+    if(liveRows.some(r=>!extensionRowsSeen.has(r))){ensureExtensionCatalog().then(()=>{layoutSignatures.delete('extensions');applyExtensionLayout();}).catch(()=>{});return;}
+    const records=layoutRecords('extensions'),signature=JSON.stringify(records);if(layoutSignatures.get('extensions')===signature)return;layoutSignatures.set('extensions',signature);
+    const scope=railScope+' #rm_extensions_block';let css=scope+' .cw-v4-entries:has(#extensions_settings){display:flex!important;flex-direction:column!important}';
+    for(const holder of ['extensions_settings','extensions_settings2'])css+=scope+' #'+holder+'{display:contents!important}'+scope+' #'+holder+' div:has(.cw-v4-extension-row):not(.cw-v4-extension-row):not(.cw-v4-editing):not(dialog *){display:contents!important}';
+    records.forEach((record,i)=>{const row='>.cw-v4-extension-row[data-cw-layout-extension="'+win.CSS.escape(record.id)+'"]';
+      css+=scope+' .cw-v4-extension-item:not(.cw-v4-editing)'+row+'{order:'+i+'!important;display:'+(record.place==='hidden'?'none':'flex')+'!important}';
+    });
+    let style=layoutStyles.get('extensions');if(!style){style=make('style','');style.id='cw-extensions-layout-style';doc.head.append(style);layoutStyles.set('extensions',style);}style.textContent=css;
+  }
+  function applyLayouts(){applyRailLayout();applyExtensionLayout();}
+  function saveLayout(kind,records){layoutPrefs.setItem(layoutKey(kind),JSON.stringify({v:1,items:records.map(({id,place})=>({id,place}))}));layoutSignatures.delete(kind);applyLayouts();}
+  async function openLayoutEditor(kind='rail'){
+    if(kind==='extensions'){drawerLayouts.editExtensions();return;}
+    if(kind==='extensions'){try{await ensureExtensionCatalog();if(unknownExtensionRows.length)throw Error(unknownExtensionRows.join(', '));applyExtensionLayout();}catch(error){win.toastr?.error?.(t('无法识别扩展目录：','Could not identify extension folders: ')+error.message);return;}}
+    if(layoutBox?.isConnected)return;const box=make('div','cw-layout-editor');layoutBox=box;layoutBoxKind=kind;
+    const places=kind==='rail'?[['main',t('侧栏','Sidebar')],['more','More'],['hidden',t('隐藏','Hidden')]]:[['show',t('显示','Visible')],['hidden',t('隐藏','Hidden')]];
+    let records=currentLayoutRecords(kind);const live=new Map(layoutItems(kind).map(i=>[i.id,i]));
+    const move=(id,place,target,after=false)=>{const record=records.find(r=>r.id===id);if(!record||place==='hidden'&&protectedLayout(kind,id))return;records=records.filter(r=>r!==record);record.place=place;let index=target?records.findIndex(r=>r.id===target):-1;if(index>=0){if(after)index++;}else{const last=records.map(r=>r.place).lastIndexOf(place);index=last<0?records.length:last+1;}records.splice(index,0,record);saveLayout(kind,records);paint(id);};
+    const shift=(id,delta)=>{const record=records.find(r=>r.id===id),group=records.filter(r=>r.place===record.place&&live.has(r.id)),index=group.findIndex(r=>r.id===id),target=group[index+delta];if(!target)return;const a=records.indexOf(record),b=records.indexOf(target);[records[a],records[b]]=[records[b],records[a]];saveLayout(kind,records);paint(id);};
+    function paint(focusId){clearDrag();const scroll=box.parentElement?.scrollTop||0;box.replaceChildren();
+      for(const [place,title]of places){const group=make('section','cw-layout-group'),heading=make('h3','',title);group.dataset.place=place;group.append(heading);box.append(group);
+        const inGroup=records.filter(r=>r.place===place&&live.has(r.id));for(const [index,record]of inGroup.entries()){
+          const item=live.get(record.id),row=make('div','cw-layout-row'),label=make('span','cw-layout-label',item.label);row.dataset.layoutId=record.id;row.draggable=!mobile();
+          const sourceGlyph=item.node.querySelector?.('.drawer-icon'),mask=sourceGlyph?win.getComputedStyle(sourceGlyph).maskImage:null;const glyph=mask&&mask!=='none'?make('span','cw-layout-mask-icon'):icon('puzzle');if(mask&&mask!=='none'){glyph.style.mask=mask+' center / contain no-repeat';glyph.style.backgroundColor='currentColor';}glyph.classList.add('cw-layout-icon');glyph.setAttribute('aria-hidden','true');row.append(glyph,label);
+          const saved=storedLayout(kind);if(saved&&!saved.items.some(i=>i.id===record.id))row.append(make('small','cw-layout-new',t('新','New')));
+          const up=button('↑',()=>shift(record.id,-1),'cw-v4-button cw-layout-up'),down=button('↓',()=>shift(record.id,1),'cw-v4-button cw-layout-down');up.disabled=index===0;down.disabled=index===inGroup.length-1;up.setAttribute('aria-label',t('上移 ','Move up ')+item.label);down.setAttribute('aria-label',t('下移 ','Move down ')+item.label);
+          const select=make('select','cw-layout-place');select.setAttribute('aria-label',t('放到：','Place: ')+item.label);for(const [value,text]of places){const option=make('option','',text);option.value=value;option.disabled=value==='hidden'&&protectedLayout(kind,record.id);select.append(option);}select.value=place;select.addEventListener('change',()=>move(record.id,select.value));
+          row.append(up,down,select,make('span','cw-layout-grip','⠿'));group.append(row);
+        }
+      }
+      if(box.parentElement)box.parentElement.scrollTop=scroll;if(focusId)box.querySelector('[data-layout-id="'+win.CSS.escape(focusId)+'"] select')?.focus({preventScroll:true});
+    }
+    let dragRow=null,dropRow=null;
+    const sortDrag=guardSortDrag(box);
+    function clearDrag(){dragRow?.classList.remove('cw2-drag');clearDropLine(dropRow);dragRow=null;dropRow=null;}
+    function destination(event){
+      if(!dragRow||mobile())return null;
+      const group=event.target.closest?.('.cw-layout-group'),row=event.target.closest?.('.cw-layout-row');
+      if(group?.parentElement!==box||row===dragRow)return null;
+      const id=dragRow.dataset.layoutId,place=group.dataset.place;
+      if(place==='hidden'&&protectedLayout(kind,id))return null;
+      return {id,place,row,group,after:!row||dropAfter(row,event.clientY)};
+    }
+    box.addEventListener('dragstart',event=>{
+      const row=event.target.closest?.('.cw-layout-row');if(!row?.draggable)return;
+      clearDrag();dragRow=row;sortDrag.start(event,row.dataset.layoutId);
+      row.classList.add('cw2-drag');
+    });
+    box.addEventListener('dragover',event=>{
+      const dest=destination(event);
+      const marker=dest&&(dest.row||[...dest.group.querySelectorAll('.cw-layout-row')].findLast(row=>row!==dragRow)||dest.group.querySelector('h3'));
+      if(dropRow!==marker)clearDropLine(dropRow);
+      dropRow=marker;
+      if(dragRow)dragRow.classList.add('cw2-drag');
+      if(dest){event.preventDefault();showDropLine(marker,dest.after);}
+    });
+    box.addEventListener('dragleave',event=>{if(!box.contains(event.relatedTarget)){dragRow?.classList.remove('cw2-drag');clearDropLine(dropRow);dropRow=null;}});
+    box.addEventListener('dragend',clearDrag);
+    box.addEventListener('drop',event=>{
+      const dest=destination(event);clearDrag();
+      if(!dest||sortDrag.read(event)!==dest.id)return;
+      event.preventDefault();move(dest.id,dest.place,dest.row?.dataset.layoutId,dest.after);
+    });
+    const reset=button(t('恢复默认','Restore defaults'),()=>{layoutPrefs.removeItem(layoutKey(kind));layoutSignatures.delete(kind);applyLayouts();records=currentLayoutRecords(kind);paint();},'cw-v4-button');paint();
+    const parentLayoutEditor=[...dialogs].filter(d=>d.open).at(-1);
+    (parentLayoutEditor?.querySelector('.cw-v4-editor-body')||doc.getElementById('top-settings-holder'))?.append(box);
+    openEditor(box,kind==='rail'?t('编辑侧栏','Edit sidebar'):t('编辑顺序','Edit order'),'',{foot:reset,onClose:()=>{sortDrag.end();clearDrag();layoutBox=null;layoutBoxKind=null;box.remove();}});box.closest('dialog')?.classList.add('cw-layout-dialog');
+  }
+  disposers.push(()=>{for(const s of layoutStyles.values())s.remove();layoutStyles.clear();layoutBox?.closest('dialog')?._cwShut?.();});
+
+  // Formal 2.0.148: phone header (menu / close) for third-party top drawers CW has no page for.
   const externalDrawers=new Map();
   function clearExternalDrawer(panel) {
     const state=externalDrawers.get(panel);if(!state)return;
@@ -947,6 +1371,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     }
   }
   disposers.push(()=>{for(const panel of externalDrawers.keys())clearExternalDrawer(panel);root.removeAttribute('data-cw-external-open');});
+  // Formal 2.0.148/2.0.154: the desktop chat column follows the native chat width slider, scaled from CW defaults.
   let chatWidthKey="";
   function syncChatWidth() {
     const value=Number(win.SillyTavern?.getContext?.().powerUserSettings?.chat_width);
@@ -974,6 +1399,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   let chatWidthTimer=0;
   function deferChatWidth(){win.clearTimeout(chatWidthTimer);chatWidthTimer=win.setTimeout(()=>{chatWidthTimer=0;syncChatWidth();},0);}
   disposers.push(()=>win.clearTimeout(chatWidthTimer));
+  // Formal 2.0.148: respect QR Assistant auto-shrink (it marks itself with a style tag).
   function syncQrAutoShrink() {
     const active=!!doc.getElementById('qrq-auto-shrink-style-tag');
     if(root.hasAttribute('data-cw-qr-auto-shrink')!==active)root.toggleAttribute('data-cw-qr-auto-shrink',active);
@@ -986,14 +1412,16 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     paintQrHeight();
   }
   function sync() {
+    backgroundFilters.sync();
     raf = 0; if (destroyed) return;
-    drawerLayouts.prunePromptTokens();
+    displayState.rescan();
     syncQrBar();
     syncChatWidth();
-    root.toggleAttribute('data-cw-v4', enabled());
-    backgroundFilters.sync();
     syncExternalDrawers();
-    if (!enabled()) { promptScroll.stop(); if (shell) shell.hidden = true; for (const dialog of dialogs) { dialog.close(); dialog._cwRestore?.(); } restoreAdaptedContainers(); ttPanels.destroy(); root.removeAttribute('data-cw-v4-settings'); return; }
+    applyLayouts();
+    syncComposerLines();
+    root.toggleAttribute('data-cw-v4', enabled());
+    if (!enabled()) { if (shell) shell.hidden = true; for (const dialog of dialogs) { dialog.close(); dialog._cwRestore?.(); } restoreAdaptedContainers(); ttPanels.destroy(); root.removeAttribute('data-cw-v4-settings'); return; }
     if (!shell) buildShell();
     const settingsSearch=shell.querySelector('.cw-v4-search'),searchHost=mobile()?shell:shell.querySelector('.cw-v4-nav');
     if(settingsSearch.parentElement!==searchHost)searchHost.prepend(settingsSearch);
@@ -1005,7 +1433,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       panelDecorations.set(p, { hadPanelClass, glyph, icon: glyph?.style.getPropertyValue('--cw-v4-nav-icon'), priority: glyph?.style.getPropertyPriority('--cw-v4-nav-icon'), installed: `var(--cw-v4-icon-${glyphName})` });
       glyph?.style.setProperty('--cw-v4-nav-icon',`var(--cw-v4-icon-${glyphName})`);
       // 打开旧聊天性能修复（20261001）：面板关着时里面的增删（表情列表、提示词管理器等重建）不排 sync；面板打开时自身 class 变化会排一次，enhance 那时再补。
-      observe(p, records => { if(id==='left-nav-panel'&&records.some(r=>r.type==='childList'))drawerLayouts.prunePromptTokens(); if (records.some(r => r.target === p || (r.type === 'childList' && isOpen(p)))) schedule(); }, {childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+      observe(p, records => { if (records.some(r => r.target === p || (r.type === 'childList' && isOpen(p)))) schedule(); }, {childList:true,subtree:true,attributes:true,attributeFilter:['class']});
     });
     const open = [...panels.values()].filter(isOpen);
     const p = open.find(n => n.id === requestedPanel) || (open.includes(current) ? current : open[0]);
@@ -1026,9 +1454,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       shell.querySelectorAll('[data-pref]').forEach(b => b.classList.toggle('cw-v4-selected', p.id === 'user-settings-block' && b.dataset.pref === prefPage));
       shell.querySelectorAll('[data-panel]').forEach(b => { const active = b.dataset.panel === p.id; if (active) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
       enhance(p);
-      const nativeAssistant = p.id === 'AdvancedFormatting' && (p.hasAttribute('data-tt-assistant') || p.querySelector('#tt-assistant'));
-      if (mobile() && !nativeAssistant) tagRows(p);
-      else if (!nativeAssistant) { buildSegs(p); for (const sel of segSel.keys()) if (p.contains(sel)) paintSeg(sel); }
+      if (mobile()) tagRows(p);
+      else { buildSegs(p); for (const sel of segSel.keys()) if (p.contains(sel)) paintSeg(sel); }
       if(p.id!=='user-settings-block'){
         let pageTitle=p.querySelector(':scope>.cw-v4-page-title');
         if(!pageTitle){pageTitle=make('h2','cw-v4-page-title');p.prepend(pageTitle);}
@@ -1043,7 +1470,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         let hits=0;
         n.querySelectorAll('.cw-v4-pref-sec').forEach(sec=>{
           const inSec=!!searchQuery&&sec.firstElementChild.textContent.toLocaleLowerCase().includes(searchQuery);let secHits=0;
-          sec.querySelectorAll(':scope>.cw-v4-pref-row').forEach(row=>{const ok=!searchQuery||inSec||row.querySelector('.cw-v4-row-info')?.textContent.toLocaleLowerCase().includes(searchQuery);if(row.hidden===!!ok)row.hidden=!ok;if(ok)secHits++;});
+          sec.querySelectorAll(':scope>.cw-v4-card>.cw-v4-pref-row,:scope>.cw-v4-card>.cw2-cgrid>.cw-v4-pref-row').forEach(row=>{const ok=!searchQuery||inSec||row.querySelector('.cw-v4-row-info')?.textContent.toLocaleLowerCase().includes(searchQuery);if(row.hidden===!!ok)row.hidden=!ok;if(ok)secHits++;});
           if(sec.hidden===!!secHits)sec.hidden=!secHits;hits+=secHits;
         });
         const hide=searchQuery ? !hits : !mobile()&&n.dataset.page!==prefPage;if(n.hidden!==hide)n.hidden=hide;
@@ -1055,7 +1482,6 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       shell.hidden = true; root.removeAttribute('data-cw-v4-settings');
     }
     syncChat();
-    promptScroll.sync(p?.id === 'left-nav-panel' ? p : null);
   }
   // Sliders draw the travelled part with --fill (design native.css).
   const fill = r => { const min=+r.min||0, max=+r.max||100, v=((+r.value-min)/((max-min)||1)*100).toFixed(2)+'%'; if (r.style.getPropertyValue('--fill')!==v) r.style.setProperty('--fill',v); };
@@ -1071,6 +1497,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     keepStyleAfterTheme();
     observe(doc.head,keepStyleAfterTheme,{childList:true});
     observe(doc.head,syncQrAutoShrink,{childList:true});
+    // Formal 2.0.148: notice third-party drawers being added or opened (structure only, not their content).
     const drawerHolder=doc.getElementById('top-settings-holder');
     if(drawerHolder){
       // Watch structural boundaries, never class churn inside plugin/settings content.
@@ -1094,13 +1521,22 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       disposers.push(()=>{for(const mo of drawerWatchers.values())mo.disconnect();drawerWatchers.clear();});
     }
     sync();
-    observe(root, schedule, {attributes:true,attributeFilter:['data-claude-structure','data-claude-skin','data-claude-ui']});
+    on(doc,'input',e=>{if(e.target.id==='send_textarea')syncComposerLines(true);});
+    on(win,'resize',()=>syncComposerLines(true));
+    observe(doc.body,()=>syncComposerLines(),{attributes:true,attributeFilter:['class']});
+    observe(root, schedule, {attributes:true,attributeFilter:['data-claude-structure','data-claude-skin','data-cw-halloween','data-claude-ui','data-claude-layout','data-cw-v4-landscape','data-cw-v4-kb']});
     observe(doc.body, schedule, {attributes:true,attributeFilter:['class','data-clawd-menu']});
-    const chat = doc.getElementById('chat'); if (chat) observe(chat, markRubyChanges, {childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','style']});
+    const chat = doc.getElementById('chat');
+    if (chat) observe(chat, markRubyChanges, {childList:true,subtree:true,characterData:true});
     if (chat && win.ResizeObserver) {
       let width = -1;
-      const ro = new win.ResizeObserver(entries => { const next = entries[0]?.contentRect.width; if (next !== width) { width = next; rubyFullMeasure = true; schedule(); } });
-      ro.observe(chat); disposers.push(() => ro.disconnect());
+      const ro = new win.ResizeObserver(([entry]) => {
+        const next = entry.contentRect.width;
+        if (next === width) return;
+        width = next; rubyFullMeasure = true; schedule();
+      });
+      ro.observe(chat);
+      disposers.push(() => ro.disconnect());
     }
     // Typing only changes the filled state. syncChat() walks every assistant message and
     // reads layout, so it stays on the chat observer / schedule() path instead of every keystroke.
@@ -1120,7 +1556,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       // TT's toggle capture restores native roots before our next layout frame.
       if (enabled() && !isOpen(panel)) ttPanels.set('page', panel.id);
       if(!e.isTrusted || isOpen(panel)) return;
-      for (const old of panels.values()) if (old !== panel && isOpen(old) && !old.classList.contains('pinnedOpen')) nativeToggle(old)?.click();
+      closeOtherPanels(panel);
     },true);
     on(doc,'keydown', e => { if (e.key === 'Escape' && current && !doc.querySelector('dialog[open]') && !e.defaultPrevented) { closeSettings(); e.preventDefault(); } });
     // 2.0.229 下拉列表（openSelMenu）：按下下拉时拦下原生列表；点外面 / 滚动 / 改窗口大小关掉；键盘在下面那个 Escape 处理之前先接。
@@ -1187,13 +1623,14 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 会把整个设置一起关掉。在 window 捕获阶段先接：有我们的编辑弹窗就只关最上面那个，否则带淡出关设置。
     // 下拉、⋯ 菜单、提示词编辑页、酒馆自己的弹窗开着时不接，让它们自己处理。
     on(win,'keydown', e => {
-      if (e.key !== 'Escape' || e.defaultPrevented || mobile() || !current) return;
+      if (e.key !== 'Escape' || e.defaultPrevented || mobile() || !current || e.target.matches?.('.cwr-persona-name')) return;
       if (doc.querySelector('.select2-container--open,.cw-v4-more[open],.cwx-chats .cwx-more-menu[open],#completion_prompt_manager_popup.openDrawer,dialog[open]:not(.cw-v4-editor)')) return;
       const top = [...dialogs].filter(d => d.open).at(-1);
+      if(top?.classList.contains("cw-v4-wi-expanded"))return;
       e.preventDefault(); e.stopImmediatePropagation();
       if (top) top._cwShut?.(); else closeSettings();
     }, true);
-    on(win,'resize', () => { resetGeometry(); schedule(); });
+    on(win,'resize', schedule);
     // Read-only keyboard flag for the short-screen (phone landscape) composer.
     // The input keeps focus after Back hides the keyboard, so focus alone is not enough.
     // Some WebViews (Via) shrink the whole page instead of reporting a keyboard
@@ -1249,7 +1686,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const moreAnchor = !!win.CSS?.supports?.('anchor-name: --cw-more');
     const moreClear = menu => {
       moreOpen.delete(menu);
-      for (const v of ['--cw-more-x','--cw-more-y','--cw-more-max','--cw-more-maxh','--cw-more-dx','--cw-more-shift']) menu.style.removeProperty(v);
+      for (const v of ['--cw-more-x','--cw-more-y','--cw-more-max','--cw-more-maxh','--cw-more-dx']) menu.style.removeProperty(v);
       delete menu.dataset.cwMore; delete menu.dataset.cwMoreAnchor;
       const hint = menu.parentElement?.querySelector(':scope > .extraMesButtonsHint'); if (hint) delete hint.dataset.cwMoreAnchor;
     };
@@ -1293,16 +1730,10 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         const roomUp = h.top - 6 - minY, roomDown = maxY - (h.bottom + 6);
         const full = menu.scrollHeight;
         let up = phone ? (roomUp >= full || roomUp >= roomDown) : !(roomDown >= full || roomDown >= roomUp);
-        // 2.0.133（Lulu：「…」靠近顶上时菜单上半截被标题栏挡住）：以前最少撑到 120px，选中那边放不下也照样撑，
-        // 菜单就伸进标题栏后面。现在高度绝不超过 minY..maxY 之间的空间；选中那边不够 120 时，菜单往「…」方向挪（shift），
-        // 宁可盖住一点按钮也要整块看得见，剩下的在菜单里滚。
-        const room = Math.max(0, Math.floor(up ? roomUp : roomDown));
-        const avail = Math.max(0, Math.floor(maxY - minY));
-        const mh = Math.min(full, avail, Math.max(room, 120));
-        const shift = Math.max(0, Math.ceil(mh - room));
-        const capPx = mh + 'px'; if (menu.style.getPropertyValue('--cw-more-maxh') !== capPx) menu.style.setProperty('--cw-more-maxh', capPx);
-        const shiftPx = shift + 'px'; if (menu.style.getPropertyValue('--cw-more-shift') !== shiftPx) menu.style.setProperty('--cw-more-shift', shiftPx);
-        let y = up ? h.top - 6 - mh + shift : h.bottom + 6 - shift;
+        const cap = Math.max(120, Math.floor(up ? roomUp : roomDown));
+        const capPx = Math.min(full, cap) + 'px'; if (menu.style.getPropertyValue('--cw-more-maxh') !== capPx) menu.style.setProperty('--cw-more-maxh', capPx);
+        const mh = Math.min(full, cap);
+        let y = up ? h.top - 6 - mh : h.bottom + 6;
         if (moreAnchor) {
           const dir = up ? 'up' : 'down', dx = Math.round(x - h.left) + 'px';
           if (menu.dataset.cwMoreAnchor !== dir) menu.dataset.cwMoreAnchor = dir;
@@ -1389,59 +1820,6 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 有 sub 的一项：电脑上鼠标移上去 / 点一下，在右边贴着这一行展开；手机上点了把菜单换成下一级。
     let cwMenu = null;
     const closeCwMenu = () => { if (cwMenu?.classList.contains('cw-sd')) doc.getElementById('sd_gen')?.classList.remove('cw-on'); cwMenu?.remove(); cwMenu = null; };
-    let chatActionBusy = false;
-    async function currentChatAction(kind) {
-      if (chatActionBusy) return;
-      chatActionBusy = true;
-      try {
-        const st = await import(new URL('/script.js', win.location.href).href);
-        const ctx = win.SillyTavern?.getContext?.();
-        const target = { id: st.getCurrentChatId(), character: ctx?.characterId, group: ctx?.groupId };
-        if (!target.id) { win.toastr?.info?.(t('请先打开一个角色或群组对话','Open a character or group chat first')); return; }
-        if (st.isGenerating()) { win.toastr?.info?.(t('请先停止生成','Please stop generation first')); return; }
-        const stillCurrent = () => {
-          const live = win.SillyTavern?.getContext?.();
-          return st.getCurrentChatId() === target.id && live?.characterId === target.character && live?.groupId === target.group;
-        };
-        if (kind === 'rename') {
-          const [popup, templates] = await Promise.all([
-            import(new URL('/scripts/popup.js', win.location.href).href),
-            import(new URL('/scripts/templates.js', win.location.href).href),
-          ]);
-          const name = await popup.callGenericPopup(await templates.renderTemplateAsync('chatRename'), popup.POPUP_TYPE.INPUT, target.id);
-          if (!name || typeof name !== 'string' || name === target.id) return;
-          if (!stillCurrent() || st.isGenerating()) { win.toastr?.info?.(t('当前对话已改变，请重新操作','The current chat changed. Please try again.')); return; }
-          await st.saveChatConditional();
-          if (!stillCurrent() || st.isGenerating()) { win.toastr?.info?.(t('当前对话已改变，请重新操作','The current chat changed. Please try again.')); return; }
-          await st.renameChat(target.id, name);
-        } else {
-          await st.saveChatConditional();
-          if (!stillCurrent() || st.isGenerating()) { win.toastr?.info?.(t('当前对话已改变，请重新操作','The current chat changed. Please try again.')); return; }
-          const filename = target.id + '.jsonl';
-          const response = await win.fetch('/api/chats/export', {
-            method: 'POST', headers: st.getRequestHeaders(),
-            body: JSON.stringify({is_group: !!target.group, avatar_url: ctx.characters?.[target.character]?.avatar, file: filename, exportfilename: filename, format: 'jsonl'}),
-          });
-          const data = await response.json();
-          if (!response.ok || typeof data.result !== 'string') throw new Error(data.message || t('导出失败','Export failed'));
-          const utils = await import(new URL('/scripts/utils.js', win.location.href).href);
-          await utils.download(data.result, filename, 'application/octet-stream', {throwOnFailure: true});
-        }
-      } catch (error) {
-        console.warn('[Claude Web] current chat action', error);
-        win.toastr?.error?.(t('对话操作失败：','Chat action failed: ') + error.message);
-      } finally { chatActionBusy = false; }
-    }
-    on(doc, 'click', e => {
-      const anchor = e.target.closest?.('.cw-v4-more-top');
-      if (!enabled() || !anchor) return;
-      e.preventDefault(); e.stopPropagation();
-      if (cwMenu?.classList.contains('cw-chat-actions')) { closeCwMenu(); return; }
-      popMenu(anchor, [
-        {label:t('重命名当前对话','Rename current chat'),run:()=>currentChatAction('rename')},
-        {label:t('导出当前对话','Export current chat'),run:()=>currentChatAction('export')},
-      ], {cls:'cw-chat-actions'});
-    });
     function popMenu(anchor, items, {up = false, cls = ''} = {}) {
       closeCwMenu();
       const wrap = make('div', 'cw-menu-wrap' + (cls ? ' ' + cls : ''));
@@ -1509,12 +1887,21 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       search: '<circle cx="10.8" cy="10.8" r="6"/><path d="m15.3 15.3 4.2 4.2"/>',
       filter: '<path d="M8.5 4v2.6M8.5 11.4V20M15.5 4v8.6M15.5 17.4V20"/><circle cx="8.5" cy="9" r="2.4"/><circle cx="15.5" cy="15" r="2.4"/>',
       /* 2.0.289：对话页右上角照 Claude Desktop 换成分享（装饰），放在最后、CSS order 排到最前，不打乱 —□✕ 的 nth-child */
-      share: '<path d="M12 4v10.5M8 8l4-4 4 4"/><path d="M5.5 12.5V18a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5v-5.5"/>',
       ghost: '<path d="M3.6 20.3V12.05a8.45 8.45 0 0 1 16.9 0V20.3Q17.64 16.1 14.83 20.3 12.02 16.1 9.22 20.3 6.41 16.1 3.6 20.3Z"/><circle cx="8.15" cy="11.9" r="1.25" fill="currentColor" stroke="none"/><circle cx="15.9" cy="11.9" r="1.25" fill="currentColor" stroke="none"/>',
       min: '<path d="M6 12h12"/>', max: '<rect x="6" y="6" width="12" height="12" rx="1"/>', close: '<path d="M6 6l12 12M18 6 6 18"/>',
     };
     // 「最近」：同一个角色连着的几条只在第一条放头像，后面换成空心小点（稿 B）。
+    function paintRecentsFilter(){
+      const state=win.__claudeClawdInteraction?.recentsFilter?.(),active=!!state?.enabled;
+      for(const el of doc.querySelectorAll('.cw-rec-filter,.cw-web-filter')){
+        const heading=el.closest('.cw-web-date');if(active){el.removeAttribute('aria-hidden');heading?.removeAttribute('aria-hidden');el.setAttribute('role','button');el.tabIndex=0;el.setAttribute('aria-label',t('筛选最近对话','Filter recent chats'));}else{el.setAttribute('aria-hidden','true');el.removeAttribute('role');el.removeAttribute('tabindex');}
+        const on=active&&state.value==='starred';if(el.hasAttribute('data-cw-starred')!==on)el.toggleAttribute('data-cw-starred',on);
+      }
+    }
+    const openRecentsFilter=e=>{const anchor=e.target.closest?.('.cw-rec-filter,.cw-web-filter'),state=win.__claudeClawdInteraction?.recentsFilter?.();if(!anchor||!state?.enabled||e.type==='keydown'&&!['Enter',' '].includes(e.key))return;e.preventDefault();e.stopPropagation();popMenu(anchor,[{label:t('全部','All'),check:state.value==='all',run:()=>{win.__claudeClawdInteraction.recentsFilter('all');paintRecentsFilter();}},{label:t('只看收藏','Starred only'),check:state.value==='starred',run:()=>{win.__claudeClawdInteraction.recentsFilter('starred');paintRecentsFilter();}}]);};
+    on(doc,'click',openRecentsFilter);on(doc,'keydown',openRecentsFilter);
     const markRepeats = () => {
+      paintRecentsFilter();
       let prev = null;
       for (const r of doc.querySelectorAll('#top-settings-holder .clawd-rail-recents .recentChatList > *')) {
         if (r.classList.contains('cw-web-date') || !r.classList.contains('recentChat')) { prev = null; continue; }
@@ -1525,13 +1912,38 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       }
     };
     let recObs = null, recSlot = null;
+    const railPrefs=preferencesFor(win);
+    const railCollapsed=()=>enabled()&&root.dataset.claudeLayout==='pc'&&win.innerWidth>700&&railPrefs.getItem('claude-web:rail-collapsed')==='on';
+    let miniRail=null,railToggle=null,railToggleRo=null;
+    const setRailCollapsed=value=>{railPrefs.setItem('claude-web:rail-collapsed',value?'on':'off');syncRailCollapsed();};
+    function syncRailCollapsed(){
+      const collapsed=railCollapsed();if(root.hasAttribute('data-cw-rail-collapsed')!==collapsed)root.toggleAttribute('data-cw-rail-collapsed',collapsed);
+      railToggle?.setAttribute('aria-expanded',String(!collapsed));
+      if(!miniRail){miniRail=make('div','cw-rail-mini');const expandRail=button('',()=>setRailCollapsed(false),'cw-rail-mini-button');expandRail.innerHTML=SV(P.panel);expandRail.setAttribute('aria-label',t('展开侧栏','Expand sidebar'));
+        const newChat=button('',()=>doc.querySelector('#top-settings-holder>.cw-web-new,#top-settings-holder>.clawd-mobile-new-chat')?.click(),'cw-rail-mini-button');newChat.innerHTML='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M10 3.2c-3.9 0-7 2.7-7 6.1 0 1.8.9 3.4 2.3 4.5l-.6 3.1 3.3-1.7c.6.2 1.3.2 2 .2 3.9 0 7-2.7 7-6.1S13.9 3.2 10 3.2Z"/><path d="M10 6.6v5.4M7.3 9.3h5.4"/></svg>';newChat.setAttribute('aria-label',t('新对话','New chat'));miniRail.append(expandRail,newChat);doc.body.append(miniRail);}
+    }
+    function placeRailToggle(){
+      const tool=doc.querySelector('.cw-desk-tool'),glyph=tool?.querySelector(':scope>svg:nth-of-type(2)');if(!tool||!glyph||!railToggle)return;
+      railToggle.style.left=glyph.offsetLeft+'px';railToggle.style.top=glyph.offsetTop+'px';railToggle.style.width=glyph.getBoundingClientRect().width+'px';railToggle.style.height=glyph.getBoundingClientRect().height+'px';
+    }
+    on(win,'resize',()=>{syncRailCollapsed();placeRailToggle();});
+    observe(root,syncRailCollapsed,{attributes:true,attributeFilter:['data-claude-layout','data-cw-v4']});
+    disposers.push(()=>{railToggleRo?.disconnect();miniRail?.remove();railToggle?.remove();root.removeAttribute('data-cw-rail-collapsed');});
+
     const ensureDeskDeco = () => {
       if (!enabled()) return;
       const holder = doc.getElementById('top-settings-holder');
       if (holder && !holder.querySelector(':scope>.cw-desk-tool')) holder.prepend(deco('cw-desk-tool',
         SV(P.menu) + SV(P.panel) + SV(P.back) + SV(P.fwd, 'cw-dim') +
         `<span class="cw-desk-seg"><span class="cw-on">${SV(P.chat)}</span><span>${SV(P.code, 'cw-dim')}</span></span>`));
-      if (!doc.querySelector('body>.cw-desk-win')) doc.body.append(deco('cw-desk-win', SV(P.ghost, 'cw-ghost') + SV(P.min) + SV(P.max) + SV(P.close) + SV(P.share, 'cw-share')));
+      const tool=holder?.querySelector(':scope>.cw-desk-tool');
+      if(tool&&!tool.querySelector('.cw-rail-toggle')){
+        tool.removeAttribute('aria-hidden');tool.querySelectorAll('svg,.cw-desk-seg').forEach(n=>n.setAttribute('aria-hidden','true'));
+        railToggle=button('',()=>setRailCollapsed(true),'cw-rail-toggle');railToggle.setAttribute('aria-label',t('收起侧栏','Collapse sidebar'));tool.append(railToggle);
+        railToggleRo?.disconnect();railToggleRo=win.ResizeObserver?new win.ResizeObserver(placeRailToggle):null;railToggleRo?.observe(tool);
+      }
+      syncRailCollapsed();placeRailToggle();
+      if (!doc.querySelector('body>.cw-desk-win')) doc.body.append(deco('cw-desk-win', SV(P.ghost, 'cw-ghost') + SV(P.min) + SV(P.max) + SV(P.close)));
       const lab = holder?.querySelector('.clawd-rail-recents-label');
       if (lab && !lab.querySelector(':scope>.cw-rec-search')) lab.append(deco('cw-rec-search', SV(P.search)), deco('cw-rec-search cw-rec-filter', SV(P.filter)));
       const slot = holder?.querySelector('.clawd-rail-recents');
@@ -1646,9 +2058,6 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       if (doc.getElementById('persona-management-button')?.querySelector('.drawer-content.openDrawer')) return; // 已经开着：照原样（关上）
       e.stopPropagation(); e.preventDefault();
       if (cwMenu?.classList.contains('cw-acct')) { closeCwMenu(); return; }
-      // Account clicks are intercepted before ST's outside-click handlers.
-      win.jQuery?.(root).triggerHandler('click');
-      win.jQuery?.(doc).triggerHandler('click');
       const ctx = win.SillyTavern?.getContext?.(), pu = ctx?.powerUserSettings || {}, personas = pu.personas || {};
       const me = ctx?.name1 || '', cur = (win.user_avatar || doc.querySelector('#user_avatar_block .avatar-container.selected .avatar')?.getAttribute('imgfile') || '');
       const pick = (file, name) => {
@@ -1665,23 +2074,38 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
         list.length ? {icon: 'user', label: L('切换用户角色'), sub: list} : null,
         {icon: 'card', label: L('用户角色设置'), run: () => openDrawerById('persona-management-button')},
         {icon: 'gear', label: L('设置'), run: () => openDrawerById('user-settings-button')},
+        {icon:'sliders',label:zh()?'编辑侧栏':'Edit sidebar',run:()=>openLayoutEditor('rail')},
         {sep: 1},
         vs ? {icon: 'sun', label: L('主题'), value: vs.disabled ? L('跟随时间') : (variant === 'night' ? L('夜间') : L('日间')), sub: vs.disabled ? null : themeItems, disabled: vs.disabled} : null,
       ].filter(Boolean).filter(it => !(it.sub === null && it.disabled === undefined)), {up: true, cls: 'cw-acct'});
     }, true);
     // 编辑消息：保留酒馆的保存/取消，五个已有动作在左侧按原顺序平铺。
     // 图标代理只调用原生按钮；标签与原生不可用状态保持同步。
-    const editMore = () => {
+    let activeEditBar;
+    const nativeActionsObserver = new win.MutationObserver(() => syncEditActions());
+    const syncEditActions = () => {
       if (!enabled()) return;
-      for (const bar of doc.querySelectorAll('#chat .mes .mes_edit_buttons')) {
+      const bar = doc.getElementById('curEditTextarea')?.closest('.mes')?.querySelector('.mes_edit_buttons');
+      if (bar !== activeEditBar) {
+        nativeActionsObserver.disconnect();
+        activeEditBar = bar;
+        if (bar) for (const name of Object.keys(EDIT_LABELS)) {
+          const native = bar.querySelector(':scope>.' + name);
+          if (native) nativeActionsObserver.observe(native, {attributes:true, attributeFilter:['style','class','disabled','aria-disabled']});
+        }
+      }
+      if (bar) {
         labelMenu(bar, EDIT_LABELS);
         const existing = bar.querySelector(':scope>.cw-edit-actions');
         if (existing) {
           for (const proxy of existing.children) {
             const native = bar.querySelector(':scope>.' + proxy.dataset.cwNative);
-            proxy.hidden = !native || win.getComputedStyle(native).visibility === 'hidden' || native.style.display === 'none';
+            const hidden = !native || win.getComputedStyle(native).visibility === 'hidden' || native.style.display === 'none';
+            const disabled = Boolean(native?.disabled || native?.getAttribute('aria-disabled') === 'true');
+            if (proxy.hidden !== hidden) proxy.hidden = hidden;
+            if (proxy.disabled !== disabled) proxy.disabled = disabled;
           }
-          continue;
+          return;
         }
         // 按钮条贴在卡片（.mes_text）底边里面：量出 .mes_text 底边相对按钮条定位容器的位置（消息块下面还有别的留白，不能用 bottom）。
         const text = bar.closest('.mes')?.querySelector('.mes_text'), ta = text?.querySelector('textarea');
@@ -1696,14 +2120,21 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
           proxy.title = native.dataset.cwLabel || native.title || '';
           proxy.setAttribute('aria-label', proxy.title);
           proxy.hidden = win.getComputedStyle(native).visibility === 'hidden' || native.style.display === 'none';
+          proxy.disabled = Boolean(native.disabled || native.getAttribute('aria-disabled') === 'true');
           proxy.append(icon(ic)); actions.append(proxy);
         }
         bar.prepend(actions);
       }
     };
-    const editObs = new win.MutationObserver(list => { if (list.some(m => m.type === 'attributes' ? m.target.matches?.('.mes_edit_copy,.mes_edit_add_reasoning,.mes_edit_up,.mes_edit_down,.mes_edit_delete') : [...m.addedNodes].some(n => n.nodeType === 1 && (n.id === 'curEditTextarea' || n.querySelector?.('#curEditTextarea'))))) editMore(); });
-    const chatEl = doc.getElementById('chat'); if (chatEl) editObs.observe(chatEl, {childList: true, subtree: true, attributes:true, attributeFilter:['style','class']});
-    disposers.push(() => { editObs.disconnect(); doc.querySelectorAll('.cw-edit-actions').forEach(n => n.remove()); });
+    const editObs = new win.MutationObserver(() => {
+      if (!!doc.getElementById('curEditTextarea') || activeEditBar) syncEditActions();
+    });
+    const chatEl = doc.getElementById('chat');
+    if (chatEl) editObs.observe(chatEl, {childList:true, subtree:true});
+    disposers.push(() => {
+      editObs.disconnect(); nativeActionsObserver.disconnect();
+      doc.querySelectorAll('.cw-edit-actions').forEach(n => n.remove());
+    });
     // Input menus (+ and ≡, 2026-09-29): ST pins each to its own button with Popper
     // (top-start) and sizes it to its own text, so they open 40px apart with different
     // widths. On either button click (before ST shows the menu), measure both menus'
@@ -1771,6 +2202,14 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   const SHEET_POPUP = 'dialog.popup:is(.wide_dialogue_popup,.wider_dialogue_popup,.large_dialogue_popup):not(.cw-v4-editor):not(.transparent_dialogue_popup)';
   const SMALL_POPUP = 'dialog.popup:not(.wide_dialogue_popup):not(.wider_dialogue_popup):not(.large_dialogue_popup):not(.transparent_dialogue_popup):not(.cw-v4-editor)';
   const DANGER_TEXT = /删除|移除|清空|永久|Delete|Remove|permanently/i;
+  // 删除类弹窗：只看标题（没有标题就看第一行）和「确定」按钮本身的字。原来拿整段正文去匹配，
+  // 新建连接配置里那句「点击设置名称以将其从连接配置中删除」、导出时「移除敏感字段」都被误判成删除类，确定按钮变红。
+  const DANGER_TITLE = /删除|清空|永久|Delete|permanently/i, DANGER_BUTTON = /^(删除|移除|清空|永久删除|Delete|Remove)$/i;
+  const isDangerPopup = d => {
+    const c = d.querySelector('.popup-content'); if (!c) return false;
+    const head = c.querySelector('h1,h2,h3,h4')?.textContent || (c.innerText || c.textContent || '').trim().split('\n')[0];
+    return DANGER_TITLE.test(head || '') || DANGER_BUTTON.test((d.querySelector('.popup-button-ok')?.textContent || '').trim());
+  };
   // 2.0.255 标签管理 / 其他开场白（design-content-v1，只在电脑尺寸；CSS ㉜）。弹窗每次打开都是新的，装饰一次就行；
   // 标签列表酒馆会重画（新建 / 删除 / 排序），盯着列表补装饰。原来的按钮只是搬位置，事件都在。
   function decorateTagView(d) {
@@ -1840,6 +2279,10 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     if (pmHost) return;
     pmAnchor = doc.createComment('cw-pm-home'); pm.before(pmAnchor);
     pmHost = make(canPopover ? 'div' : 'dialog', 'cw-pm-host'); doc.body.append(pmHost); pmHost.append(pm);
+    // 335 反馈：外层铺满全屏。按下不冒泡给酒馆（它在 html 上「点外面关抽屉」，会把预设页和编辑页一起切成 closedDrawer，
+    // 编辑页的行内 display:block 还在，就卡在屏幕上）；点在编辑页外面就当点「‹ 预设」。
+    for (const type of ['mousedown', 'touchstart']) pmHost.addEventListener(type, e => e.stopPropagation());
+    pmHost.addEventListener('click', e => { if (e.target === pmHost) pmBack(pm)?.click(); });
     if (canPopover) {
       pmHost.setAttribute('popover', 'manual');
       // popover 不困住焦点（showModal 会），Escape 可能落在页面上：开着时在 document 上接（下拉开着时让下拉先关）。
@@ -1857,6 +2300,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     for (const [ad, parent] of pmPickers) ad.$dropdownParent = parent; pmPickers = [];
     const pm = pmEl();
     if (pm && pmAnchor?.parentNode) pmAnchor.replaceWith(pm); else pmAnchor?.remove();
+    // 保险：收起了（没有 openDrawer）但 slideDown 留下的行内 display:block 还在，就会一直挂在屏幕上。
+    if (pm && !pm.classList.contains('openDrawer') && pm.style.display && pm.style.display !== 'none') pm.style.display = 'none';
     if (pmEsc) { doc.removeEventListener('keydown', pmEsc, true); pmEsc = null; }
     if (canPopover) { try { pmHost.hidePopover(); } catch {} } else pmHost.close();
     pmHost.remove(); pmHost = null; pmAnchor = null;
@@ -1874,7 +2319,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     syncMovedDialogWatch();
     const pm = pmEl();
     // 提示词编辑页：酒馆摘掉 openDrawer 后 200ms 就 display:none，比我们的下滑短；收起期间挂 data-cw-closing，CSS 让它多显示一会儿播完。
-    const pmOpen = Boolean(pm?.classList.contains('openDrawer'));
+    // 341 预设页 v2：编辑改在面板里的 .cwp-edit 页（html.cwp-editing），原生弹窗只是藏着的数据源，不当底部弹出页处理，
+    // 否则手机上会被搬进最上层、并把后面那页（也就是编辑页本身）缩小压暗。
+    const pmOpen = Boolean(pm?.classList.contains('openDrawer')) && !doc.documentElement.classList.contains('cwp-editing');
     // 2.0.217 提速：酒馆开 / 关它时用 jQuery slideDown / slideUp(200)，每帧改行内高度、重排；高度和动作都由我们的 CSS 管，直接让它跳到结束。
     if (pm && pmOpen !== pmWasOpen && mobile() && enabled()) win.jQuery?.(pm).stop(true, true);
     if (pm && pmWasOpen && !pmOpen && mobile()) { pm.setAttribute('data-cw-closing', ''); win.clearTimeout(pmCloseTimer); pmCloseTimer = win.setTimeout(() => { pm.removeAttribute('data-cw-closing'); unhostPm(); }, SHEET_MS + 40); }
@@ -1884,10 +2331,11 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 2.0.247 普通尺寸的酒馆弹窗（改名 / 另存为 / 删除确认……）照 Claude Desktop 排（CSS ㉗）；删除类的「确定」画成红色。只在变化时写属性。
     // 2.0.256 手机也装饰（排法见 CSS ㉝，照扩展页的弹出页：灰标题在卡片外、操作是蓝色行）。
     if (enabled()) for (const d of doc.querySelectorAll('dialog.popup[open]')) {
+      drawerLayouts.decorateWorldPicker(d);
       if (d.querySelector('#tag_view_list')) decorateTagView(d); else if (d.querySelector('.alternate_grettings')) decorateGreetings(d);
     }
     for (const d of doc.querySelectorAll(SMALL_POPUP + '[open]')) {
-      const danger = DANGER_TEXT.test(d.querySelector('.popup-content')?.textContent || '');
+      const danger = isDangerPopup(d);
       if (d.hasAttribute('data-cw-danger') !== danger) d.toggleAttribute('data-cw-danger', danger);
     }
     let now = [];
@@ -1983,6 +2431,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
      · 点后面的页面不能有反应：弹出页底下垫一层透明的 .cw-sheet-shield（也是 popover，先于弹出页显示，所以在它下面）；
      · Escape 关弹窗：document 上接，给我们的弹窗走 shut()，给酒馆弹窗发 cancel 事件（酒馆自己决定能不能关）。
      老内核没有 popover、不是弹出页的对话框：照旧 showModal。CW 编辑窗在电脑上也用此路径，让第三方弹窗可接管交互。 */
+  // Formal 2.0.135/140/143/144/147: sheet top-layer recovery (native modal recovery, covered-sheet detection,
+  // bounded retries with native modal fallback, zero-size sheets, native modal yield, native sheet preference).
   const nativeShowModal = win.HTMLDialogElement.prototype.showModal;
   const nativeClose = win.HTMLDialogElement.prototype.close;
   let shield = null;
@@ -2255,7 +2705,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     if (top._cwShut) top._cwShut(); else top.dispatchEvent(new win.Event('cancel', {cancelable: true}));
   }
   // 2.0.275（Lulu：删除确认的按钮先黑一下再变红）：删除类的标记原来在弹窗显示之后才挂；改成打开的那一刻就挂（酒馆这时已经填好内容）。
-  const tagDanger = d => { if (!enabled() || !d.matches?.(SMALL_POPUP)) return; const danger = DANGER_TEXT.test(d.querySelector('.popup-content')?.textContent || ''); if (d.hasAttribute('data-cw-danger') !== danger) d.toggleAttribute('data-cw-danger', danger); };
+  const tagDanger = d => { if (!enabled() || !d.matches?.(SMALL_POPUP)) return; const danger = isDangerPopup(d); if (d.hasAttribute('data-cw-danger') !== danger) d.toggleAttribute('data-cw-danger', danger); };
   function installLift() {
     const wrappedShowModal = function () { tagDanger(this); if (liftable(this)) return liftDialog(this); return nativeShowModal.call(this); };
     win.HTMLDialogElement.prototype.showModal = wrappedShowModal;
@@ -2290,29 +2740,18 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   }
   function watchSheets() {
     installLift();
-    // The blank part of ST's summary is outside its delegated header target.
-    on(doc, 'click', e => {
-      if (!enabled()) return;
-      const summary=e.target.closest?.('#chat .mes_reasoning_summary');
-      if (!summary || e.target.closest('.mes_reasoning_actions')) return;
-      const details=summary.closest('.mes_reasoning_details');
-      if (details) details.dataset.clawdCollapsed='1';
-      if (!e.target.closest('.mes_reasoning_header')) {
-        e.preventDefault(); summary.querySelector('.mes_reasoning_header')?.click();
-      }
-    }, true);
     disposers.push(() => { if (shieldRecoveryRaf) win.cancelAnimationFrame(shieldRecoveryRaf); shieldRecoveryRaf = 0; for (const timer of sheetAnimationChecks.values()) win.clearTimeout(timer); sheetAnimationChecks.clear(); doc.querySelectorAll('[data-cw-animation-fallback]').forEach(layer => layer.removeAttribute('data-cw-animation-fallback')); });
     // The root is not a content scroller. Avoid fighting the keyboard's reveal;
     // reset only after focus leaves text controls or the visual viewport returns.
     let rootResetRaf = 0, keyboardViewportSmall = false, keyboardViewportFullHeight = win.visualViewport?.height || win.innerHeight;
     const textFocused = () => doc.activeElement?.matches('textarea,input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio]):not([type=range]),[contenteditable]:not([contenteditable=false])');
     const resetRoot = (keyboardClosed = false) => {
-      // iOS mobile layout owns its bounded root-reset policy.
-      if (doc.documentElement.hasAttribute("data-cw-ios-viewport")) return;
+      // Formal 2.0.145: the iOS mobile layout owns its bounded root-reset policy.
+      if (doc.documentElement.hasAttribute('data-cw-ios-viewport')) return;
       if (rootResetRaf || !enabled() || (!keyboardClosed && textFocused())) return;
       rootResetRaf = win.requestAnimationFrame(() => {
         rootResetRaf = 0;
-        if (!doc.documentElement.hasAttribute("data-cw-ios-viewport") && enabled() && (keyboardClosed || !textFocused()) && (win.scrollX || win.scrollY)) win.scrollTo({left:0,top:0,behavior:'instant'});
+        if (!doc.documentElement.hasAttribute('data-cw-ios-viewport') && enabled() && (keyboardClosed || !textFocused()) && (win.scrollX || win.scrollY)) win.scrollTo({left:0,top:0,behavior:'instant'});
       });
     };
     on(win, 'scroll', () => resetRoot(), {passive:true});
@@ -2350,6 +2789,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     observe(doc.body, hook, {childList:true});
     const pm = pmEl();
     if (pm) { observe(pm, syncSheet, {attributes:true, attributeFilter:['class']}); decoratePromptPopup(pm); }
+    // 341：预设页 v2 的编辑页开关（html.cwp-editing）也要重算一次，见 syncSheet 里的 pmOpen。
+    observe(doc.documentElement, syncSheet, {attributes:true, attributeFilter:['class']});
     on(win, 'resize', syncSheet);
     disposers.push(() => { win.clearTimeout(sheetAnimTimer); win.clearTimeout(pmCloseTimer); unhostPm(); dimEl?.remove(); for (const a of ['data-cw-sheet','data-cw-sheet-anim','data-cw-sheet-deep','data-cw-sheet-drag']) root.removeAttribute(a); });
     disposers.push(() => { for (const d of yieldedSheets) d.removeAttribute('data-cw-sheet-yielded'); yieldedSheets.clear(); root.removeAttribute('data-cw-sheet-yield'); });
@@ -2374,11 +2815,14 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     }
   }
   if (doc.readyState === 'loading') on(doc,'DOMContentLoaded',start,{once:true}); else start();
-  return { refresh: sync, activate, has: id => panels.has(id), setExternalModals, destroy() {
+  // 电脑端设置窗口等比缩放（settings-scale.js）。
+  const settingsScale = createSettingsScale({win, mobile, t}); disposers.push(() => settingsScale.destroy());
+  return { refresh: sync, activate, has: id => panels.has(id), editLayout:openLayoutEditor, setExternalModals, destroy() {
+    backgroundFilters.destroy();
     if (destroyed) return;
     destroyed = true;
+    ttPanels.destroy();
     for (const d of yieldedSheets) if (d.hasAttribute('data-cw-sheet-yielded-native')) restoreYieldedNative(d);
-    stopOfficialWeb();
     observers.forEach(m=>m.disconnect());
     if (raf) win.cancelAnimationFrame(raf);
     // Native close events are queued. Restore inner editors before their parents.
@@ -2388,6 +2832,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       d.close(); d.removeAttribute('popover'); d.removeAttribute('data-cw-lifted');
     }
     disposers.forEach(f=>f());
+    for(const [row,value]of fieldRows){if(value===null)row.removeAttribute('data-cw-field');else row.setAttribute('data-cw-field',value);}fieldRows.clear();
     sheetStack = [];
     doc.querySelectorAll('[data-cw-sheet-under],[data-cw-sheet-lvl2]').forEach(n=>{n.removeAttribute('data-cw-sheet-under');n.removeAttribute('data-cw-sheet-lvl2');});
     doc.getElementById('send_form')?.removeAttribute('data-cw-disclaimer');
@@ -2395,9 +2840,6 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     doc.getElementById('chat')?.removeAttribute('data-cw-disclaimer');
     doc.getElementById('chat')?.style.removeProperty('--cw-disclaimer-inset');
     restoreAdaptedContainers();
-    ttPanels.destroy();
-    promptScroll.destroy();
-    backgroundFilters.destroy();
     for (const [panel, state] of panelDecorations) {
       if (!state.hadPanelClass) panel.classList.remove('cw-v4-panel');
       if (state.glyph?.style.getPropertyValue('--cw-v4-nav-icon') === state.installed) {
@@ -2407,7 +2849,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     }
     panelDecorations.clear();
     shell?.remove(); doc.querySelector('.cw-v4-chat-head')?.remove();
-    root.removeAttribute('data-cw-v4'); root.removeAttribute('data-cw-v4-settings');
+    root.removeAttribute('data-cw-settings-unified'); root.removeAttribute('data-cw-v4'); root.removeAttribute('data-cw-v4-settings');
     for (const [key, value, priority] of iconProperties) if (root.style.getPropertyValue(key) === installedIconValues.get(key)) {
       if (value) root.style.setProperty(key, value, priority); else root.style.removeProperty(key);
     }

@@ -1,18 +1,33 @@
+import { watchTokens, tokenText } from './token-count.js?v=2.0.165';
+import { createMorePages } from './settings-more-pages.js?v=2.0.165';
+import { createV2dPages } from './settings-v2d.js?v=2.0.165';
+import { createPresetManagerPage } from './official-preset-manager.js?v=2.0.165';
+import { createInterfaceRefinements } from './official-interface-refinements.js?v=2.0.165';
+import { normalizeSettingsSections } from './settings-sections.js?v=2.0.165';
 /* Semantic live layouts, ported from design-v4 (redo.js / wi.js).
  * Only original DOM nodes are moved; lists/forms keep their IDs and native
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings, retainRangeCounter } from './official-extension-settings.js?v=2.0.164';
+import { createExtensionSettings, retainRangeCounter } from './official-extension-settings.js?v=2.0.165';
+import { createPresetList } from './official-preset-list.js?v=2.0.165';
+import { createWorldPage } from './official-world.js?v=2.0.165';
+import { createPresetEdit } from './official-preset-edit.js?v=2.0.165';
+import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.165';
+import { createExtensionPanel } from './official-extension-panel.js?v=2.0.165';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);
   for(const [key,cn,en] of [['delete','删除','Delete'],['restore','恢复默认','Restore defaults'],['rename','改名','Rename'],['import','导入','Import'],['export','导出','Export'],['new','另存为新的','Save as new'],['create','新建','Create'],['edit','编辑','Edit'],['update','保存','Save']])if(node.id?.includes(key)||[...node.attributes].some(a=>a.name===`data-preset-manager-${key}`))return t(cn,en);
   return (node.getAttribute('aria-label')||node.title||node.textContent||'').trim().split(/[\n.。]/)[0].slice(0,32);
 }
-export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu,rememberTTMove=()=>{}}) {
+export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSettings,openSelMenu,mountNativeSegment,bindRowMenu,rememberTTMove=()=>{}}) {
   const doc=win.document, states=new Map();
   const extensionSettings=createExtensionSettings({win,t,L,make,button,icon,openEditor});
+  const extensionPanel=createExtensionPanel({win,t,make,button,icon,settings:extensionSettings,openEditor});
+  const presetList=createPresetList({win,make,button,t,phoneWide:()=>phoneWide(),onLeave:()=>presetEdit.leave(),onEdit:action=>presetEdit.selectDesktop(action),canEdit:()=>presetEdit.ready()});
+  let morePages=null,v2dPages=null;
+  let promptScroll=null;
   const get=id=>doc.getElementById(id);
   // The native export Popper references a parked (display:none) button. Keep
   // its format actions, but anchor its existing popup to the visible control.
@@ -43,10 +58,20 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     exportSession={popup,native,anchor,stop(){observer.disconnect();doc.removeEventListener('pointerdown',outside,true);doc.removeEventListener('scroll',scroll,true);win.removeEventListener('resize',dismiss);viewport?.removeEventListener('resize',dismiss);viewport?.removeEventListener('scroll',dismiss);}};
   }
   function state(root){let s=states.get(root);if(!s){s={moves:[],created:[],root};states.set(root,s);}return s;}
-  function move(s,node,host,before){if(!node||node===host||node.contains(host))return;const companion=(node.matches?.('select.select2-hidden-accessible')&&node.nextElementSibling?.matches('.select2-container')||node.matches?.('textarea')&&node.nextElementSibling?.matches('.tt-codemirror-editor'))?node.nextElementSibling:null;for(const counter of node.matches?.('input[data-for]')?[node]:node.querySelectorAll?.('input[data-for]')||[]){const undoRange=retainRangeCounter(counter);if(undoRange)cleanup(s,undoRange);}if(node.parentNode){const mark=doc.createComment('cw-drawer-return');node.before(mark);s.moves.push([node,mark]);}if(before)host.insertBefore(node,before);else host.append(node);rememberTTMove(node);if(companion)move(s,companion,host);}
+  function sectionHost(host){
+    if(!host.matches?.('.cw-v4-section'))return host;
+    const card=host.querySelector(':scope>.cw-v4-card');if(!card)return host;
+    for(const child of [...host.childNodes])if(child!==card&&!(child.nodeType===1&&child.matches('h2')))card.append(child);
+    return card;
+  }
+  // One sequence for every state: a node moved twice by two states (row, then a
+  // menu park) must be returned in the reverse of the global order, or it lands
+  // in the first state's removed row.
+  let moveSeq=0;
+  function move(s,node,host,before){if(!node||node===host||node.contains(host))return;if(!before)host=sectionHost(host);const companion=node.matches?.('select.select2-hidden-accessible')&&node.nextElementSibling?.matches('.select2-container')?node.nextElementSibling:null;for(const counter of node.matches?.('input[data-for]')?[node]:node.querySelectorAll?.('input[data-for]')||[]){const undoRange=retainRangeCounter(counter);if(undoRange)cleanup(s,undoRange);}if(node.parentNode){const mark=doc.createComment('cw-drawer-return');node.before(mark);s.moves.push([node,mark,++moveSeq]);}if(before)host.insertBefore(node,before);else host.append(node);rememberTTMove(node);if(companion)move(s,companion,host);}
   const created=(s,n)=>{s.created.push(n);return n;};
   const cleanup=(s,f)=>{(s.cleanups||=[]).push(f);};
-  function section(page,title){const n=make('section','cw-v4-section');if(title)n.append(make('h2','',L(title)));page.append(n);return n;}
+  function section(page,title){const n=make('section','cw-v4-section');if(title)n.append(make('h2','',L(title)));n.append(make('div','cw-v4-card'));page.append(n);return n;}
   // srow(): title + description on the left, controls on the right.
   function rowEl(label,desc,cls=''){
     const r=make('div','cw-v4-row'+(cls?' '+cls:'')),info=make('div','cw-v4-row-info'),controls=make('div','cw-v4-row-controls');
@@ -55,27 +80,39 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     if(label||desc)r.append(info);r.append(controls);return {r,info,controls};
   }
   function row(s,host,label,desc,nodes,cls){
-    const {r,info,controls}=rowEl(label,desc,cls);host.append(r);
+    const {r,info,controls}=rowEl(label,desc,cls);sectionHost(host).append(r);
     if(desc instanceof win.Node){const d=make('div','cw-v4-row-desc');info.append(d);if(desc.parentNode)move(s,desc,d);else d.append(desc);}
     for(const n of [].concat(nodes||[]))if(n)move(s,n,controls);
     if([].concat(nodes||[]).some(n=>n?.closest?.('[data-cc-null]')))r.setAttribute('data-cc-null','');
     return r;
   }
-  // moreMenu(): short hand-written labels; the native buttons stay inside,
+  // menu(): the shared ⋯ menu. Short hand-written labels; the native buttons stay inside,
   // hidden, so their IDs and delegated handlers keep working.
+  // Item: [label, nativeEl, danger, run, icon]. '-' draws a thin rule between groups.
+  // An icon (a POP_ICONS key) or a rule switches the menu to the v2 .pop look:
+  // 16px icon + 14px text, 36px rows, danger icon and text both red.
+  const POP_ICONS={user:'<circle cx="12" cy="8" r="3"/><path d="M5 20v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/>',tag:'<path d="M3 4h7l10 10-6 6L3 9z"/><circle cx="7" cy="7" r="1"/>',star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>',plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M6 6l12 12M18 6 6 18"/>',key:'<circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M15 8l2.5 2.5M17.5 5.5 20 8"/>',ext:'<path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5"/>',pencil:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',copy:'<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a1 1 0 0 1 1-1h9"/>',imp:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/>',exp:'<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 19h14"/>',trash:'<path d="M5 7h14M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3"/>',sliders:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',move:'<path d="M5 12h12M13 7l5 5-5 5"/>',spark:'<path d="M12 4l1.8 4.7L18.5 10.5l-4.7 1.8L12 17l-1.8-4.7L5.5 10.5l4.7-1.8z"/>',sort:'<path d="M7 5v14M4 16l3 3 3-3M17 19V5M14 8l3-3 3 3"/>',refresh:'<path d="M19 12a7 7 0 1 1-2.05-4.95M19 5v4h-4"/>'};
+  function popIcon(k){const s2=doc.createElementNS('http://www.w3.org/2000/svg','svg');s2.setAttribute('viewBox','0 0 24 24');s2.setAttribute('fill','none');s2.setAttribute('stroke','currentColor');s2.setAttribute('stroke-width','1.8');s2.setAttribute('stroke-linecap','round');s2.setAttribute('stroke-linejoin','round');s2.setAttribute('aria-hidden','true');s2.innerHTML=POP_ICONS[k]||'';return s2;}
   function menu(s,items){
     const m=make('details','cw-v4-more cw-v4-created'),h=make('summary','','⋯'),list=make('div','cw-v4-more-list'),park=make('div','cw-v4-more-park');
-    h.setAttribute('aria-label',L('更多'));m.append(h,list,park);
-    for(const it of items){if(!it)continue;const [label,el,danger,run]=it;if(!el&&!run)continue;
-      const b=button(L(label),e=>{e.stopPropagation();m.open=false;if(el?.id==='export_button')openCharacterExport(h,el);else run?run():el.click();},'cw-v4-more-item'+(danger?' cw-v4-danger':''));list.append(b);
+    h.setAttribute('aria-label',L('更多'));m.append(h,list,park);let pop=false,rule=false;
+    for(const it of items){if(it==='-'){rule=true;continue;}if(!it)continue;const [label,el,danger,run,ico]=it;if(!el&&!run)continue;
+      if(rule&&list.childElementCount){list.append(make('hr','cwr-pop-hr'));pop=true;}rule=false;
+      const b=button(L(label),e=>{e.stopPropagation();m.open=false;run?run():el.click();},'cw-v4-more-item'+(danger?' cw-v4-danger':''));
+      if(ico){b.prepend(popIcon(ico));pop=true;}list.append(b);
       if(el)move(s,el,park);}
+    if(pop)m.classList.add('cwr-pop');
     return m;
+  }
+  function rowMore(cls){
+    const b=make('button','cw-v4-row-more '+cls,'⋯');b.type='button';
+    b.setAttribute('aria-label',L('更多'));b.setAttribute('aria-expanded','false');
+    return b;
   }
   // asBtn(): a native control drawn as a text button.
   function act(s,n,label,plus,primary){if(!n)return n;n.classList.add('cw-v4-as-btn');if(primary)n.classList.add('cw-v4-primary');const text=make('span','cw-v4-action-label'+(plus?' cw-v4-plus':''),L(label));n.append(text);s.created.push(text);(s.buttons||=[]).push(n);return n;}
-  function restorePanel(s){s.cleanup?.();s.cleanups?.forEach(f=>f());s.gates?.forEach(stop=>stop());delete s.root.dataset.cwV4Sources;if(s.rest){for(const n of [...s.rest.childNodes])s.root.append(n);}for(const [node,mark] of [...s.moves].reverse())if(mark.parentNode)mark.replaceWith(node);s.created.forEach(n=>n.remove());s.buttons?.forEach(n=>n.classList.remove('cw-v4-as-btn','cw-v4-primary'));s.mapped?.forEach(n=>n.classList.remove('cw-v4-mapped-setting','cw-v4-row','cw-v4-range'));s.iconToggles?.forEach(n=>n.classList.remove('cw-v4-icon-toggle'));s.root.classList.remove('cw-v4-reflow');if(s.root.classList.contains('cw-v4-extension-item')){s.root.classList.remove('cw-v4-extension-item');delete s.root.dataset.cwV4Extension;}}
   function begin(root){const s=state(root);if(s.page)return null;const page=make('div','cw-v4-drawer-page');s.page=page;root.append(page);s.created.push(page);root.classList.add('cw-v4-reflow');return {s,page};}
-  function finish(s){const root=s.root,page=s.page,more=make('div','cw-v4-leftovers'),rest=make('div','cw-v4-native-rest');for(const n of [...root.childNodes])if(n!==page)rest.append(n);// 2.0.281（稿 design-desk-align-v2）：原来只有一个孤零零的 ⋯，改成一行「其他设置 · 说明 · 打开」，点整行打开。
+  function finish(s){const root=s.root,page=s.page,more=make('div','cw-v4-leftovers'),rest=make('div','cw-v4-native-rest');for(const n of [...root.childNodes])if(n!==page&&!(root.id==='AdvancedFormatting'&&n.nodeType===1&&n.id==='tt-assistant'))rest.append(n);// 2.0.281（稿 design-desk-align-v2）：原来只有一个孤零零的 ⋯，改成一行「其他设置 · 说明 · 打开」，点整行打开。
     const extra=button('',()=>openEditor(rest,t('其他设置','Additional settings')),'cw-v4-leftovers-row');extra.append(make('span','cw-lo-t',t('其他设置','Additional settings')),make('span','cw-lo-d',t('酒馆原来面板里还没排进上面分组的设置','Remaining native settings not placed above')),make('span','cw-lo-b',t('打开','Open')));extra.setAttribute('aria-label',t('其他设置','Additional settings'));extra.title=t('其他设置','Additional settings');more.append(extra,rest);page.append(more);s.rest=rest;s.more=more;refreshLeftovers(s);}
   // The fallback button appears only when real controls remain: panel pins,
   // doc links and icon labels of already-mapped toggles do not count.
@@ -91,7 +128,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   // textRow(): two-line preview under the title + an Edit dialog.
   function textRow(s,host,ta,label,desc){
     if(!ta)return null;
-    const {r,info,controls}=rowEl(label,'','cw-v4-tprev-row');host.append(r);
+    const {r,info,controls}=rowEl(label,'','cw-v4-tprev-row');sectionHost(host).append(r);
     const prev=make('div','cw-v4-tprev');info.append(prev);
     const paint=()=>{const v=ta.value.trim();const text=v||L('（空）');if(prev.textContent!==text)prev.textContent=text;prev.classList.toggle('cw-v4-tprev-empty',!v);};
     paint();ta._cwV4Paint=paint;ta.dataset.cwV4Text='1';ta.addEventListener('input',paint);ta.addEventListener('change',paint);
@@ -152,194 +189,15 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     root.querySelectorAll('.world_entry_form_control:has(textarea),.world_entry_form_control:has(select[multiple])').forEach(n=>n.classList.add('cw-v4-field-wide'));
   }
 
-  /* ---------------- 世界书 ---------------- */
-  function worldChips(s){const box=s.chips;if(!box)return;const names=[...(get('world_info')?.selectedOptions||[])].map(o=>o.textContent.trim());const key=names.join('\n')||'-';if(box.dataset.key===key)return;box.dataset.key=key;box.replaceChildren(...(names.length?names.map(n=>make('span','cw-v4-chip',n)):[make('span','cw-v4-muted',L('无'))]));}
-  function worldSummary(s){const n=s.summary;if(!n)return;const d=get('world_info_depth')?.value,b=get('world_info_budget')?.value,r=get('world_info_recursive')?.checked;const text=t(`扫描深度 ${d} · 上下文 ${b}% · 递归${r?'开':'关'}`,`Scan depth ${d} · Context ${b}% · Recursion ${r?'on':'off'}`);if(n.textContent!==text)n.textContent=text;}
+  const presetManagerPage=createPresetManagerPage({win,t,make,button,icon,move,cleanup,created});
+  const refinements=createInterfaceRefinements({win,t,L,make,button,icon,get,begin,finish,section,row,move,cleanup,created,act,menu,tg,sel,num,txt,presetRow,showToggle,openEditor});
+  /* ---------------- 世界书 ----------------
+   * 2.0.341：整页重排见 official-world.js（首页 / 书页 / 条目页 / 激活设置 / 内容放大）。 */
+  const presetEdit=createPresetEdit({win,t,make,button,icon,phoneWide:()=>phoneWide(),onReady:()=>presetList.refresh()});
+  const worldPage=createWorldPage({win,t,L,make,button,icon,get,move,cleanup,state,menu,act,openEditor,showToggle,bindRowMenu,rowMore,phoneWide:()=>phoneWide()});
   function world(panel){const started=begin(panel);if(!started)return;const {s,page}=started;
-    const global=section(page,'全局');
-    const chips=make('div','cw-v4-chips cw-v4-created');s.chips=chips;
-    const picker=get('WIMultiSelector');
-    const enabled=row(s,global,'已启用的世界书','对所有聊天生效',[chips,button(L('选择'),()=>openEditor(picker,L('已启用的世界书')))]);
-    const parkSel=make('div','cw-v4-park');enabled.append(parkSel);move(s,picker,parkSel);worldChips(s);
-    // Activation settings: a one-line summary + a dialog of setting rows.
-    if(get('wiActivationSettings')){
-      const R2=(host,id,label,desc)=>rng(s,host,get(id),get(id+'_counter'),label,desc);
-      const T2=(host,id,label,desc)=>tg(s,host,get(id),label,desc);
-      const summary=make('span','cw-v4-summary');s.summary=summary;
-      dialogRow(s,global,'激活设置',summary,'激活设置',box=>{
-        const a=section(box,'扫描');R2(a,'world_info_depth','扫描深度','往回看多少条消息找关键字');R2(a,'world_info_max_recursion_steps','最大递归步数','0 = 不限');
-        const b=section(box,'预算');R2(b,'world_info_budget','上下文占比 %','世界书最多占用多少上下文');R2(b,'world_info_budget_cap','预算上限（Token）','0 = 不设上限');T2(b,'world_info_overflow_alert','超出预算时提醒');
-        const c=section(box,'最少激活');R2(c,'world_info_min_activations','最少激活条数','不够时继续往前扫描');R2(c,'world_info_min_activations_depth_max','最大扫描深度','0 = 不限');
-        const d=section(box,'匹配');sel(s,d,get('world_info_character_strategy'),'插入策略','全局与角色世界书的先后');T2(d,'world_info_include_names','匹配时包含名字');T2(d,'world_info_recursive','递归扫描','已激活条目的内容也能触发其他条目');T2(d,'world_info_case_sensitive','区分大小写');T2(d,'world_info_match_whole_words','完整单词匹配');T2(d,'world_info_use_group_scoring','组评分');
-      });
-      worldSummary(s);
-    }
-    const edit=section(page,'编辑');
-    row(s,edit,'世界书','选一本来编辑它的条目',[get('world_editor_select'),act(s,get('world_create_button'),'新建',true),menu(s,[['导入',get('world_import_button')],['导出',get('world_popup_export')],['改名',get('world_popup_name_button')],['复制一份',get('world_duplicate')],['删除这本世界书',get('world_popup_delete'),true]])]).classList.add('cw-v4-bookrow');
-    const entries=section(page,'条目');entries.classList.add('cw-v4-entries');const b=bar();entries.append(b);
-    b.append(searchBox(s,get('world_info_search'),'搜索条目'));move(s,get('world_info_sort_order'),b);move(s,act(s,get('world_popup_new'),'新建条目',true),b);
-    b.append(menu(s,[['用关键字填充空标题',get('world_backfill_memos')],['把当前排序写入「顺序」',get('world_apply_current_sorting')],['刷新',get('world_refresh')]]));
-    // Entries open in a dialog, so expand / collapse all are kept but not shown.
-    const hidden=make('div','cw-v4-park');entries.append(hidden);for(const id of ['OpenAllWIEntries','CloseAllWIEntries'])move(s,get(id),hidden);
-    move(s,get('world_info_pagination'),entries);move(s,get('world_popup_entries_list'),entries);
-    phoneWorld(s,page,{global,edit,entries,bar:b,picker});
+    worldPage.build(panel,s,page);
     finish(s);
-  }
-  /* 2.0.262 手机：世界书首页照 Profile（标题和内容分开、不放 ›），条目单独一页照 Chats（每条一张白卡片、右下角「+ 新建条目」）。
-   * 电脑那三个小节手机上收起来；点「条目」时 openEditor 把电脑的「条目」小节整块搬进弹出页，关了搬回。
-   * 排序从 14 种合成 5 项 + 「倒序」开关（Lulu：功能项太多）；「自定义」（要拖动）、UID、触发概率手机上不放；「刷新」不要；
-   * 「填充空标题」「写入顺序」挪到首页「更多操作」。 */
-  function phoneWorld(s,page,{global,edit,entries,bar:b,picker}){
-    const book=get('world_editor_select'),hasBook=()=>!!book?.value&&book.selectedIndex>0;
-    global.classList.add('cw-v4-desk-only');edit.classList.add('cw-v4-desk-only');entries.classList.add('cw-v4-desk-only','cw-v4-wi-entries');
-    const pg=pfSec(page,'全局');
-    pfField(pg,'已启用的世界书',()=>picker&&openEditor(picker,L('已启用的世界书')),()=>{const n=[...(get('world_info')?.selectedOptions||[])].map(o=>o.textContent.trim());return [n.join('、')||L('无'),!n.length];},'wi-global');
-    const activation=global.querySelector('.cw-v4-row:has(.cw-v4-summary)>.cw-v4-row-controls>button');
-    if(activation)pfText(page,'激活设置',()=>s.summary?.textContent,()=>activation.click(),'wi-activation');
-    const pe=pfSec(page,'编辑');
-    pfField(pe,'世界书',()=>book&&openSelMenu?.(book),()=>[hasBook()?book.selectedOptions[0].textContent.trim():L('选一本'),!hasBook()],'wi-book');
-    const count=()=>{const nav=get('world_info_pagination')?.querySelector('.paginationjs-nav')?.textContent||'',m=nav.match(/\.\.\s*(\d+)/);const n=m?+m[1]:(get('world_popup_entries_list')?.querySelectorAll('.world_entry').length||0);return t(`${n} 条`,String(n));};
-    // 「+ 新建条目」开着条目页时挂到弹出页上（弹出页有 transform，放在里面 fixed 会跟着内容走），关了放回来。
-    let fab=null;
-    const ent=pfField(pe,'编辑条目',()=>{if(!hasBook())return;openEditor(entries,t('条目','Entries'),'',{onClose:()=>{if(fab)entries.append(fab);}});const d=entries.closest('dialog');if(d&&fab)d.append(fab);},()=>[count(),false],'wi-entries');ent.classList.add('cw-v4-pf-go');
-    const pa=pfSec(page,'');
-    for(const [l,id] of [['新建世界书','world_create_button'],['导入','world_import_button']]){const x=pfBtn('cw-v4-pf-blue',()=>get(id)?.click());x.textContent=L(l);pa.append(x);}
-    const pb=pfSec(page,'这本世界书','cw-v4-wi-book');
-    for(const [l,id] of [['改名','world_popup_name_button'],['复制一份','world_duplicate'],['导出','world_popup_export']]){const x=pfBtn('cw-v4-pf-blue',()=>get(id)?.click());x.textContent=L(l);pb.append(x);}
-    const more=sheetMenu('cw-v4-pf-moreops',make('span','',L('更多操作')),ui=>{ui.opt(L('用关键字填充空标题'),false,()=>get('world_backfill_memos')?.click());ui.opt(L('把当前排序写入「顺序」'),false,()=>get('world_apply_current_sorting')?.click());});
-    more.querySelector('summary').setAttribute('aria-label',L('更多操作'));pb.append(more);
-    const del=pfDelete(page,'删除这本世界书',()=>get('world_popup_delete')?.click(),'cw-v4-wi-book');
-    paints.push(()=>{const on=hasBook();setFlag(ent,'cw-v4-hide',!on);setFlag(pb,'cw-v4-hide',!on);setFlag(del,'cw-v4-hide',!on);});
-    // 条目页：搜索框右端调节图标（排序 5 项 + 倒序）；右下角「+ 新建条目」。
-    const so=get('world_info_sort_order'),SORTS=[['优先级','0','0'],['顺序','7','8'],['标题','1','2'],['Token 数','3','4'],['深度','5','6']];
-    const setSort=v=>{if(!so||so.value===v)return;so.value=v;so.dispatchEvent(new win.Event('change',{bubbles:true}));};
-    b.append(sheetMenu('cw-v4-phone-filter',sliders(),ui=>{
-      const v=so?.value,cur=SORTS.find(([,a,d])=>v===a||v===d),desc=!!cur&&cur[1]!==cur[2]&&v===cur[2];
-      ui.head('排序');for(const [l,a,d] of SORTS)ui.opt(L(l),!!cur&&cur[1]===a,()=>setSort(desc&&a!==d?d:a));
-      const rev=ui.keep(L('倒序'),()=>{if(cur&&cur[1]!==cur[2])setSort(desc?cur[1]:cur[2]);},desc);if(!cur||cur[1]===cur[2])rev.classList.add('cw-dis');
-    }));
-    fab=button('',()=>get('world_popup_new')?.click(),'cw-v4-wi-fab cw-v4-phone-only');fab.append(icon('plus'),make('span','',L('新建条目')));entries.append(fab);
-  }
-  /* World info entries (design wi.js entryRow / editEntry). The row shows
-   * read-only text painted from the native fields; the native header inputs
-   * stay in the header and move into the dialog only while it is open, so
-   * ST's own handlers and re-renders are untouched. */
-  const POS={'0':'角色定义之前','1':'角色定义之后','5':'示例消息之前','6':'示例消息之后','2':'作者注释之前','3':'作者注释之后','4':'按深度插入','7':'输出口'};
-  const POS_EN={'角色定义之前':'Before character','角色定义之后':'After character','示例消息之前':'Before examples','示例消息之后':'After examples','作者注释之前':"Before Author's Note",'作者注释之后':"After Author's Note",'按深度插入':'At depth','输出口':'Outlet'};
-  const STATE={constant:['常驻','Constant','blue'],normal:['关键字触发','Keyword','green'],vectorized:['向量匹配','Vectorized','link']};
-  const posLabel=v=>t(POS[v]||'',POS_EN[POS[v]]||'');
-  function paintEntry(entry){
-    const row=entry._cwV4Row;if(!row)return;
-    const q=n=>entry.querySelector(`[name="${n}"]`);
-    const set=(n,v)=>{if(n.textContent!==v)n.textContent=v;};
-    set(row.title,q('comment')?.value.trim()||L('（无标题）'));
-    const st=STATE[q('entryStateSelector')?.value]||STATE.normal;
-    const keyField=entry.querySelector('textarea[name="key"]');
-    const keys=(keyField?keyField.value:(entry._cwV4Keys||'')).trim();
-    set(row.state,t(st[0],st[1])+(keys&&st[2]!=='blue'?` · ${keys}`:''));
-    if(row.dot.dataset.kind!==st[2])row.dot.dataset.kind=st[2];
-    const pos=q('position')?.value;
-    set(row.pos,posLabel(pos)+(pos==='4'?` · ${t('深度','Depth')} ${q('depth')?.value}`:''));
-    set(row.ord,L(`顺序 ${q('order')?.value??''}`));
-    const off=q('entryKillSwitch')?.classList.contains('fa-toggle-off');row.line.classList.toggle('cw-v4-off',!!off);
-  }
-  // Keywords live in ST's lazily built editor; until an entry is opened, read
-  // them from ST's own cache of the book (read-only).
-  let wiModule=null,wiLoading=false;
-  function cachedKeys(panel){
-    const need=[...panel.querySelectorAll('.world_entry')].filter(e=>e._cwV4Keys==null&&!e.querySelector('textarea[name="key"]'));
-    if(!need.length)return;
-    if(!wiModule){if(!wiLoading){wiLoading=true;import(new URL('/scripts/world-info.js',win.location.href).href).then(m=>{wiModule=m;need.forEach(paintEntry);cachedKeys(panel);need.forEach(paintEntry);}).catch(()=>{});}return;}
-    const book=get('world_editor_select')?.selectedOptions?.[0]?.textContent.trim();
-    const data=book&&wiModule.worldInfoCache?.get(book);if(!data?.entries)return;
-    for(const e of need){const uid=e.getAttribute('uid')??e.dataset.uid;const k=data.entries[uid]?.key;e._cwV4Keys=Array.isArray(k)?k.join(', '):'';paintEntry(e);}
-  }
-  function worldEntries(panel){
-    cachedKeys(panel);
-    panel.querySelectorAll('.world_entry').forEach(entry=>{
-      if(entry._cwV4Row){paintEntry(entry);return;}
-      const header=entry.querySelector('.inline-drawer-header');if(!header)return;
-      const s=state(entry),line=make('div','cw-v4-entry-line'),info=make('div','cw-v4-entry-info'),title=make('div','cw-v4-entry-title'),meta=make('div','cw-v4-entry-meta'),dot=make('span','cw-v4-dot'),stateText=make('span',''),pos=make('div','cw-v4-entry-pos'),ord=make('div','cw-v4-entry-ord');
-      meta.append(dot,stateText);info.append(title,meta);
-      header.append(line);s.created.push(line);header.classList.add('cw-v4-entry-head');
-      move(s,header.querySelector(':scope>.drag-handle'),line);
-      const kill=entry.querySelector('[name="entryKillSwitch"]');move(s,kill,line);
-      const q=sel_=>header.querySelector(sel_);
-      const more=menu(s,[['复制这条',q('.duplicate_entry_button')],['移到其他世界书',q('.move_entry_button')],['删除',q('.delete_entry_button'),true]]);
-      const edit=button(L('配置'),e=>{e.stopPropagation();editEntry(entry);},'cw-v4-button cw-v4-entry-edit');
-      line.append(info,pos,ord,edit,more);
-      // The header is ST's drawer toggle; the row itself must not expand the inline form.
-      line.addEventListener('click',e=>{if(!e.target.closest('[name="entryKillSwitch"]'))e.stopPropagation();});
-      line.addEventListener('dblclick',e=>{if(!e.target.closest('button,[name="entryKillSwitch"],summary,.drag-handle'))editEntry(entry);});
-      // 2.0.262 手机：点一下整行就进编辑（电脑照旧双击 / 点「配置」）。
-      line.addEventListener('click',e=>{if(phoneWide()&&!e.target.closest('button,[name="entryKillSwitch"],summary,details,.drag-handle'))editEntry(entry);});
-      const repaint=()=>paintEntry(entry);entry.addEventListener('input',repaint);entry.addEventListener('change',repaint);kill?.addEventListener('click',()=>setTimeout(repaint,0));
-      entry._cwV4Row={line,title,state:stateText,dot,pos,ord};entry.classList.add('cw-v4-world-row');
-      s.cleanup=()=>{header.classList.remove('cw-v4-entry-head');entry.classList.remove('cw-v4-world-row');entry.removeEventListener('input',repaint);entry.removeEventListener('change',repaint);delete entry._cwV4Row;};
-      paintEntry(entry);
-    });
-    // Page controls only when there is more than one page (the design shows none).
-    const pager=get('world_info_pagination');if(pager){const single=!pager.querySelector('.paginationjs')||(!!pager.querySelector('.paginationjs-prev.disabled')&&!!pager.querySelector('.paginationjs-next.disabled'));pager.classList.toggle('cw-v4-single-page',single);}
-  }
-  function editEntry(entry){
-    const drawer=entry.querySelector('.inline-drawer');
-    // ST creates the editor lazily on this native event.
-    if(!entry.querySelector('.world_entry_edit'))drawer?.dispatchEvent(new win.CustomEvent('inline-drawer-toggle',{bubbles:true,detail:{open:true}}));
-    const form=entry.querySelector('.world_entry_edit');if(!form){console.warn('[CW] WI editor not created');win.toastr?.warning(t('世界书编辑器未能打开，请刷新后重试。','Could not open the world info editor. Please refresh and retry.'));return;}
-    const Q=n=>entry.querySelector(`[name="${n}"]`);
-    const es={moves:[],created:[],root:form},box=make('div','cw-v4-dialog-box cw-v4-wi-edit');
-    entry.append(box);
-    // Head: title field · state · on/off (a switch mirroring the native kill switch).
-    const head=make('div','cw-v4-wi-edit-head'),kill=Q('entryKillSwitch');
-    const comment=Q('comment');if(comment){comment.classList.add('cw-v4-title-field');move(es,comment,head);}
-    const stateSel=Q('entryStateSelector');const stateText=[];
-    if(stateSel){[...stateSel.options].forEach(o=>{stateText.push([o,o.textContent]);const st=STATE[o.value];if(st){o.textContent=t(st[0],st[1]);o.dataset.cwDot=st[2];}});stateSel.classList.add('cw-v4-state-sel');move(es,stateSel,head);}
-    // 2.0.242（Lulu：像原版那样有蓝灯绿灯）：状态下拉左边一颗灯，跟着当前状态变色；下拉列表里每项前面也有（openSelMenu 读 data-cw-dot）。
-    const stDot=make('span','cw-v4-dot cw-v4-state-dot');const paintDot=()=>{const k=STATE[stateSel?.value]?.[2]||'green';if(stDot.dataset.kind!==k)stDot.dataset.kind=k;};
-    if(stateSel){stateSel.before(stDot);es.created.push(stDot);paintDot();stateSel.addEventListener('input',paintDot);stateSel.addEventListener('change',paintDot);}
-    const sw=make('input','');sw.type='checkbox';sw.checked=!kill?.classList.contains('fa-toggle-off');sw.addEventListener('change',()=>{kill?.click();});head.append(sw);
-    const posSel=Q('position'),posText=[];
-    if(posSel)[...posSel.options].forEach(o=>{posText.push([o,o.textContent]);const k=o.getAttribute('data-i18n')||'';const zh={'Before Char Defs':['角色定义之前','Before character'],'After Char Defs':['角色定义之后','After character'],'Before EM':['示例消息之前','Before examples'],'After EM':['示例消息之后','After examples'],'Before AN':['作者注释之前',"Before Author's Note"],'After AN':['作者注释之后',"After Author's Note"],'at Depth System':['按深度 · 系统','At depth · System'],'at Depth User':['按深度 · 用户','At depth · User'],'at Depth AI':['按深度 · AI','At depth · AI'],'Outlet':['输出口','Outlet']}[k];if(zh)o.textContent=t(...zh);});
-    const num=n=>{const x=Q(n);if(x){x.classList.add('cw-v4-num');es.created.push({remove:()=>x.classList.remove('cw-v4-num')});}return x;};
-    const inline=(...nodes)=>{const d=make('div','cw-v4-inline');es.created.push(d);for(const n of nodes)if(n)typeof n==='string'?d.append(make('span','cw-v4-unit',n)):move(es,n,d);return d;};
-    const keyNodes=n=>[entry.querySelector(`select[name="${n}"]`),entry.querySelector(`textarea[name="${n}"]`)].filter(Boolean);
-    const content=Q('content'),tokens=make('span','cw-v4-unit');
-    const tk=()=>{tokens.textContent=L(`约 ${Math.round((content?.value.length||0)/1.6)} Token`);};tk();content?.addEventListener('input',tk);
-    const charF=inline(Q('characterFilter'));const exLabel=make('label','cw-v4-mini');charF.append(exLabel);if(Q('character_exclusion'))move(es,Q('character_exclusion'),exLabel);exLabel.append(L('排除'));
-    let x=section(box,'触发');
-    row(es,x,'关键字','逗号分隔；常驻条目可以不填',keyNodes('key'),'cw-v4-stack');
-    row(es,x,'逻辑','可选过滤器怎样配合关键字',[Q('entryLogicType')]);
-    row(es,x,'可选过滤器','逗号分隔；为空则忽略',keyNodes('keysecondary'),'cw-v4-stack');
-    x=section(box,'内容');row(es,x,'',tokens,[content],'cw-v4-stack cw-v4-content-row');
-    x=section(box,'插入');row(es,x,'插入位置','',[posSel]);row(es,x,'深度','只在「按深度」时生效',[num('depth')]);row(es,x,'输出口名称','只在「输出口」时生效',[Q('outletName')]);row(es,x,'顺序','数字越大越靠后',[num('order')]);row(es,x,'触发概率','关掉则每次都触发',[inline(Q('useProbability'),num('probability'),'%')]);
-    x=section(box,'匹配');row(es,x,'扫描深度','留空 = 用全局设置',[num('scanDepth')]);row(es,x,'区分大小写','',[Q('caseSensitive')]);row(es,x,'完整单词','',[Q('matchWholeWords')]);row(es,x,'组评分','',[Q('useGroupScoring')]);row(es,x,'自动化 ID','',[Q('automationId')]);
-    x=section(box,'递归');row(es,x,'不能被递归激活','',[Q('excludeRecursion')]);row(es,x,'阻止进一步递归','',[Q('preventRecursion')]);row(es,x,'延迟到递归','可指定递归层级',[inline(Q('delay_until_recursion'),Q('delayUntilRecursionLevel'))]);row(es,x,'无视预算','',[Q('ignoreBudget')]);
-    x=section(box,'分组');row(es,x,'包含组','同组只激活一条',[Q('group')]);row(es,x,'组内优先','',[Q('groupOverride')]);row(es,x,'组权重','',[num('groupWeight')]);
-    x=section(box,'时效');row(es,x,'黏性','激活后保持几条消息',[num('sticky')]);row(es,x,'冷却','激活后隔几条消息才能再触发',[num('cooldown')]);row(es,x,'延迟','聊天满几条消息后才可触发',[num('delay')]);
-    x=section(box,'过滤');row(es,x,'绑定到角色或标签','',[charF]);row(es,x,'生成类型','只在这些生成方式下触发',[Q('triggers')]);
-    x=section(box,'额外匹配来源');for(const [n,l] of [['matchPersonaDescription','用户设定描述'],['matchCharacterDescription','角色描述'],['matchCharacterPersonality','角色性格'],['matchCharacterDepthPrompt','角色备注'],['matchScenario','场景'],['matchCreatorNotes','作者的注释']])row(es,x,l,'',[Q(n)]);
-    // Checkboxes ST keeps hidden until a section is expanded become visible switches here.
-    const shown=[];box.querySelectorAll('input[type=checkbox]').forEach(c=>{if(c.style.display==='none'||c.hidden||c.classList.contains('displayNone')){shown.push([c,c.style.display,c.hidden]);c.style.display='';c.hidden=false;c.classList.add('cw-v4-icon-toggle');}});
-    const del=button(L('删除这条'),()=>{dialog?.close();entry.querySelector('.delete_entry_button')?.click();},'cw-v4-button cw-v4-danger');
-    let dialog=null;
-    openEditor(box,'',undefined,{head,foot:del,onClose:()=>{
-      // TT mounts asynchronously on the first open; find the live companion at close.
-      const editor=content?.nextElementSibling?.matches('.tt-codemirror-editor')?content.nextElementSibling:null;
-      if(editor){
-        if(editor.contains(doc.activeElement))doc.activeElement.blur();
-        // openEditor may already have hidden the focused node. Flush via TT's own handler.
-        editor.dispatchEvent(new win.FocusEvent('focusout',{bubbles:true,relatedTarget:null}));
-      }
-      content?.removeEventListener('input',tk);
-      for(const [c,d,h] of shown){c.style.display=d;c.hidden=h;c.classList.remove('cw-v4-icon-toggle');}
-      for(const [o,v] of [...stateText,...posText])o.textContent=v;
-      if(stateSel){stateSel.removeEventListener('input',paintDot);stateSel.removeEventListener('change',paintDot);for(const o of stateSel.options)delete o.dataset.cwDot;}
-      comment?.classList.remove('cw-v4-title-field');stateSel?.classList.remove('cw-v4-state-sel');
-      for(const [node,mark] of [...es.moves].reverse())if(mark.parentNode)mark.replaceWith(node);
-      if(editor&&content?.parentNode)content.after(editor);
-      es.created.forEach(n=>n.remove());box.remove();paintEntry(entry);
-    }});
-    dialog=box.closest('dialog');dialog?.classList.add('cw-v4-wi-dialog');
   }
 
   /* ---------------- 背景 ---------------- */
@@ -357,53 +215,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   }
 
   /* ---------------- 格式化 ---------------- */
-  function formatting(panel){
-    // TT 2.4 owns this panel's direct children and mode CSS. Keep its mount
-    // in place; undo an earlier CW layout if the assistant arrived later.
-    if(panel.hasAttribute('data-tt-assistant') || panel.querySelector('#tt-assistant')){const previous=states.get(panel);if(previous){restorePanel(previous);states.delete(panel);}return;}
-    const started=begin(panel);if(!started)return;const {s,page}=started;const g=get,root=panel;
-    page.append(created(s,make('p','cw-v4-note',L('使用「对话补全」接口时，这一页的大部分设置不生效，酒馆会把它们变灰。'))));
-    const top=section(page,'');row(s,top,'全部格式化设置','一次导入或导出本页所有模板',[act(s,g('af_master_import'),'导入'),act(s,g('af_master_export'),'导出')]);
-    const context=section(page,'上下文模板');
-    presetRow(s,context,root,'模板','',g('context_presets'),'context');
-    tg(s,context,g('context_derived'),'按模型元数据自动推导','能推导时自动选模板');
-    textRow(s,context,g('context_story_string'),'故事字符串','拼接角色描述、场景、世界书等的模板');
-    sel(s,context,g('context_story_string_position'),'故事字符串位置');
-    textRow(s,context,g('context_example_separator'),'示例分隔符');
-    textRow(s,context,g('context_chat_start'),'聊天开始标记');
-    const cf=section(page,'上下文格式');
-    for(const [id,label] of [['always-force-name2-checkbox','始终把角色名加进提示词'],['single_line','每次只生成一行'],['collapse-newlines-checkbox','折叠连续的换行'],['trim_spaces','修剪空格'],['trim_sentences_checkbox','修剪不完整的句子'],['context_use_stop_strings','分隔符作为终止字符串'],['context_names_as_stop_strings','名字作为终止字符串']])tg(s,cf,g(id),label);
-    const instruct=section(page,'格式指引模板');
-    tg(s,instruct,g('instruct_enabled'),'启用格式指引','文本补全接口才需要');
-    presetRow(s,instruct,root,'模板','',g('instruct_presets'),'instruct');
-    tg(s,instruct,g('instruct_derived'),'按模型元数据自动推导');tg(s,instruct,g('instruct_bind_to_context'),'和上下文模板绑定','选这个模板时自动切换同名的上下文模板');
-    txt(s,instruct,g('instruct_activation_regex'),'激活正则','模型名匹配时自动选中这个模板');
-    for(const [id,label] of [['instruct_wrap','用换行包裹序列'],['instruct_macro','替换序列里的宏'],['instruct_sequences_as_stop_strings','序列作为终止字符串'],['instruct_skip_examples','跳过示例对话格式化']])tg(s,instruct,g(id),label);
-    sel(s,instruct,g('instruct_names_behavior'),'包含名字');
-    dialogRow(s,instruct,'序列','故事字符串、用户、助手、系统消息的前后缀','格式指引序列',box=>{
-      let x=section(box,'故事字符串');textRow(s,x,g('instruct_story_string_prefix'),'前缀');textRow(s,x,g('instruct_story_string_suffix'),'后缀');
-      x=section(box,'用户消息');textRow(s,x,g('instruct_input_sequence'),'前缀');textRow(s,x,g('instruct_input_suffix'),'后缀');textRow(s,x,g('instruct_first_input_sequence'),'第一条的前缀');textRow(s,x,g('instruct_last_input_sequence'),'最后一条的前缀');
-      x=section(box,'助手消息');textRow(s,x,g('instruct_output_sequence'),'前缀');textRow(s,x,g('instruct_output_suffix'),'后缀');textRow(s,x,g('instruct_first_output_sequence'),'第一条的前缀');textRow(s,x,g('instruct_last_output_sequence'),'最后一条的前缀');
-      x=section(box,'系统消息');tg(s,x,g('instruct_system_same_as_user'),'和用户消息相同');textRow(s,x,g('instruct_system_sequence'),'前缀');textRow(s,x,g('instruct_system_suffix'),'后缀');textRow(s,x,g('instruct_last_system_sequence'),'系统指令前缀');
-      x=section(box,'其他');textRow(s,x,g('instruct_stop_sequence'),'终止序列');textRow(s,x,g('instruct_user_alignment_message'),'用户填充消息');
-    });
-    const system=section(page,'系统提示词');
-    tg(s,system,g('sysprompt_enabled'),'启用系统提示词');
-    presetRow(s,system,root,'提示词','',g('sysprompt_select'),'sysprompt');
-    textRow(s,system,g('sysprompt_content'),'提示词内容');textRow(s,system,g('sysprompt_post_history'),'历史后置指令');
-    const stop=section(page,'终止字符串');textRow(s,stop,g('custom_stopping_strings'),'自定义终止字符串','JSON 字符串数组，例如 ["\\nUser:"]');tg(s,stop,g('custom_stopping_strings_macro'),'替换其中的宏');
-    const tok=section(page,'分词器');sel(s,tok,g('tokenizer'),'分词器');num(s,tok,g('token_padding'),'Token 填充','预留给不准确计数的余量');
-    const reasoning=section(page,'推理');
-    tg(s,reasoning,g('reasoning_auto_parse'),'自动解析','把模型输出里的思考部分单独拆出来');tg(s,reasoning,g('reasoning_auto_expand'),'自动展开');tg(s,reasoning,g('reasoning_show_hidden'),'显示隐藏的推理');
-    if(g('reasoning_add_to_prompts')){const inline=make('div','cw-v4-inline cw-v4-created');row(s,reasoning,'加入提示词','把之前的思考内容带进后续提示词，最多几条',[inline]);move(s,showToggle(s,g('reasoning_add_to_prompts')),inline);const n=g('reasoning_max_additions');if(n){n.classList.add('cw-v4-num');cleanup(s,()=>n.classList.remove('cw-v4-num'));move(s,n,inline);}inline.append(make('span','cw-v4-unit',L('条')));}
-    presetRow(s,reasoning,root,'推理格式','',g('reasoning_select'),'reasoning');
-    dialogRow(s,reasoning,'格式内容','前缀、后缀、分隔符','推理格式',box=>{const x=section(box,'');textRow(s,x,g('reasoning_prefix'),'前缀');textRow(s,x,g('reasoning_suffix'),'后缀');textRow(s,x,g('reasoning_separator'),'分隔符');});
-    const misc=section(page,'杂项');
-    tg(s,misc,g('bind_model_templates'),'把模型和模板绑定');txt(s,misc,g('markdown_escape_strings'),'非 Markdown 字符串','逗号分隔，不加空格');
-    textRow(s,misc,g('start_reply_with'),'回复开头','每次回复都从这段文字开始');tg(s,misc,g('chat-show-reply-prefix-checkbox'),'在聊天里显示回复开头');
-    const hide=make('div','cw-v4-park');page.append(created(s,hide));move(s,g('advanced-formatting-cc-notice'),hide);
-    finish(s);
-  }
+  function formatting(panel){refinements.formatting(panel);}
 
   /* ---------------- 预设 ---------------- */
   function presets(panel){const started=begin(panel);if(!started)return;const {s,page}=started;
@@ -414,8 +226,10 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     const presetRoot=get('openai_api-presets');
     if(presetRoot){const ps=begin(presetRoot);if(ps){const group=section(ps.page,'对话补全预设');
       const select=get('settings_preset_openai');if(select){select.classList.add('cw-v4-preset-sel');cleanup(ps.s,()=>select.classList.remove('cw-v4-preset-sel'));}
-      row(ps.s,group,'预设','',[select,act(ps.s,get('update_oai_preset'),'保存'),menu(ps.s,[['另存为新的',get('new_oai_preset')],['改名',presetRoot.querySelector('[data-preset-manager-rename="openai"]')],['导入',get('import_oai_preset')],['导出',get('export_oai_preset')],['预设增强菜单',get('open_s_preset_menu')],['删除',get('delete_oai_preset'),true]])]).querySelector('.cw-v4-more')?.classList.add('cw-v4-preset-menu');
-      tg(ps.s,group,get('bind_preset_to_connection'),'绑定到 API 连接','切换连接配置时自动切换预设');
+      {const pm=menu(ps.s,[['重命名',presetRoot.querySelector('[data-preset-manager-rename="openai"]'),false,null,'pencil'],['另存为新预设',get('new_oai_preset'),false,null,'copy'],'-',['导入预设',get('import_oai_preset'),false,null,'imp'],['导出当前预设',get('export_oai_preset'),false,null,'exp'],['预设增强菜单',get('open_s_preset_menu'),false,null,'sliders'],'-',['删除当前预设',get('delete_oai_preset'),true,null,'trash']]);
+        // v2 .pop：图标 + 文字，分组细线（重命名 / 另存为 | 导入 / 导出 | 删除）。原生没有「恢复默认值」，不做。
+        pm.classList.add('cw-v4-preset-menu');
+        presetManagerPage.header(ps.s,group,select,[act(ps.s,get('update_oai_preset'),'保存'),pm]);}
       finish(ps.s);
     }}
     const ranges=get('range_block_openai');
@@ -425,7 +239,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
         setting(st,length,'oai_max_context_unlocked','解锁上下文上限','移除上下文滑块的最大值限制');
         setting(st,length,'openai_max_context','上下文长度','Token','openai_max_context_counter');
         setting(st,length,'openai_max_tokens','最大回复长度','Token',null,'num');
-        setting(st,length,'n_openai','每次生成几个备选回复','',null,'num');
+        setting(st,length,'n_openai','每次生成几个备选回复','一次生成多条，左右滑动挑选',null,'num');
         setting(st,length,'stream_toggle','流式传输','回复边生成边显示');
         const sampling=section(target,'采样');
         for(const [id,n,label,desc] of [['temp_openai','temp_counter_openai','温度','越高越随机'],['freq_pen_openai','freq_pen_counter_openai','频率惩罚'],['pres_pen_openai','pres_pen_counter_openai','存在惩罚'],['top_p_openai','top_p_counter_openai','Top P']])setting(st,sampling,id,label,desc||'',n);
@@ -439,7 +253,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     if(advanced&&manager){const as=begin(advanced);if(as){const st=as.s,target=as.page;
       const prompts=section(target,'提示词');prompts.classList.add('cw-v4-prompts','cw-v4-entries');move(st,manager,prompts);
       const quick=ranges?.querySelector('.cw-v4-quick');if(quick)move(st,quick,target);
-      const adv=section(target,'高级');
+      const adv=section(target,'其他');
       dialogRow(st,adv,'功能提示词','扮演、世界书格式、新聊天、续写等 10 条','功能提示词',box=>{const x=section(box,'');for(const [id,label,desc] of [['impersonation_prompt_textarea','扮演提示词','让 AI 代你写一条消息时用'],['wi_format_textarea','世界书格式','用 {0} 标出内容插入的位置'],['scenario_format_textarea','场景格式'],['personality_format_textarea','性格格式'],['group_nudge_prompt_textarea','群聊提示'],['newchat_prompt_textarea','新聊天'],['newgroupchat_prompt_textarea','新群聊'],['newexamplechat_prompt_textarea','新示例对话'],['continue_nudge_prompt_textarea','续写提示'],['send_if_empty_textarea','空消息时发送','输入框为空时代替发送的文字']])textRow(st,x,get(id),label,desc);});
       segRow(st,adv,['character_names_none','character_names_default','character_names_completion','character_names_content'].map(get),'角色名称','怎样在消息前加上说话人的名字',['不加','默认','补全对象','消息内容']);
       segRow(st,adv,['continue_postfix_none','continue_postfix_space','continue_postfix_newline','continue_postfix_double_newline'].map(get),'续写后缀','续写时在原文后接什么',['无','空格','换行','双换行']);
@@ -457,78 +271,70 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
           finish(bs.s);
         }
       }}
+      target.append(reasoning,tools,adv);const seed=get('seed_openai')?.closest('.cw-v4-row');if(seed)move(st,seed,adv);if(biasSelect){const block=biasSelect.closest('.range-block');if(block){block.classList.add('cwr-inline-bias');cleanup(st,()=>block.classList.remove('cwr-inline-bias'));move(st,block,adv);}}bias.hidden=true;
       finish(st);
     }}
     finish(s);
   }
-  // Counts can change inside a retained Vue row. Observe only each count span.
-  const promptTokenWatches=new Map();
-  function paintPromptTokens(item,tok){
-    const count=Number(tok.textContent.trim().replace(/,/g,''));
-    const hidden=!Number.isFinite(count)||count<=0;
-    if(item.hasAttribute('data-cw-pm-no-tokens')!==hidden)item.toggleAttribute('data-cw-pm-no-tokens',hidden);
-  }
-  function stopPromptTokens(item){
-    const watch=promptTokenWatches.get(item);if(!watch)return;
-    watch.observer.disconnect();promptTokenWatches.delete(item);
-    item.removeAttribute('data-cw-pm-no-tokens');
-  }
-  function prunePromptTokens(){
-    for(const [item,watch] of promptTokenWatches)if(!item.isConnected||!watch.panel.contains(item)||item.querySelector('.prompt_manager_prompt_tokens')!==watch.tok)stopPromptTokens(item);
-  }
-  function watchPromptTokens(panel,item){
-    const tok=item.querySelector('.prompt_manager_prompt_tokens');
-    const old=promptTokenWatches.get(item);
-    if(old&&old.tok!==tok)stopPromptTokens(item);
-    if(!tok){item.removeAttribute('data-cw-pm-no-tokens');return;}
-    // Native ST renders zero as '-', so zero does not reserve a token column.
-    paintPromptTokens(item,tok);
-    if(!promptTokenWatches.has(item)){
-      const observer=new win.MutationObserver(()=>paintPromptTokens(item,tok));
-      observer.observe(tok,{characterData:true,childList:true,subtree:true});
-      promptTokenWatches.set(item,{tok,panel,observer});
-    }
-  }
   // Prompt manager rows are re-rendered by ST; restyle each native row in place.
   function promptRows(panel){
-    prunePromptTokens();
     const footer=panel.querySelector('.completion_prompt_manager_footer');
+    const list=panel.querySelector('#completion_prompt_manager_list');if(footer&&list&&!list.closest('.bai-bai-preset-vue-list-host')&&footer.nextElementSibling===list)move(state(footer),footer,list.parentElement,list.nextSibling);
     if(footer&&!footer.querySelector('.cw-v4-more')){const s=state(footer);
       act(s,footer.querySelector('.fa-plus-square,.fa-square-plus'),'新建提示词',true);act(s,footer.querySelector('.fa-chain,.fa-link'),'插入');
       const del=footer.querySelector('.fa-x');
       const more=menu(s,[['导入提示词列表',get('prompt-manager-import')],['导出提示词列表',get('prompt-manager-export')],['重置当前角色的列表',get('prompt-manager-reset-character')],['删除选中的提示词',del?.closest('.menu_button')||del,true]]);
       footer.append(more);s.created.push(more);footer.classList.add('cw-v4-pm-footer');s.cleanup=()=>footer.classList.remove('cw-v4-pm-footer','cw-v4-pm-no-insert');
     }
+    const insert=footer?.querySelector('.fa-chain,.fa-link');
+    if(insert&&!insert.cwOpenPicker){
+      const s=state(footer);
+      const open=()=>{
+        const select=footer.querySelector('select');
+        if(!select?.options.length)return;
+        const box=make('div','cwr-insert-picker'),picker=select.cloneNode(true);
+        picker.removeAttribute('id');
+        picker.value=select.value;
+        picker.setAttribute('aria-label',L('插入提示词'));
+        box.append(picker,button(L('插入'),()=>{
+          const current=panel.querySelector('.completion_prompt_manager_footer');
+          const native=current?.querySelector('select');
+          const action=current?.querySelector('.fa-chain,.fa-link');
+          if(!native||!action||![...native.options].some(o=>o.value===picker.value))return;
+          native.value=picker.value;
+          box.closest('dialog')?.close();
+          action.click();
+        },'cw-v4-button'));
+        panel.append(box);
+        openEditor(box,L('插入提示词'),'',{onClose:()=>box.remove()});
+      };
+      insert.cwOpenPicker=open;
+      const click=e=>{if(e.isTrusted){e.preventDefault();e.stopImmediatePropagation();open();}};
+      insert.addEventListener('click',click,true);
+      cleanup(s,()=>{insert.removeEventListener('click',click,true);delete insert.cwOpenPicker;});
+    }
+    const footerMore=footer?.querySelector('.cw-v4-more'),topMore=panel.querySelector('.cw-pm-more>.cw-v4-more-list');
+    if(footerMore)footerMore.hidden=true;
     // SPreset (third-party) injects a banner into the prompts area later; offer it from the preset menu instead.
     const spreset=panel.querySelector('.spreset-btn'),pmenu=panel.querySelector('.cw-v4-preset-menu>.cw-v4-more-list');
     if(spreset&&pmenu&&!pmenu.querySelector('.cw-v4-spreset')){const b=button(spreset.textContent.replace(/[→\s]+$/,'').trim()||'SPreset Editor',e=>{e.stopPropagation();pmenu.parentElement.open=false;spreset.click();},'cw-v4-more-item cw-v4-spreset');pmenu.insertBefore(b,pmenu.lastElementChild);}
     // Insert only lists prompts that are not in the list yet; hide it when empty.
     if(footer){const pick=footer.querySelector('select');footer.classList.toggle('cw-v4-pm-no-insert',!pick?.options.length);}
     panel.querySelectorAll('#completion_prompt_manager_list .completion_prompt_manager_prompt').forEach(item=>{
-      const adaptEdit=s=>{
-        const edit=item.querySelector('.prompt-manager-edit-action,[data-preset-prompt-action="edit"]');
-        if(!edit)return;
-        if(edit.parentElement!==item)move(s,edit,item);
-        if(!edit.querySelector('.cw-v4-action-label')){const label=make('span','cw-v4-action-label',L('编辑'));edit.append(label);s.created.push(label);}
-        if(edit.getAttribute('role')!=='button')edit.setAttribute('role','button');
-      };
-      watchPromptTokens(panel,item);
-      // Vue may replace the row's class attribute while retaining its DOM node.
-      // Keep CW ownership outside the renderer-owned class so controls and menus
-      // are not adapted twice after a native toggle update.
-      if(item.hasAttribute('data-cw-v4-prompt-row')){adaptEdit(state(item));return;}item.setAttribute('data-cw-v4-prompt-row','');item.classList.add('cw-v4-prompt-row');const s=state(item);s.cleanup=()=>{item.classList.remove('cw-v4-prompt-row');item.removeAttribute('data-cw-v4-prompt-row');};
-      const toggle=item.querySelector('.prompt-manager-toggle-action'),name=item.querySelector('.completion_prompt_manager_prompt_name');
+      // Vue owns these controls and their ancestry; adapt presentation in place.
+      if(item.closest('.bai-bai-preset-vue-list-host'))return;
+      if(item.classList.contains('cw-v4-prompt-row'))return;item.classList.add('cw-v4-prompt-row');const s=state(item);s.cleanup=()=>item.classList.remove('cw-v4-prompt-row');
+      const toggle=item.querySelector('.prompt-manager-toggle-action'),edit=item.querySelector('.prompt-manager-edit-action'),name=item.querySelector('.completion_prompt_manager_prompt_name');
+      for(const [node,attrs] of [[toggle,['role','aria-label','aria-checked','tabindex']],[edit,['role']]])if(node){const original=attrs.map(a=>[a,node.getAttribute(a)]);cleanup(s,()=>original.forEach(([a,v])=>v===null?node.removeAttribute(a):node.setAttribute(a,v)));}
       // Grid cells: switch · name · tokens · Edit · ⋯ (the native icons live in a nested span).
-      if(toggle){move(s,toggle,item,item.firstChild);toggle.setAttribute('role','switch');toggle.setAttribute('aria-label',t('切换提示词启用状态','Toggle prompt'));}
+      if(toggle){move(s,toggle,item,item.firstChild);toggle.setAttribute('role','switch');toggle.setAttribute('tabindex','0');toggle.setAttribute('aria-label',t('切换提示词启用状态','Toggle prompt'));}
       // Tokens are shown only once counted (the design leaves the column out otherwise).
-      // Visibility is kept in a CW data attribute by watchPromptTokens().
+      const tok=item.querySelector('.prompt_manager_prompt_tokens');if(tok&&!/\d/.test(tok.textContent))item.classList.add('cw-v4-pm-no-tokens');
       const marker=item.querySelector('.fa-thumb-tack,.fa-thumbtack');
-      if(name){const meta=make('span','cw-v4-pm-meta',L(marker?'占位（由酒馆按位置填入内容）':'自定义提示词'));name.append(meta);s.created.push(meta);}
-      adaptEdit(s);
-      const inspect=item.querySelector('.prompt-manager-inspect-action');
-      const more=menu(s,[inspect?['查看实际内容',null,false,()=>inspect.click()]:null,['从列表移除',item.querySelector('.prompt-manager-detach-action'),true]]);
-      if(inspect){const b=more.querySelector('.cw-v4-more-item');more.addEventListener('toggle',()=>{if(more.open)markInspect(item,b);});}
-      item.append(more);s.created.push(more);
+      if(name&&marker){const meta=make('span','cw-v4-pm-meta',L('占位'));name.append(meta);s.created.push(meta);}
+      if(edit){move(s,edit,item);const label=make('span','cw-v4-action-label',L('编辑'));edit.append(label);s.created.push(label);edit.setAttribute('role','button');}
+      // v2：行尾是小开关 + ›，单击整行打开编辑；查看实际内容 / 从列表删除挪进编辑页的 ⋯。
+      const chev=make('span','cw-pm-chev');chev.setAttribute('aria-hidden','true');chev.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';item.append(chev);s.created.push(chev);
     });
   }
   // ST's handleInspect only opens when the prompt was part of the last dry run (promptManager.messages);
@@ -547,31 +353,8 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
 
   /* ---------------- 用户角色 ---------------- */
   function personaName(s){if(!s.who)return;const text=get('your_name')?.textContent.trim()||'';if(s.who.textContent!==text)s.who.textContent=text;}
-  function personas(panel){const started=begin(panel);if(!started)return;const {s,page}=started;
-    const stats=panel.querySelector('.fa-ranking-star')?.closest('.menu_button');
-    const top=section(page,'');row(s,top,'','你在聊天里扮演的身份',[act(s,get('create_dummy_persona'),'新建',true),menu(s,[['使用统计',stats],['备份到文件',get('personas_backup')],['从文件恢复',get('personas_restore')],['网格视图',get('persona_grid_toggle')]])]);
-    const all=section(page,'全部');all.classList.add('cw-v4-entries');const b=bar();all.append(b);
-    b.append(searchBox(s,get('persona_search_bar'),'搜索用户角色'));move(s,get('persona_sort_order'),b);
-    b.append(sortButton(get('persona_sort_order')));
-    move(s,get('persona_pagination_container'),all);move(s,get('user_avatar_block'),all);
-    const current=section(page,'当前用户角色');
-    const who=make('span','cw-v4-persona-name');s.who=who;
-    const nameRow=row(s,current,'名字',who,[act(s,get('persona_rename_button'),'改名'),menu(s,[['把所有消息的名字改成这个',get('sync_name_button')],['用户角色世界书',get('persona_lore_button')],['更换头像',get('persona_set_image_button')],['复制一份',get('persona_duplicate_button')],['删除',get('persona_delete_button'),true]])]);
-    const park=make('div','cw-v4-park');nameRow.append(park);move(s,get('your_name'),park);personaName(s);
-    textRow(s,current,get('persona_description'),'描述','会作为 {{persona}} 放进提示词');
-    sel(s,current,get('persona_description_position'),'插入位置');
-    // Three independent lock buttons: each a switch row that clicks the native button.
-    for(const [id,label,desc] of [['lock_persona_default','新聊天默认用这个','开新聊天时自动选中这个用户角色'],['lock_persona_to_char','绑定到当前角色','和这个角色聊天时自动切换过来'],['lock_user_name','绑定到当前聊天','只在这段聊天里固定使用']])row(s,current,label,desc,[get(id)]).classList.add('cw-v4-lock-row');
-    const global=section(page,'全局设置');
-    for(const [id,label] of [['persona_show_notifications','切换时显示通知'],['persona_allow_multi_connections','允许一个角色绑定多个用户角色'],['persona_auto_lock','自动把选中的用户角色绑定到聊天']])tg(s,global,get(id),label);
-    finish(s);
-  }
-  function personaRows(panel){panel.querySelectorAll('#user_avatar_block .avatar-container').forEach(item=>{
-    if(item.querySelector('.cw-v4-persona-use'))return;const s=state(item),use=button('',e=>{e.stopPropagation();if(!item.classList.contains('selected'))item.click();},'cw-v4-button cw-v4-persona-use');
-    use.append(make('span','cw-v4-persona-current',L('使用中')),make('span','cw-v4-persona-switch',L('切换')));item.append(use);s.created.push(use);
-    const badge=make('span','cw-v4-badge',L('当前'));const name=item.querySelector('.ch_name');if(name){name.append(badge);s.created.push(badge);}
-    const desc=item.querySelector('.ch_description');if(desc&&/^\[?no description\]?$/i.test(desc.textContent.trim())){desc.classList.add('cw-v4-no-desc');desc.dataset.cwEmpty=L('还没有描述');s.cleanup=()=>desc.classList.remove('cw-v4-no-desc');}
-  });}
+  function personas(panel){refinements.personas(panel);}
+  function personaRows(panel){refinements.sync(panel,state(panel));}
 
   /* ---------------- 2.0.260 手机：照 Claude App 的 Profile（Lulu：Claude 是标题和内容分开，酒馆是挤在一起） ----------------
    * 手机专用的小节（.cw-v4-phone-only，电脑藏；稿 design-phone-batch1-v3.html，数值 手机参考标准-v1.html）：
@@ -625,27 +408,9 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     return m;
   }
   const sliders=()=>icon('sliders');
-  // 下拉的每个选项一行，当前项打勾；点了改下拉的值并派发 change（酒馆自己的处理照跑）。
-  function selectOpts(ui,select){if(!select)return;for(const o of [...select.options]){if(o.hidden||o.style.display==='none')continue;ui.opt((o.textContent||'').trim(),o.selected,()=>{if(select.value===o.value)return;select.value=o.value;select.dispatchEvent(new win.Event('input',{bubbles:true}));select.dispatchEvent(new win.Event('change',{bubbles:true}));});}}
-  // 酒馆的三态筛选标签（选中 / 排除 / 不限）：开关只在「选中」和「不限」之间切，点原来的标签直到到达目标状态。
-  const tagState=el=>el?.getAttribute('data-toggle-state')||'UNDEFINED';
-  function setTag(el,on){if(!el)return;for(let i=0;i<3&&(tagState(el)==='SELECTED')!==on;i++)el.click();if(!on)for(let i=0;i<3&&tagState(el)!=='UNDEFINED';i++)el.click();}
-  function filterSheet(ui,controls){
-    if(!controls)return;
-    const sw=[['filterByFavorites','只看收藏'],['filterByGroups','只看群聊'],['filterByFolder','只看文件夹']].map(([c,l])=>[controls.querySelector('.'+c),l]).filter(([el])=>el);
-    if(sw.length){ui.head('筛选');for(const [el,l] of sw)ui.keep(L(l),()=>setTag(el,tagState(el)!=='SELECTED'),tagState(el)==='SELECTED');}
-    const userTags=[...controls.querySelectorAll('.tag:not(.actionable)')].filter(el=>el.querySelector('.tag_name')?.textContent.trim());
-    if(userTags.length){ui.head('按标签');ui.chips(userTags.map(el=>[el.querySelector('.tag_name').textContent.trim(),tagState(el)==='SELECTED',()=>setTag(el,tagState(el)!=='SELECTED')]));}
-  }
-  // 2.0.299：filterByFolder 是酒馆的「Show only folders」（只看文件夹），开着时角色只剩文件夹、其余算「已被隐藏」。
-  // 以前误标成「标签当文件夹显示」还当成默认开着、不算筛选——Lulu 手机上角色全被藏了。现在名字改对，也算进筛选（调节图标会亮）。
-  const filtered=controls=>!!controls?.querySelector(':is(.filterByFavorites,.filterByGroups,.filterByFolder,.tag:not(.actionable)):is([data-toggle-state="SELECTED"],[data-toggle-state="EXCLUDED"])');
   // 排序：一行「排序方式 · 当前值 ⌃⌄」，点了关掉这个弹出、开那个下拉自己的底部列表（openSelMenu，和别的下拉一样）。
   function sortPick(ui,select,menuEl){if(!select)return;const b=ui.opt(L('排序方式'),false,()=>{});b.classList.add('cw-v4-sheet-pick');const v=make('span','cw-v4-sheet-value',(select.selectedOptions[0]?.textContent||'').trim());b.append(v);
     b.addEventListener('click',e=>{e.stopPropagation();menuEl.open=false;win.setTimeout(()=>openSelMenu?.(select),30);},true);}
-  // 只有排序的列表页（用户角色）：调节图标直接开排序的底部列表。
-  function sortButton(select){const b=button('',e=>{e.stopPropagation();if(select)openSelMenu?.(select);},'cw-v4-phone-filter cw-v4-phone-only');b.append(sliders());b.setAttribute('aria-label',L('排序'));return b;}
-
   // 页头：头像在左，名字（点了改名）和 Token 一行灰字在中间，收藏 / 开始聊天在右。
   // 新建角色时酒馆显示 #name_div（输入框），名字按钮让位（CSS）。
   function charHero(s,host){
@@ -827,36 +592,407 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     }});
   }
 
+  function characterDetailV2e(parentState, body, form, hero) {
+    let detail=null;
+    const createLabel=get('create_button_label');
+    if(!createLabel)return;
+
+    function restoreDetail(){
+      if(!detail)return;
+      const {s,host,heroActions,resetTitle}=detail;
+      detail=null;
+      s.cleanups?.forEach(stop=>stop());
+      for(const [node,anchor] of [...s.moves].reverse())if(anchor.parentNode)anchor.replaceWith(node);
+      resetTitle();
+      heroActions?.remove();
+      host.remove();
+      body.classList.remove('cw2-char-detail','cw2-char-advanced');
+    }
+
+    function mountDetail(){
+      const s={moves:[],created:[],root:form},host=make('div','cw2 cw2-char-edit cwr-page');
+      body.classList.add('cw2-char-detail');
+      hero.classList.add('cw2-char-hero');
+      const heroActions=make('div','cw2-char-detail-actions');
+      const back=button('',()=>get('rm_button_characters')?.click(),'cw-v4-button cw2-char-back');
+      back.append(icon('chevl'),make('span','',L('全部角色')));
+      hero.after(host);
+      hero.prepend(back);
+      const phoneHeader=make('div','cw2-char-phone-head'),phoneName=make('h1','');
+      const phoneBack=button('',()=>get('rm_button_characters')?.click(),'cwr-head-action');
+      phoneBack.append(icon('chevl'),make('span','',L('全部角色')));
+      phoneHeader.append(phoneBack,phoneName);
+      get('cw-v4-settings')?.querySelector('.cw-v4-head')?.append(phoneHeader);
+      const tabs=make('div','cwr-tabs cw2-char-tabs'),basic=make('div','cw2-char-pane cw2-char-basic'),advanced=make('div','cw2-char-pane cw2-char-adv');
+      const tab=(key,label)=>button(L(label),()=>switchTab(key),'cwr-tab');
+      const basicTab=tab('basic','基本'),advancedTab=tab('advanced','高级定义');
+      tabs.setAttribute('role','tablist');
+      for(const button of [basicTab,advancedTab])button.setAttribute('role','tab');
+      basic.setAttribute('role','tabpanel');advanced.setAttribute('role','tabpanel');
+      tabs.append(basicTab,advancedTab);host.append(tabs,basic,advanced);
+      function switchTab(key){
+        const advancedOpen=key==='advanced';
+        basic.hidden=advancedOpen;advanced.hidden=!advancedOpen;
+        body.classList.toggle('cw2-char-advanced',advancedOpen);
+        basicTab.setAttribute('aria-selected',String(!advancedOpen));
+        advancedTab.setAttribute('aria-selected',String(advancedOpen));
+      }
+      switchTab('basic');
+      const cols=parent=>{
+        const grid=make('div','cw2-cols cw2-w64 cw2-stretch'),left=make('div','cw2-col'),right=make('div','cw2-col');
+        grid.append(left,right);parent.append(grid);
+        return [left,right];
+      };
+      const fieldPaints=[];
+      const field=(parent,id,label,{hint='',mono=false,expand=false,preview=false}={})=>{
+        const native=get(id);
+        if(!native)return null;
+        const box=make('div','cw2-char-field'),line=make('div','cw2-char-field-head');
+        const lab=make('label','',L(label));lab.htmlFor=id;line.append(lab);
+        let count=null;
+        if(native.tagName==='TEXTAREA'){
+          count=make('span','cw2-char-token');
+          line.append(count);
+          let value=native.value;
+          const watcher=watchTokens(win,native,n=>setText(count,tokenText(t,n)));
+          const refresh=()=>{
+            if(value!==native.value){value=native.value;watcher.refresh();}
+          };
+          fieldPaints.push(refresh);
+          native.addEventListener('input',refresh);
+          cleanup(s,()=>{watcher.stop();native.removeEventListener('input',refresh);});
+        }
+        if(expand){
+          const big=button('',()=>openEditor(native,L(label)),'cw2-char-link');
+          big.append(icon('expand'),make('span','',L('放大')));line.append(big);
+        }
+        box.append(line);move(s,native,box);
+        if(hint)box.append(make('p','cw2-hint',L(hint)));
+        if(mono)box.classList.add('cw2-char-mono');
+        sectionHost(parent).append(box);
+        if(preview){
+          const previewText=make('span','cw2-char-preview-text');
+          const labelBox=make('span','cw2-char-preview-label',L(label));
+          const previewCount=make('span','cw2-char-token');
+          labelBox.append(previewCount,previewText);
+          const open=button('',()=>openEditor(native,L(label)),'cw2-char-preview');
+          open.append(labelBox,icon('chev'));
+          box.before(open);
+          const update=()=>setText(previewText,native.value.split(/\r?\n/,1)[0]||L('（空）'));
+          native.addEventListener('input',update);
+          fieldPaints.push(update);
+          cleanup(s,()=>native.removeEventListener('input',update));
+          const observe=new win.MutationObserver(()=>setText(previewCount,count.textContent));
+          observe.observe(count,{childList:true});setText(previewCount,count.textContent);
+          cleanup(s,()=>observe.disconnect());
+        }
+        return box;
+      };
+      const nativeAction=(label,fn)=>button(L(label),fn,'cw-v4-button');
+      const linked=(parent,label,desc,value,fn)=>{
+        const b=button('',fn,'cw2-char-link-row');
+        const name=make('span','cw2-char-link-value');
+        b.append(name,icon('chev'));b.setAttribute('aria-label',L(label));
+        const r=row(s,parent,label,desc,[b],'cw2-char-row');
+        const paint=()=>setText(name,value());
+        paint();return {r,paint};
+      };
+      const phoneHero=make('div','cw2-char-phone-hero');
+      const portrait=make('img','');portrait.alt='';
+      const phoneStats=button('',()=>get('result_info')?.querySelector('.rm_stats_button')?.click(),'cw2-char-phone-stats');
+      const avatarCard=make('div','cw-v4-card cw2-char-portrait');
+      avatarCard.append(portrait,button(L('更换头像'),()=>get('add_avatar_button')?.click(),'cw2-char-avatar-change'),phoneStats);
+      const phoneActions=make('div','cw2-char-phone-actions');
+      const startChat=button(L('开始聊天'),()=>closeSettings?.(),'cw-v4-button cw2-char-chat');
+      startChat.prepend(icon('chat'));
+      const star=button('',()=>get('favorite_button')?.click(),'cw-v4-button cw2-char-favorite');
+      star.setAttribute('aria-label',L('收藏'));
+      star.append(popIcon('star'));
+      phoneActions.append(startChat,star);phoneHero.append(avatarCard,phoneActions);
+      basic.append(phoneHero);
+      const [left,right]=cols(basic);
+      const description=section(left,'');
+      description.classList.add('cw2-char-grow','cw2-char-summary');
+      field(description,'description_textarea','描述',{hint:'外貌、性格、背景……',expand:true,preview:true});
+      const greeting=section(left,'');
+      greeting.classList.add('cw2-char-greeting','cw2-char-summary');
+      field(greeting,'firstmessage_textarea','开场白',{expand:true,preview:true});
+      for(const [section,label] of [[description,'描述'],[greeting,'开场白']]){
+        section.prepend(make('h2','cw2-char-summary-heading',L(label)));
+      }
+      const alt=linked(greeting,'备选开场白','',()=>t(`${charData()?.alternate_greetings?.length||0} 条 · 管理`,`${charData()?.alternate_greetings?.length||0} · Manage`),()=>form.querySelector('.open_alternate_greetings')?.click());
+
+      alt.r.classList.add('cw2-char-alternate');
+      const info=section(right,'基本信息');
+      info.classList.add('cw2-char-info');
+      const avatar=make('img','cw2-char-mini-avatar');avatar.alt='';
+      row(s,info,'头像','角色卡的 PNG 图片',[avatar,nativeAction('更换头像',()=>get('add_avatar_button')?.click())],'cw2-char-desktop-avatar');
+      const name=make('span','cw2-char-name');
+      row(s,info,'名字','',[name,nativeAction('改名',()=>pickOption('renameCharButton'))]);
+      row(s,info,'标签','',[get('tags_div')],'cw2-char-tags');
+      const world=section(right,'世界书');
+      world.classList.add('cw2-char-world');
+      const charWorld=linked(world,'角色世界书','只在和这个角色聊天时用',()=>get('character_world')?.value||L('未绑定'),()=>pickOption('set_character_world'));
+      const chatWorld=linked(world,'聊天世界书','只对当前这段聊天生效',()=>chatLore()[0],()=>linkChatLore(form.querySelector('.chat_lorebook_button')));
+      const embedded=row(s,world,'导入角色卡里的世界书','',[nativeAction('导入',()=>pickOption('import_character_info'))]);
+      const display=section(right,'绑定与显示');
+      display.classList.add('cw2-char-display');
+      const personaLinks=linked(display,'已绑定的用户角色','',()=>{
+        const c=win.SillyTavern?.getContext?.(),avatar=c?.characters?.[c.characterId]?.avatar;
+        const count=Object.values(c?.powerUserSettings?.persona_descriptions||{}).filter(p=>p.connections?.some(conn=>conn.type==='character'&&conn.id===avatar)).length;
+        return t(`${count} 个`,`${count} linked`);
+      },()=>get('char_connections_button')?.click());
+      linked(display,'角色设置覆盖','只对这个角色使用的提示词和后缀',()=>'',()=>pickOption('set_chat_character_settings'));
+      row(s,display,'允许外部媒体','控制外链图片和视频的显示',[nativeAction('设置',()=>get('character_open_media_overrides')?.click())]);
+      row(s,display,'使用全局样式','控制创作者注释里的样式作用范围',[nativeAction('设置',()=>get('creators_note_styles_button')?.click())]);
+
+      const [a,b]=cols(advanced);
+      const fieldPair=(parent,items)=>{
+        const pair=make('div','cw2-char-pair');sectionHost(parent).append(pair);
+        for(const [id,label,options] of items)field(pair,id,label,options);
+      };
+      fieldPair(section(a,'提示词覆盖'),[
+        ['system_prompt_textarea','系统提示词',{hint:'可用 {{original}} 保留默认内容'}],
+        ['post_history_instructions_textarea','历史后置指令',{hint:'可用 {{original}} 保留默认内容'}],
+      ]);
+      fieldPair(section(a,'性格与场景'),[['personality_textarea','性格摘要'],['scenario_pole','场景']]);
+      const frequency=get('talkativeness_slider');
+      if(frequency){
+        const range=frequency.closest('#talkativeness_div')||frequency;
+        const group=section(a,'群聊');group.classList.add('cw2-char-group');
+        move(s,range,sectionHost(group));
+      }
+      const examples=section(a,'');examples.classList.add('cw2-char-grow','cw2-char-examples');
+      field(examples,'mes_example_textarea','示例对话',{mono:true,expand:true,hint:t('用 <START> 分隔每一段示例。上下文不够时最先被裁掉。','Separate examples with <START>. These are dropped first when context is limited.')});
+      const note=section(b,'角色备注');
+      note.classList.add('cw2-char-note');
+      field(note,'depth_prompt_prompt','内容');
+      const depth=get('depth_prompt_depth');
+      if(depth)row(s,note,'插入深度',t('从最新一条消息往回数','Count back from the latest message'),[depth],'cw2-char-depth');
+      const role=get('depth_prompt_role');
+      let roleSegment=null;
+      if(role){
+        row(s,note,'身份','',[role],'cw2-char-role');
+        roleSegment=mountNativeSegment(role);
+        if(roleSegment)cleanup(s,roleSegment.destroy);
+      }
+      const meta=section(b,'卡片信息');meta.classList.add('cw2-char-grow');
+      for(const [id,label] of [['creator_textarea','创作者'],['character_version_textarea','角色版本']]){
+        const native=get(id);
+        if(native)row(s,meta,label,'',[native],'cw2-char-short-field');
+      }
+      field(meta,'tags_textarea','内嵌标签',{hint:t('写进角色卡文件里的标签。','Tags written into the character card file.')})?.classList.add('cw2-char-embedded-tags');
+      const creator=field(meta,'creator_notes_textarea','创作者注释',{hint:t('只给人看，不会发送给模型。','For readers only. Never sent to the model.')});
+      creator?.classList.add('cw2-char-creator-notes');
+
+      const popup=get('character_popup');
+      if(popup){
+        const knownChrome='#character_popup_ok,#character_cross,.editor_maximize,.inline-drawer-icon,.notes-link';
+        let other;
+        const moveExtras=()=>{
+          const extras=new Set([...popup.querySelectorAll('input,textarea,select,button,.menu_button,[role=button]')]
+            .filter(n=>!n.matches(knownChrome)&&!n.closest('.notes-link'))
+            .map(n=>n.closest('label')||n));
+          if(!extras.size)return;
+          other??=section(b,'其他设置');
+          for(const block of extras){
+            if(popup.contains(block))move(s,block,sectionHost(other));
+          }
+        };
+        moveExtras();
+        const observer=new win.MutationObserver(moveExtras);
+        observer.observe(popup,{childList:true,subtree:true});
+        cleanup(s,()=>observer.disconnect());
+      }
+
+      const more=menu(s,[['复制',null,false,()=>get('dupe_button')?.click(),'copy'],['导出',null,false,()=>openCharacterExport(more.querySelector(':scope>summary')),'exp']]);
+      const entries=more.querySelector('.cw-v4-more-list');
+      const base=Array.from(entries.children);
+      const optionIcons={replace_update:'refresh',convert_to_persona:'user',character_source:'ext',import_tags:'tag',show_char_gallery:'eye',set_as_assistant:'spark'};
+      const management=get('char-management-dropdown');
+      const separated=new Set(['convert_to_persona','character_source','import_tags','set_as_assistant']);
+      const omitted=new Set(['set_character_world','import_character_info','set_chat_character_settings','renameCharButton']);
+      function fillMore(){
+        entries.replaceChildren(...base);
+        let divider=false;
+        const options=[...(management?.options||[])].filter(o=>o.value!=='default'&&!omitted.has(o.id)&&!o.hidden&&o.style.display!=='none');
+        options.sort((a,b)=>Number(b.id==='replace_update')-Number(a.id==='replace_update'));
+        for(const option of options){
+          if(!divider&&separated.has(option.id)){entries.append(make('hr','cwr-pop-hr'));divider=true;}
+          const label=option.id==='convert_to_persona'?t('转换为用户角色','Convert to persona'):option.textContent.trim();
+          const item=button(label,e=>{
+            e.stopPropagation();more.open=false;
+            option.selected=true;
+            management.dispatchEvent(new win.Event('change',{bubbles:true}));
+          },'cw-v4-more-item');
+          item.prepend(optionIcons[option.id]&&POP_ICONS[optionIcons[option.id]]?popIcon(optionIcons[option.id]):icon(optionIcons[option.id]||'gear'));
+          item.disabled=option.disabled;entries.append(item);
+        }
+        entries.append(make('hr','cwr-pop-hr'));
+        const remove=button(L('删除这个角色'),e=>{
+          e.stopPropagation();more.open=false;get('delete_button')?.click();
+        },'cw-v4-more-item cw-v4-danger');
+        remove.prepend(popIcon('trash'));entries.append(remove);
+      }
+      more.addEventListener('toggle',()=>{if(more.open)fillMore();});
+      fillMore();
+      heroActions.append(more);hero.append(heroActions);
+      const layout=()=>{
+        const target=phoneWide()?phoneHeader:heroActions;
+        if(more.parentNode!==target)target.append(more);
+      };
+      win.addEventListener('resize',layout);cleanup(s,()=>win.removeEventListener('resize',layout));layout();
+      const stats=get('result_info_text');
+      const tokenLabel=make('span','cw2-char-total');
+      stats?.append(tokenLabel);
+      const total=get('result_info_total_tokens'),permanent=get('result_info_permanent_tokens');
+      const paintTokens=()=>{
+        const amount=total?.textContent.trim()||'',persistent=permanent?.textContent.trim()||'';
+        const label=persistent?t(amount+' Token · 其中 '+persistent+' 永久',amount+' tokens · '+persistent+' permanent'):amount;
+        setText(tokenLabel,label);setText(phoneStats,label);
+      };
+      const nativeTokens=new win.MutationObserver(paintTokens);
+      for(const n of [total,permanent])if(n)nativeTokens.observe(n,{childList:true,characterData:true,subtree:true});
+      cleanup(s,()=>{nativeTokens.disconnect();tokenLabel.remove();});
+      paintTokens();
+
+      const paint=()=>{
+        const heading=doc.querySelector('#rm_button_selected_ch h2');
+        setText(name,heading?.textContent?.trim()||'');setText(phoneName,name.textContent);
+        for(const fn of fieldPaints)fn();
+        const fav=get('favorite_button')?.classList.contains('fav_on');
+        star.setAttribute('aria-pressed',String(Boolean(fav)));
+        layout();
+        const src=hero.querySelector('#avatar_div_div img')?.getAttribute('src')||'';
+        if(avatar.getAttribute('src')!==src){avatar.setAttribute('src',src);portrait.setAttribute('src',src);}
+        const book=get('import_character_info');
+        const embeddedBook=charData()?.character_book;
+        embedded.hidden=!book||book.disabled||book.hidden||book.style.display==='none'||!embeddedBook;
+        for(const widget of [alt,charWorld,chatWorld,personaLinks])widget.paint();
+        roleSegment?.refresh();
+      };
+      detail={s,host,heroActions,paint,resetTitle:()=>{back.remove();phoneHeader.remove();hero.classList.remove('cw2-char-hero');}};
+      paint();
+    }
+
+    const sync=()=>{
+      if(createLabel.style.display==='none'){
+        if(!detail)mountDetail();
+        else detail.paint();
+      }else restoreDetail();
+    };
+    const ctx=win.SillyTavern?.getContext?.();
+    const opened=ctx?.eventTypes?.CHARACTER_EDITOR_OPENED;
+    if(opened&&ctx.eventSource){
+      ctx.eventSource.on(opened,sync);
+      cleanup(parentState,()=>ctx.eventSource.removeListener(opened,sync));
+    }
+    const observer=new win.MutationObserver(sync);
+    observer.observe(createLabel,{attributes:true,attributeFilter:['style']});
+    cleanup(parentState,()=>{observer.disconnect();restoreDetail();});
+    paints.push(sync);
+    sync();
+  }
   /* ---------------- 角色卡 ---------------- */
   function characters(panel){const list=get('rm_characters_block');if(!list)return;const started=begin(list);if(!started)return;const {s,page}=started;
     // In the edit view the native list button is the way back to the list.
     const back=get('rm_button_characters');if(back&&!back.querySelector('.cw-v4-action-label')){const label=make('span','cw-v4-action-label',t('全部角色','All characters'));back.append(label);s.created.push(label);back.classList.add('cw-v4-back');s.cleanup=()=>back.classList.remove('cw-v4-back');}
-    const sec=section(page,'');sec.classList.add('cw-v4-desk-only');row(s,sec,'','点角色进入编辑；新建群聊、导入角色在右边 ⋯ 里',[act(s,get('rm_button_create'),'新建角色',true),menu(s,[['新建群聊',get('rm_button_group_chats')],['从文件导入',get('character_import_button')],['从网址导入',get('external_import_button')],['批量编辑',get('bulkEditButton')]])]);
-    // 2.0.263：网格视图不要了（Claude 的列表没有网格；开着也照列表排）。按钮收起来，免得掉进「其他设置」。
-    {const gp=make('div','cw-v4-park');sec.append(gp);move(s,get('charListGridToggle'),gp);}
-    const all=section(page,'全部角色');all.classList.add('cw-v4-entries','cw-v4-chatlist');const b=bar();all.append(b);
-    b.append(searchBox(s,get('character_search_bar'),'搜索角色'));move(s,get('character_sort_order'),b);
+    page.classList.add('cw2','cw2-char-list','cwr-page');
+    const header=make('div','cw2-char-sticky');
+    const head=make('div','cw2-bar cw2-mbar cw2-char-bar');
+    const importButton=get('character_import_button'),createButton=get('rm_button_create');
+    const searchInput=get('character_search_bar');
+    const search=searchBox(s,searchInput);
+    search.classList.add('cwr-search-box');
+    if(searchInput){
+      const original=searchInput.placeholder;
+      const placeholder=t('搜索角色名、标签、创作者备注','Search names, tags, and creator notes');
+      const paintSearch=()=>{if(searchInput.placeholder!==placeholder)searchInput.placeholder=placeholder;};
+      const observe=new win.MutationObserver(paintSearch);
+      observe.observe(searchInput,{attributes:true,attributeFilter:['placeholder']});
+      cleanup(s,()=>{observe.disconnect();searchInput.placeholder=original;});
+      paintSearch();
+    }
+    head.append(make('h2','',L('角色卡')),search);
+    head.append(make('span','cw2-note',t('点一个角色看详情；行尾 ⋯ 可以直接聊天、复制、导出、删除。','Open a character to view its details. Use ⋯ to start a chat, copy, export, or delete.')));
+    head.append(make('span','cw2-sp'));
+    for(const [native,label,glyph,primary] of [[importButton,'导入','imp',false],[createButton,'新建角色','plus',true]]){
+      if(!native)continue;
+      move(s,act(s,native,label,false,primary),head);
+      native.prepend(created(s,popIcon(glyph)));
+    }
+    const actions=menu(s,[
+      ['新建群聊',get('rm_button_group_chats'),false,null,'plus'],
+      ['从网址导入',get('external_import_button'),false,null,'ext'],
+      ['批量编辑',get('bulkEditButton'),false,null,'pencil'],
+    ]);
+    const menuList=actions.querySelector('.cw-v4-more-list');
+    const mobileImport=button(L('从文件导入'),e=>{
+      e.stopPropagation();actions.open=false;importButton?.click();
+    },'cw-v4-more-item cw2-char-mobile-import');
+    mobileImport.prepend(popIcon('imp'));
+    const syncImport=()=>{
+      if(phoneWide()&&importButton){if(!mobileImport.isConnected)menuList.append(mobileImport);}
+      else mobileImport.remove();
+    };
+    win.addEventListener('resize',syncImport);cleanup(s,()=>win.removeEventListener('resize',syncImport));syncImport();
+    head.append(actions);
+    header.append(head);
+    const filters=make('div','cw2-char-filters');
     const tags=list.querySelector('#charListFixedTop .rm_tag_controls');
-    if(tags){tags.classList.add('cw-v4-tags');move(s,tags,all);cleanup(s,()=>tags.classList.remove('cw-v4-tags'));}
-    // 2.0.263：批量编辑时酒馆的「已选 N / 全选 / 删除」原来落在「其他设置」里看不见；改成列表上方一条操作栏（电脑手机都用），点的还是原来的按钮。
-    const bulk=make('div','cw-v4-bulkbar'),bcount=make('span','cw-v4-bulk-count');bulk.append(bcount,
-      button(L('全选'),()=>get('bulkSelectAllButton')?.click(),'cw-v4-bulk-btn'),button(L('删除'),()=>get('bulkDeleteButton')?.click(),'cw-v4-bulk-btn cw-v4-bulk-del'),button(L('完成'),()=>get('bulkEditButton')?.click(),'cw-v4-bulk-btn cw-v4-bulk-done'));
-    b.after(bulk);paints.push(()=>{const n=parseInt(get('bulkSelectedCount')?.textContent||'0',10)||0;setText(bcount,n?t(`已选 ${n} 个`,`${n} selected`):t('点角色选中','Tap to select'));});
-    // 2.0.261 手机（照 Chats）：搜索框右端调节图标 → 排序 / 筛选 / 工具；右下角悬浮「+ 新建」。
-    const click=id=>()=>get(id)?.click();
-    const flt=sheetMenu('cw-v4-phone-filter',sliders(),ui=>{
-      sortPick(ui,get('character_sort_order'),flt);
-      filterSheet(ui,tags);
-      ui.head('工具');ui.opt(L('管理标签'),false,()=>tags?.querySelector('.manageTags')?.click());ui.opt(L('批量编辑'),false,click('bulkEditButton'));
-      if(filtered(tags))ui.opt(L('清除筛选'),false,()=>tags?.querySelector('.clearAllFilters')?.click()).classList.add('cw-v4-sheet-clear');
+    if(tags){
+      tags.classList.add('cw-v4-tags');
+      move(s,tags,filters);
+      cleanup(s,()=>tags.classList.remove('cw-v4-tags'));
+    }
+    const sort=make('label','cw2-char-sort',L('排序'));
+    move(s,get('character_sort_order'),sort);
+    filters.append(sort);
+    header.append(filters);
+    page.append(header);
+    const bulk=make('div','cw-v4-bulkbar'),bcount=make('span','cw-v4-bulk-count');
+    bulk.append(bcount,
+      button(L('全选'),()=>get('bulkSelectAllButton')?.click(),'cw-v4-bulk-btn'),
+      button(L('删除'),()=>get('bulkDeleteButton')?.click(),'cw-v4-bulk-btn cw-v4-bulk-del'),
+      button(L('完成'),()=>get('bulkEditButton')?.click(),'cw-v4-bulk-btn cw-v4-bulk-done'));
+    header.append(bulk);
+    paints.push(()=>{
+      const count=parseInt(get('bulkSelectedCount')?.textContent||'0',10)||0;
+      setText(bcount,t(`已选 ${count} 个`,`${count} selected`));
     });
-    b.append(flt);paints.push(()=>setFlag(flt,'cw-v4-dot',filtered(tags)));
-    const fab=sheetMenu('cw-v4-phone-fab',make('span','',L('新建')),ui=>{
-      ui.opt(L('新建角色'),false,click('rm_button_create'));ui.opt(L('新建群聊'),false,click('rm_button_group_chats'));
-      ui.opt(L('从文件导入'),false,click('character_import_button'));ui.opt(L('从网址导入'),false,click('external_import_button'));
+    const all=section(page,'全部角色');
+    all.classList.add('cw-v4-entries','cw-v4-chatlist');
+    const count=make('span','cw2-char-count');
+    const title=all.querySelector('h2');
+    title.append(count);
+    const nativeSort=get('character_sort_order');
+    if(nativeSort){
+      const sortLabel=make('span','');
+      const phoneSort=button('',()=>openSelMenu?.(nativeSort),'cw-v4-button cw2-char-phone-sort');
+      const paintSort=()=>{
+        const label=nativeSort.selectedOptions[0]?.textContent.trim()||L('排序');
+        setText(sortLabel,label);
+        const name=t('排序：'+label,'Sort: '+label);
+        if(phoneSort.getAttribute('aria-label')!==name)phoneSort.setAttribute('aria-label',name);
+      };
+      phoneSort.append(sortLabel,icon('chevd'));
+      title.append(phoneSort);
+      paints.push(paintSort);
+      paintSort();
+    }
+    move(s,get('charListGridToggle'),sort);
+    const pager=get('rm_print_characters_pagination');
+    if(pager)move(s,pager,title);
+    move(s,get('rm_print_characters_block'),all);
+    if(pager)cleanup(s,()=>pager.classList.remove('cw2-char-single-page'));
+    paints.push(()=>{
+      const model=pager&&win.jQuery?.(pager).data('pagination')?.model;
+      const total=model?.totalNumber;
+      const pageSize=model?.pageSize||Number(pager?.querySelector('select')?.value);
+      if(pager) setFlag(pager,'cw2-char-single-page',Number.isFinite(total)&&pageSize>0&&total<=pageSize);
+      const current=get('rm_print_characters_block')?.querySelectorAll(':scope>:is(.character_select,.group_select,.bogus_folder_select)').length||0;
+      setText(count,String(Number.isFinite(total)?total:current));
     });
-    fab.querySelector('summary').prepend(icon('plus'));fab.querySelector('summary').setAttribute('aria-label',L('新建'));page.append(fab);
-    move(s,get('rm_print_characters_pagination'),all);move(s,get('rm_print_characters_block'),all);
     // After an import or a new character ST scrolls #rm_print_characters_block to the card and flashes it, but here the
     // panel scrolls, not that block, so the card stayed off screen. Follow ST's flash and scroll the real scroller.
     const printed=get('rm_print_characters_block');if(printed){
@@ -867,13 +1003,25 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       }});
       watch.observe(printed,{subtree:true,attributes:true,attributeFilter:['class']});cleanup(s,()=>watch.disconnect());
     }
+    // After loading a character ST programmatically clicks the composer to focus it.
+    // That click must not reach ST's document-level outside-drawer handler from details.
+    const composer=win.jQuery?.(get('send_textarea'));
+    const keepDetails=e=>{
+      const right=get('right-nav-panel'),shell=get('cw-v4-settings');
+      if(!e.isTrigger||shell?.hidden||shell?.dataset.panel!==right?.id||!right?.classList.contains('openDrawer'))return;
+      const edit=get('rm_ch_create_block'),create=get('create_button_label');
+      if(!edit?.getClientRects().length||create?.style.display!=='none')return;
+      e.stopPropagation();
+    };
+    composer?.on('click.cwCharacterDetails',keepDetails);
+    cleanup(s,()=>composer?.off('click.cwCharacterDetails',keepDetails));
     finish(s);
     // Keep the real form and its conditional wrappers, including create-only
     // name/submit controls. Editing an existing name still uses ST's Rename.
     const form=get('form_create'),adapted=form&&begin(form);if(adapted){
       const fs=adapted.s,body=adapted.page;
       // 2.0.255（design-content-v1）：头像 + 名字 + Token 合成页头；原来空着的「名字」行和单独的「头像」行去掉。
-      charHero(fs,body);
+      const hero=charHero(fs,body);
       phoneCharTop(fs,body,form);
       const general=section(body,'');general.classList.add('cw-v4-desk-only','cw-v4-after-hero');
       row(fs,general,'标签','',[get('tags_div')]);
@@ -890,25 +1038,41 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       if(cloreItem){const v=created(fs,make('span','cw-v4-more-value'));cloreItem.classList.add('cw-v4-clore-item');cloreItem.title=L('只对当前这段聊天生效');cloreItem.append(v);paints.push(()=>{const [text,dim]=chatLore();setText(v,text);setFlag(v,'cw-v4-pf-dim',dim);});}
       phoneManage(fs,body);advancedPhone(fs);
       finish(fs);
+      characterDetailV2e(fs,body,form,hero);
     }
   }
-  function characterRows(panel){panel.querySelectorAll('#rm_print_characters_block .character_select').forEach(item=>{
-    if(item.querySelector('.cw-v4-character-actions'))return;
-    const s=state(item),actions=make('div','cw-v4-character-actions');s.created.push(actions);
-    const select=async(edit,action)=>{
+  function characterRows(panel){
+    const list=panel.querySelector('#rm_print_characters_block');if(!list)return;
+    const s=state(list);
+    const select=async(item,edit,action)=>{
       const id=Number(item.dataset.chid),st=await import(new URL('/script.js',win.location.href).href);
+      if(!edit)closeSettings?.(true);
       await st.selectCharacterById(id,{switchMenu:edit});
       if(String(win.SillyTavern?.getContext?.().characterId)!==String(id))return;
-      if(action)get(action)?.click();else if(!edit)closeSettings?.();
+      if(action)get(action)?.click();
     };
-    const run=action=>()=>select(true,action).catch(console.error);
+    if(!s.characterRows){
+      s.characterRows=true;
+      cleanup(s,bindRowMenu(list,'.cw-v4-character-more',trigger=>{
+        const item=trigger.closest('.character_select'),run=action=>()=>select(item,true,action).catch(console.error);
+        return menu(null,[['开始聊天',null,false,()=>select(item,false).catch(console.error),'move'],['编辑',null,false,run(),'pencil'],['收藏',null,false,run('favorite_button'),'star'],['复制',null,false,run('dupe_button'),'copy'],['导出',null,false,run('export_button'),'exp'],'-',['删除这个角色',null,true,run('delete_button'),'trash']]);
+      }));
+      const click=e=>{
+        const item=e.target.closest('.character_select');
+        if(!item||!list.contains(item)||e.target.closest('.cw-v4-character-actions')||item.closest('.group_overlay_mode_select')||e.shiftKey||e.ctrlKey||e.metaKey)return;
+        e.stopPropagation();select(item,true).catch(console.error);
+      };
+      list.addEventListener('click',click);
+      cleanup(s,()=>{list.removeEventListener('click',click);list.querySelectorAll('.cw-v4-character-actions').forEach(n=>n.remove());});
+    }
     // 2.0.215（Lulu）：点角色 = 进入编辑（和设置里其他「›」行一样进下一页）；直接去聊天放进 ⋯ 的第一项。原来点整行是开始聊天、「编辑」另有一个按钮。
-    const chev=make('span','cw-v4-character-chev');chev.setAttribute('aria-hidden','true');
-    actions.append(menu(s,[['开始聊天',null,false,()=>select(false).catch(console.error)],['收藏',null,false,run('favorite_button')],['复制',null,false,run('dupe_button')],['删除',null,true,run('delete_button')]]),chev);
-    item.append(actions);
-    const click=e=>{if(e.target.closest('.cw-v4-character-actions')){e.stopPropagation();return;}if(item.closest('.group_overlay_mode_select')||e.shiftKey||e.ctrlKey||e.metaKey)return;e.stopPropagation();select(true).catch(console.error);};
-    item.addEventListener('click',click);s.cleanup=()=>item.removeEventListener('click',click);
-  });}
+    for(const item of list.querySelectorAll('.character_select')){
+      if(item.querySelector('.cw-v4-character-actions'))continue;
+      const actions=make('div','cw-v4-character-actions'),chev=make('span','cw-v4-character-chev');
+      chev.setAttribute('aria-hidden','true');
+      actions.append(rowMore('cw-v4-character-more'),chev);item.append(actions);
+    }
+  }
 
   /* ---------------- API 连接 ---------------- */
   function api(panel){
@@ -923,10 +1087,12 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       finish(s);
     }
     const s=state(panel),profiles=get('connection_profiles');
-    if(profiles&&s.profile&&!s.profile.contains(profiles)){
+    if(profiles&&s.profile&&!s.profile.contains(profiles)&&!panel.classList.contains('cw2')){
       profiles.classList.add('cw-v4-preset-sel');cleanup(s,()=>profiles.classList.remove('cw-v4-preset-sel'));
-      row(s,s.profile,'配置','保存一整套接口、模型和预设',[profiles,act(s,get('update_connection_profile'),'保存'),menu(s,[['新建配置',get('create_connection_profile')],['查看详情',get('view_connection_profile')],['编辑',get('edit_connection_profile')],['重新载入',get('reload_connection_profile')],['删除',get('delete_connection_profile'),true]])]);
+      row(s,s.profile,'配置','保存一整套接口、模型和预设',[profiles,act(s,get('update_connection_profile'),'保存'),act(s,get('create_connection_profile'),'新建',true),menu(s,[['查看详情',get('view_connection_profile')],['编辑',get('edit_connection_profile')],['重新载入',get('reload_connection_profile')],['删除',get('delete_connection_profile'),true]])]);
     }
+    const profileRow=s.profile?.querySelector('.cw-v4-row');profileRow?.classList.add('cwr-connection-row');
+    if(profileRow&&profiles&&!profileRow.querySelector('.cwr-connection-top')){const top=created(s,make('div','cwr-connection-top'));profileRow.prepend(top);move(s,profiles,top);top.append(icon('chevd'));}
     const source=get('openai_api');if(source&&!source.dataset.cwV4Sources){
       source.dataset.cwV4Sources='1';const ss=state(source);
       const ccs=get('chat_completion_source'),head=ccs?.previousElementSibling;
@@ -946,55 +1112,92 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     }
   }
 
+  // Extension update checks run only when a user opens the list/configuration.
+  let versionState={kind:'latest',current:'',remote:''},versionIdentity=null,versionPending=null,versionDisposed=false,versionCard=null;
+  const versionRows=new Set();
+  let versionSuppressed=false,versionDelay=null,finishVersionDelay=null;
+  const cancelOwnVersionCheck=event=>{if(event.target.closest?.('#extensions_details')){versionSuppressed=true;if(versionDelay){win.clearTimeout(versionDelay);versionDelay=null;finishVersionDelay?.();}}};
+  doc.addEventListener('click',cancelOwnVersionCheck,true);
+  const moduleBase=new URL('.',import.meta.url);
+  const ownLoader=[...doc.scripts].find(n=>n.src&&/\/loader-[^/]+\.js/.test(new URL(n.src).pathname)&&new URL('.',n.src).href===moduleBase.href);
+  const versionBase=new URL('.',ownLoader?.src||import.meta.url);
+  const versionFolder=decodeURIComponent(versionBase.pathname.replace(/\/$/,'').split('/').pop());
+  const versionHeaders=()=>win.SillyTavern?.getContext?.()?.getRequestHeaders?.()||{'Content-Type':'application/json'};
+  const versionPost=(endpoint)=>win.fetch('/api/extensions/'+endpoint,{method:'POST',headers:versionHeaders(),body:JSON.stringify(versionIdentity)});
+  const versionKey=()=> 'claude-web:update-status:'+versionIdentity.extensionName+':'+versionIdentity.global;
+  function cacheVersion(){try{win.sessionStorage.setItem(versionKey(),JSON.stringify({at:Date.now(),kind:versionState.kind,remote:versionState.remote}));}catch{}}
+  function paintVersion(){
+    if(versionDisposed)return;
+    const state=versionState,available=state.kind==='available',done=state.kind==='done',busy=state.kind==='updating';
+    const text=busy?t('正在更新…','Updating…'):done?t('已更新到 ','Updated to ')+(state.remote||state.current):available?'● '+t('有新版本','Update available')+(state.remote?' '+state.remote:''):state.current;
+    const action=()=>versionState.kind==='done'?win.location.reload():updateVersion();
+    for(const r of versionRows){if(!r.isConnected){versionRows.delete(r);continue;}let status=r.querySelector('.cw-update-status');
+      if(!status){status=make('span','cw-update-status');status.append(make('span','cw-update-label'),button('',action,'cw-v4-button cw-update-action'));r.querySelector('.cw-v4-extension-edit')?.before(status);}
+      const label=status.querySelector('.cw-update-label');if(label.textContent!==text)label.textContent=text;if(status.dataset.kind!==state.kind)status.dataset.kind=state.kind;if(status.dataset.current!==state.current)status.dataset.current=state.current;
+      const control=status.querySelector('button');if(control.hidden!==(!available&&!done))control.hidden=!available&&!done;if(control.disabled!==busy)control.disabled=busy;const value=done?t('刷新页面','Reload page'):t('更新','Update');if(control.textContent!==value)control.textContent=value;
+    }
+    const sections=get('claude-web-settings')?.querySelector('.claude-web-sections');
+    if(sections){if(!versionCard||!versionCard.isConnected){versionCard=make('div','cw-update-card');versionCard.append(make('b','cw-update-card-title'),make('div','cw-update-card-desc'),button('',action,'cw-v4-button cw-update-card-action'));sections.prepend(versionCard);}
+      if(versionCard.hidden!==(!available&&!done&&!busy))versionCard.hidden=!available&&!done&&!busy;const title=versionCard.querySelector('b');if(title.textContent!==text)title.textContent=text;
+      const desc=versionCard.querySelector('.cw-update-card-desc'),detail=done?t('刷新页面后生效','Reload the page to apply'):t('当前 ','Current ')+state.current;if(desc.textContent!==detail)desc.textContent=detail;
+      const control=versionCard.querySelector('button');control.disabled=busy;const value=done?t('刷新页面','Reload page'):busy?t('正在更新…','Updating…'):t('更新','Update');if(control.textContent!==value)control.textContent=value;
+    }
+  }
+  async function checkVersion(){
+    if(versionDisposed||versionSuppressed)return;if(['done','updating'].includes(versionState.kind)){paintVersion();return;}if(versionPending)return versionPending;
+    const checkAfter=win.performance.now()+3000;
+    versionPending=(async()=>{try{
+      if(!versionIdentity){const [manifest,list]=await Promise.all([win.fetch(new URL('manifest.json',versionBase)).then(r=>r.ok?r.json():{}),win.fetch('/api/extensions/discover').then(r=>r.json())]);
+        versionState.current=String(manifest.version||'');const item=list.find(x=>x.name==='third-party/'+versionFolder||x.name===versionFolder);if(!item||!['local','global'].includes(item.type))return;
+        versionIdentity={extensionName:versionFolder,global:item.type==='global'};
+      }
+      paintVersion();let cached;try{cached=JSON.parse(win.sessionStorage.getItem(versionKey())||'null')}catch{}
+      if(cached&&Date.now()-cached.at<3600000){versionState.kind=['available','latest'].includes(cached.kind)?cached.kind:'latest';versionState.remote=String(cached.remote||'');paintVersion();return;}
+      await new Promise(resolve=>{finishVersionDelay=resolve;versionDelay=win.setTimeout(resolve,Math.max(0,checkAfter-win.performance.now()));});versionDelay=null;finishVersionDelay=null;
+      if(versionDisposed||versionSuppressed)return;
+      const response=await versionPost('version');if(!response.ok)throw Error('HTTP '+response.status);const data=await response.json();
+      if(typeof data.isUpToDate!=='boolean')throw Error('Invalid extension version response');versionState.kind=data.isUpToDate?'latest':'available';versionState.remote='';
+      if(!data.isUpToDate){const match=String(data.remoteUrl||'').match(/^(?:https?:\/\/github\.com\/|git@github\.com:)([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
+        if(match&&data.currentBranchName){const raw='https://raw.githubusercontent.com/'+match[1]+'/'+match[2]+'/'+String(data.currentBranchName).split('/').map(encodeURIComponent).join('/')+'/manifest.json?cw='+Date.now();
+          try{const r=await win.fetch(raw,{cache:'no-store'});if(r.ok){const m=await r.json();if(typeof m.version==='string')versionState.remote=m.version.slice(0,64);}}catch{}}
+      }
+      cacheVersion();
+    }catch{versionState.kind='latest';if(versionIdentity)cacheVersion();}finally{paintVersion();}})().finally(()=>versionPending=null);return versionPending;
+  }
+  async function updateVersion(){
+    if(!versionIdentity||versionState.kind!=='available')return;versionState.kind='updating';paintVersion();
+    try{const response=await versionPost('update');if(!response.ok)throw Error('HTTP '+response.status);const result=await response.json();if(typeof result.version==='string')versionState.remote=result.version;versionState.kind='done';cacheVersion();}
+    catch(error){versionState.kind='available';win.toastr?.error?.(t('更新失败：','Update failed: ')+error.message,t('Claude Web','Claude Web'));}
+    paintVersion();
+  }
+
   /* ---------------- 扩展 ---------------- */
   function extensions(panel){
-    // 已经有就不再 add：add 一个已有的 class 也会重写属性，触发设置页的 sync 循环（见 official-layout.js sync）。
-    if(!panel.classList.contains('cw-v4-extension-page'))panel.classList.add('cw-v4-extension-page');
-    const started=begin(panel);
-    if(started){const {s,page}=started,top=section(page,'');
-      row(s,top,'','管理、安装和配置扩展',[act(s,get('third_party_extension_button'),'安装扩展'),act(s,get('extensions_details'),'管理')]);
-      tg(s,top,get('extensions_notify_updates'),'扩展有更新时通知');
-      const list=section(page,'已安装');list.classList.add('cw-v4-entries');for(const id of ['extensions_settings','extensions_settings2'])move(s,get(id),list);
-      const extras=panel.querySelector('.extensions_url_block');
-      if(extras){const legacy=section(page,'旧版 Extras API（已弃用）');dialogRow(s,legacy,'Extras API','只有还在用旧版 Extras 服务器时才需要','Extras API',box=>move(s,extras,box),'配置',extensionSettings.open);}
-      finish(s);
-    }
-    panel.querySelectorAll('#extensions_settings > div,#extensions_settings2 > div').forEach(c=>{
-      const direct=c.matches('.inline-drawer')?[c]:[...c.children].filter(n=>n.matches('.inline-drawer')||n.querySelector(':scope > .inline-drawer'));
-      const units=direct.length?direct:[c];
-      const s=state(c);s.extensionDrawers||=new Set();
-      for(const unit of units){
-        const drawer=unit.matches('.inline-drawer')?unit:unit.querySelector('.inline-drawer');
-        if(!drawer)continue;
-        if(s.extensionDrawers.has(drawer))continue;
-        const head=drawer.querySelector('.inline-drawer-header');
-        const name=head?.querySelector('b,strong')?.textContent.trim()||head?.textContent.trim();if(!name)continue;
-        s.extensionDrawers.add(drawer);
-        c.dataset.cwV4Extension='1';c.classList.add('cw-v4-extension-item');
-        const r=make('div','cw-v4-extension-row'),ic=make('span','cw-v4-extension-icon');
-        // Shared containers keep their drawers separate; self-rendered roots stay intact.
-        r.append(ic,make('span','cw-v4-extension-name',name),button(L('配置'),e=>{e.stopPropagation();extensionSettings.open(s.extensionDrawers.size>1?unit:c,name);},'cw-v4-button cw-v4-extension-edit'));
-        c.insertBefore(r,unit.parentElement===c?unit:c.firstChild);s.created.push(r);
-      }
-    });
+    extensionPanel.mount(panel);
+    return;
   }
+    function updateExtensionVersions(){paintVersion();void checkVersion();}
   return {
+    checkUpdates:checkVersion,
+    editExtensions:()=>extensionPanel.edit(),
+    leavePreset:()=>presetEdit.leave(),
+    decorateWorldPicker:worldPage.decoratePicker,
     mount(panel){
+      // Native PromptManager discards rows on every render. Do not retain all
+      // discarded DOM and listeners after a large batch.
+      for(const [root,st] of states)if(!root.isConnected&&root.matches?.('.cw-v4-prompt-row,.completion_prompt_manager_footer')){st.cleanup?.();st.cleanups?.forEach(f=>f());states.delete(root);}
       ({WorldInfo:world,Backgrounds:backgrounds,AdvancedFormatting:formatting,'left-nav-panel':presets,PersonaManagement:personas,'right-nav-panel':characters,rm_api_block:api,rm_extensions_block:extensions})[panel.id]?.(panel);
+      // The extension catalog checks versions on entry, not on layout redraws.
       if(panel.id==='PersonaManagement'){personaRows(panel);personaName(state(panel));}
-      if(panel.id==='left-nav-panel')promptRows(panel);
+      if(panel.id==='left-nav-panel'){promptRows(panel);presetEdit.install(panel);presetList.mount(panel);promptScroll||=createPromptScroll({win,enabled:()=>doc.documentElement.hasAttribute('data-cw-v4')});promptScroll.sync(panel);}
       if(panel.id==='right-nav-panel'){characterRows(panel);groupEditor();groupMemberRows();}
-      if(panel.id==='WorldInfo'){
-        const s=state(panel);worldChips(s);worldSummary(s);
-        const select=get('world_editor_select'),visible=get('select2-world_editor_select-container')?.closest('.select2-container');
-        if(select&&visible&&visible.parentElement!==select.parentElement)move(s,visible,select.parentElement);
-        worldEntries(panel);
-      }
+      if(panel.id==='WorldInfo')worldPage.sync(panel);
       for(const st of states.values())if(panel.contains(st.root))refreshLeftovers(st);
+      presetManagerPage.sync(panel);refinements.sync(panel,state(panel));(morePages||=createMorePages({win,make,button,icon,get,move,cleanup,created,state,act,menu,setting,t,L})).sync(panel);(v2dPages||=createV2dPages({win,make,button,icon,get,move,cleanup,created,state,act,menu,setting,section,row,t,L})).sync(panel);
+      normalizeSettingsSections(panel,make);
       for(const f of paints)f();
     },
     closeCharacterExport(){if(!exportSession)return false;const anchor=exportSession.anchor;stopCharacterExport(true);anchor.focus({preventScroll:true});return true;},
-    prunePromptTokens,
-    restore(){stopCharacterExport(true);exportStyle?.remove();exportStyle=null;for(const item of promptTokenWatches.keys())stopPromptTokens(item);extensionSettings.restore();paints.length=0;ctxCache.at=0;for(const s of [...states.values()].reverse())restorePanel(s);states.clear();},
+    restore(){stopCharacterExport(true);exportStyle?.remove();exportStyle=null;presetManagerPage.destroy();refinements.destroy();extensionPanel.destroy();versionDisposed=true;doc.removeEventListener('click',cancelOwnVersionCheck,true);if(versionDelay)win.clearTimeout(versionDelay);finishVersionDelay?.();versionCard?.remove();for(const r of versionRows)r.querySelector(".cw-update-status")?.remove();versionRows.clear();presetList.destroy();presetEdit.destroy();promptScroll?.destroy();promptScroll=null;extensionSettings.restore();paints.length=0;ctxCache.at=0;const all=[...states.values()].reverse();for(const s of all){s.cleanup?.();s.cleanups?.forEach(f=>f());s.gates?.forEach(stop=>stop());delete s.root.dataset.cwV4Sources;if(s.rest){for(const n of [...s.rest.childNodes])s.root.append(n);}}for(const [node,mark] of all.flatMap(s=>s.moves).sort((a,b)=>(b[2]||0)-(a[2]||0)))if(mark.parentNode)mark.replaceWith(node);for(const s of all){s.created.forEach(n=>n.remove());s.buttons?.forEach(n=>n.classList.remove('cw-v4-as-btn','cw-v4-primary'));s.mapped?.forEach(n=>n.classList.remove('cw-v4-mapped-setting','cw-v4-row','cw-v4-range'));s.iconToggles?.forEach(n=>n.classList.remove('cw-v4-icon-toggle'));s.root.classList.remove('cw-v4-reflow');if(s.root.classList.contains('cw-v4-extension-item')){s.root.classList.remove('cw-v4-extension-item');delete s.root.dataset.cwV4Extension;}}states.clear();},
   };
 }

@@ -162,7 +162,13 @@ export function installStreamFollow({ win, doc, getContext, enabled }) {
   updateVisibleRegion();
   return {
     pause,
-    resume() { if (destroyed) return; gesture=null; if (!following) counts.resumes++; following=!!isEnabled(); requestNativeBottom(); },
+    resume() {
+      if (destroyed) return;
+      gesture = null;
+      if (!following) counts.resumes += 1;
+      following = Boolean(isEnabled());
+      requestNativeBottom();
+    },
     afterDecoration() { counts.decorations += 1; requestNativeBottom(); },
     stats: () => ({ active, following, ready: !!nativeBottom, visibleHeight, gesture: gesture ? { pressing: gesture.pressing, moved: gesture.moved, direction: gesture.direction } : null, ...counts }),
     destroy() {

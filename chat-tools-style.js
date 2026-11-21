@@ -2,7 +2,7 @@ export const CHAT_TOOLS_CSS = `
 html[data-cw-v4-settings="open"] :is(.cw-b34-toolbar,.cw-b34-menu,.cw-b34-panel,.cw-b34-selection){display:none!important}
 
 
-html[data-cw-chat-tools="on"] body:not(.clawd-welcome)>.cw-web-share,html[data-cw-chat-tools="on"] body:not(.clawd-welcome)>.cw-desk-win,html[data-cw-chat-tools="on"] body .cw-v4-chat-more,html[data-cw-chat-tools="on"] body .cw-v4-more-top{display:none!important}
+html[data-cw-chat-tools="on"] body:not(.clawd-welcome)>.cw-desk-win,html[data-cw-chat-tools="on"] body :is(.cw-v4-chat-more,.cw-v4-more-top){display:none!important}
 .cw-b34-toolbar{position:fixed!important;top:8px!important;right:14px!important;display:flex!important;align-items:center;gap:8px;z-index:3001!important;background:var(--b34-bg);border-radius:8px}
 .cw-b34-toolbar button{display:flex!important;align-items:center;justify-content:center;width:34px!important;height:34px!important;padding:0!important;border:0!important;border-radius:7px!important;background:transparent;color:var(--b34-ink)!important}
 .cw-b34-toolbar .cw-b34-font-button{font-family:Georgia,serif!important;font-size:19px!important}.cw-b34-toolbar .cw-b34-paper-button svg{width:22px!important;height:22px!important}
@@ -38,8 +38,6 @@ html[data-cw-chat-tools="on"][data-claude-layout="mobile"] body:not(.clawd-welco
 .cw-b34-owned.cw-b34-owned *{font-weight:400!important;text-shadow:none!important}
 .cw-b34-step{flex:none!important}.cw-b34-step button{flex:none!important;width:25px!important;min-width:25px!important;padding:0!important}.cw-b34-step button:nth-child(2){width:41px!important;min-width:41px!important;font-size:12px!important}
 
-html[data-cw-chat-tools="on"][data-cw-v4] body #top-settings-holder#top-settings-holder .clawd-rail-recents .chatNameContainer>.chatActions{opacity:1!important;pointer-events:auto!important;z-index:5!important}
-html[data-cw-chat-tools="on"][data-cw-v4] body #top-settings-holder#top-settings-holder .clawd-rail-recents .cw-recent-more{opacity:.6!important;pointer-events:auto!important}
 /* Keep the two resting controls clear of the existing Clawd at the composer corner. */
 #send_form>.cw-b34-nav{right:96px!important}
 `;

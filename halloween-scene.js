@@ -1,8 +1,8 @@
-import { halloweenIcons as I, halloweenIconWeight as IW } from './halloween-icons.js?v=2.0.164';
-import { createHalloweenSprites } from './halloween-sprites.js?v=2.0.164';
-import { buildHalloweenRig } from './halloween-rig.js?v=2.0.164';
-import { halloweenCSS, iconRules } from './halloween-style.js?v=2.0.164';
-import { halloweenPileCells } from './halloween-pile.js?v=2.0.164';
+import { halloweenIcons as I, halloweenIconWeight as IW } from './halloween-icons.js?v=2.0.165';
+import { createHalloweenSprites } from './halloween-sprites.js?v=2.0.165';
+import { buildHalloweenRig } from './halloween-rig.js?v=2.0.165';
+import { halloweenCSS, iconRules } from './halloween-style.js?v=2.0.165';
+import { halloweenPileCells } from './halloween-pile.js?v=2.0.165';
 
 export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs}) {
   const doc=win.document,root=doc.documentElement,art=createHalloweenSprites(doc);
@@ -64,7 +64,7 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     for(const [selector,key,kind='before']of iconRules){
       if(kind==='native'){css+=`${scope} ${selector}{background-color:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important}${scope} ${selector}::before{visibility:hidden!important}`;continue;}
       // Rail drawer icons are already painted as background + mask (night ink differs from `color`); only swap the mask.
-      if(kind==='self'){const ink=selector.includes('.cw-v4-icon')?'background:currentColor!important;':'';css+=`${scope} ${selector}{${ink}mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important;font-size:0!important}${scope} ${selector}>svg{visibility:hidden!important}${scope}[data-claude-ui="classic"] ${selector}{display:inline-block!important;width:20px!important;height:20px!important;background:currentColor!important}`;continue;}
+      if(kind==='self'){const ink=selector.includes('.cw-v4-icon')?'background:currentColor!important;':'';css+=`${scope} ${selector}{${ink}mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important;font-size:0!important}${scope} ${selector}>svg{visibility:hidden!important}${scope}[data-claude-ui="classic"] ${selector}{display:inline-block!important;width:20px!important;height:20px!important}`;continue;}
       if(kind==='svg')continue;
       else if(['#options_button','#extensionsMenuButton','body.cw-v4-filled:not(.claude-generation-active) #send_but','body:not(.cw-v4-filled):not(.claude-generation-active) #send_but','.clawd-fake-mic'].includes(selector))css+=`${scope} ${selector}::${kind}{mask-image:${url(key)}!important;-webkit-mask-image:${url(key)}!important}`;
       else css+=`${scope} ${selector}::${kind}{content:""!important;background:currentColor!important;mask:${url(key)} center/contain no-repeat!important;-webkit-mask:${url(key)} center/contain no-repeat!important}`;
@@ -328,8 +328,11 @@ export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs
     const snap=deletion,chat=doc.getElementById('chat');
     if(!snap||!moving()||snap.chat!==getContext()?.chat||Date.now()-snap.at>60000||snap.message.isConnected)return;
     const record=records.find(r=>r.target===chat&&[...r.removedNodes].includes(snap.message));if(!record)return;
-    // Bounded TT ChatSurface owns the message gap; retain only the fixed visual layer.
-    if(chat.getAttribute('data-tt-chat-surface')==='bounded'){snap.gapDone=true;playDelete(snap);return;}
+    // Bounded TT ChatSurface owns every direct child. Keep the fixed visual effect,
+    // but let TT own the message-gap layout instead of inserting a foreign spacer.
+    if (chat.getAttribute('data-tt-chat-surface') === 'bounded') {
+      snap.gapDone=true;playDelete(snap);return;
+    }
     const spacer=node('div','hw-delete-spacer',doc.createDocumentFragment());
     Object.assign(spacer.style,{height:snap.outerHeight+'px',minHeight:'0',margin:'0',padding:'0',border:'0',boxSizing:'border-box',flexShrink:'0',overflow:'hidden',pointerEvents:'none'});
     chat.insertBefore(spacer,record.nextSibling?.parentNode===chat?record.nextSibling:null);snap.spacer=spacer;chat.scrollTop=snap.scrollTop;
@@ -617,28 +620,6 @@ function nodeSpider(P, size) {
     if(iconEffectTimer||!moving()||!ambient()||root.dataset.cwV4Settings==='open')return;
     iconEffectTimer=later(()=>{iconEffectTimer=0;const kinds=iconEffectKinds.filter(k=>k!==lastIconEffect);playIconEffect(kinds[Math.random()*kinds.length|0]);scheduleIconEffects();},rnd(15000,24000));
   }
-  function preview(effect,delay=0){
-    if(!moving())return false;
-    const run=()=>{
-      if(!moving())return;
-      for(const token of [...activeDeletes])if(token.demoOriginal)clearDelete(token);
-      if(iconEffectKinds.includes(effect))return playIconEffect(effect,undefined,true);
-      if(effect==='prank')return maybePrank(true);
-      if(effect==='pail'){if(!pail)positionPail();if(!pail)return false;candy({target:pail,detail:0},true);return true;}
-      if(effect==='chat-spider'){clearChatDecoration();chatDecoration(true);const state=chatDecorationState;if(!state?.play)return false;state.play();decoLater(state,()=>{clearChatDecoration();chatDecoration();},1900);return true;}
-      if(effect==='drawer-spider'){stopDrawerSpider();startDrawerSpider();if(!spider)return false;for(const id of spider.timers)cancel(id);spider.timers.clear();drawerSpiderRound(spider,true);return true;}
-      if(effect==='flame')return flickerCandles(true);
-      if(effect==='send'){const box=doc.getElementById('send_textarea');if(!box)return false;const snap=sendSnapshot(box,'测试文字');if(!snap)return false;playSend(snap);return true;}
-      if(effect==='delete-A'||effect==='delete-B'){
-        const message=[...doc.querySelectorAll('#chat>.mes')].at(-1);if(!message)return false;
-        const snap=captureDelete(message);if(!snap)return false;
-        snap.demoOriginal={node:message,value:message.style.getPropertyValue('visibility'),priority:message.style.getPropertyPriority('visibility')};snap.demoChoice=effect.at(-1);snap.gapDone=true;
-        message.style.setProperty('visibility','hidden','important');try{playDelete(snap);}catch(error){clearDelete(snap);throw error;}return true;
-      }
-      return false;
-    };
-    if(delay){later(run,delay);return true;}return run();
-  }
   function activity(){lastAction=Date.now();idleThreshold=rnd(30000,60000);}
   function action(){activity();clearPrank();stopIconEffect();}
   function tick(){scheduler=0;if(dead)return;maybePrank();scheduler=later(tick,1000);}
@@ -682,7 +663,7 @@ function nodeSpider(P, size) {
     on(doc,'click',e=>{if(e.target.closest?.('.popup-button-cancel,#dialogue_del_mes_cancel'))finishDelete(deletion);const m=e.target.closest?.('.mes_edit_delete,.claude-user-message-delete');if(m)captureDelete(m.closest('.mes'));if(e.target.closest?.('#dialogue_del_mes_ok'))captureDelete([...doc.querySelectorAll('#chat>.mes:has(input.del_checkbox:checked)')].at(-1)||doc.querySelector('#chat>.mes:last-child'));},{capture:true,passive:true});
     on(doc,'visibilitychange',()=>{reset();if(!doc.hidden)staticScenes();});on(win,'resize',()=>{viewport={right:win.innerWidth,bottom:win.innerHeight};reset();webKey='';generationSafeKey='';if(pailDrag){savePail();pailDrag=null;}staticScenes();},{passive:true});on(motion,'change',()=>{lastCalm=calm();reset();staticScenes();});
     doc.fonts?.ready.then(()=>{if(!dead){webKey='';staticScenes();}});
-  },sync,sent,deleted,captureDelete,finishDelete,reset,preview,positionClawd:positionPail,
+  },sync,sent,deleted,captureDelete,finishDelete,reset,positionClawd:positionPail,
   stats:()=>({timers:timers.size,animations:animations.size,nodes:[...owned].filter(n=>n.isConnected).length,prank:!!ghost,spider:!!spider,sendRaf:!!sendFrame,spiderRaf:!!spider?.frame,decoRaf:(welcomeState?.frames.size||0)+(chatDecorationState?.frames.size||0)}),
   destroy(){if(dead)return;dead=true;reset();pailResizeObserver?.disconnect();pailQrObserver?.disconnect();pailSmallObserver?.disconnect();win.cancelAnimationFrame(pailSmallFrame);pailSmallFrame=0;pailSmallForm=pailSmallPile=null;pailObserved.clear();pailDrag=null;observer.disconnect();settingsObserver.disconnect();win.cancelAnimationFrame(raf);listeners.splice(0).forEach(f=>f());for(const[n,s]of icons){if(s.kind==='svg'&&n.innerHTML===s.installed){n.innerHTML=s.html;if(s.box===null)n.removeAttribute('viewBox');else n.setAttribute('viewBox',s.box);if(s.stroke===null)n.removeAttribute('stroke-width');else n.setAttribute('stroke-width',s.stroke);}if(s.kind==='text'&&s.text.data===s.installed)s.text.data=s.original;if(s.kind==='mask'){if(s.mask)n.style.setProperty('mask-image',s.mask,s.maskP);else n.style.removeProperty('mask-image');}}icons.clear();for(const n of owned)n.remove();owned.clear();anchors.clear();root.classList.remove('hw-typing');root.style.removeProperty('--cw-hw-rig-lift');}
   };
