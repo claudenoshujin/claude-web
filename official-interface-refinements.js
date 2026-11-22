@@ -1,7 +1,7 @@
-import { watchTokens, tokenText } from './token-count.js?v=2.0.165';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.166';
 /* The five formatting tabs and the live persona editor use original ST controls. */
 export function createInterfaceRefinements(h) {
-  const {win,t,L,make,button,icon,get,begin,finish,section,row,move,cleanup,created,act,menu,tg,sel,num,txt,presetRow,showToggle,openEditor}=h;
+  const {win,t,L,make,button,icon,get,begin,finish,restorePanel,section,row,move,cleanup,created,act,menu,tg,sel,num,txt,presetRow,showToggle,openEditor}=h;
   const doc=win.document,registry=new Map();let mobileHead=null,headOwner=null;
   const text=(n,v)=>{if(n&&n.textContent!==v)n.textContent=v;};
   const ctx=()=>win.SillyTavern?.getContext?.();
@@ -19,7 +19,12 @@ export function createInterfaceRefinements(h) {
   /* 格式化 v2d（稿 design-settings-pages-v2d.html「格式化」，修改单第 3 节）：四个标签 上下文 / 格式指引 / 系统提示词 / 推理与其他。
      每个模板标签顶上一张模板工具条（模板 / 下拉 / 保存 / ⋯ / 总开关）；下面两栏（上下文 1.5 : 1，其余 1 : 1）。
      控件全是原生的，只搬位置；对话补全接口下前三个标签仍旧整体变灰（cwr-dim），提示改成标签行右边的胶囊（手机是提示条）。 */
-  function formatting(panel){const start=begin(panel);if(!start)return;const {s,page}=start;page.classList.add('cwr-page','cwr-formatting');panel.classList.add('cwr-interface-panel','cw2','cw2-fmt');cleanup(s,()=>panel.classList.remove('cwr-interface-panel','cw2','cw2-fmt'));
+  function formatting(panel){
+    if(panel.hasAttribute('data-tt-assistant')||panel.querySelector('#tt-assistant')){
+      restorePanel(panel);
+      return;
+    }
+    const start=begin(panel);if(!start)return;const {s,page}=start;page.classList.add('cwr-page','cwr-formatting');panel.classList.add('cwr-interface-panel','cw2','cw2-fmt');cleanup(s,()=>panel.classList.remove('cwr-interface-panel','cw2','cw2-fmt'));
     const head=pageHead(s,page,'格式化',[['导入全部模板',get('af_master_import'),false,null,'imp'],['导出全部模板',get('af_master_export'),false,null,'exp']]);
     head.classList.add('cw2-bar');head.append(make('span','cw2-note',t('⋯ 里可以一次导入或导出本页所有模板','Use ⋯ to import or export every template on this page')));
     const tabrow=make('div','cw2-tabrow'),tabs=make('div','cwr-tabs cw2-tabs'),note=make('span','cw2-tabnote'),tip=make('div','cw2-tip');

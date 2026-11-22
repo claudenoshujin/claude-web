@@ -1,7 +1,7 @@
 /* 层顺序：cw-settings-v2d 排在 spec 前面，!important 时压过 spec / round3 / unified（见 settings-v2d.css 开头）。 */
 @layer cw-settings-visibility,cw-settings-v2d;
-@import url('./settings-unified.css?v=2.0.165');
-@import url('./settings-v2d.css?v=2.0.165');
+@import url('./settings-unified.css?v=2.0.166');
+@import url('./settings-v2d.css?v=2.0.166');
 /* Mobile: keep a fixed element in a message from making the root touch-scrollable. */
 html[data-cw-v4][data-claude-layout="mobile"]{overflow-y:hidden!important}
 /* Keep message fixed elements anchored to the viewport, not a scrollable root. */
@@ -3719,6 +3719,7 @@ html[data-cw-v4] body .cw-desk-tool>.cw-rail-toggle{position:absolute;display:bl
  html[data-cw-v4][data-claude-layout="pc"] body #top-settings-holder#top-settings-holder{transition:transform .2s,visibility .2s}
  html[data-cw-v4][data-cw-rail-collapsed]:not(#cw1):not(#cw2):not(#cw3):not(#cw4),html[data-cw-v4][data-cw-rail-collapsed]:not(#cw1):not(#cw2):not(#cw3):not(#cw4) body{--cl-rail:0px!important}
  html[data-cw-v4][data-cw-rail-collapsed]:not(#cw1):not(#cw2):not(#cw3):not(#cw4) body #top-settings-holder#top-settings-holder{transform:translateX(-100%)!important;visibility:hidden!important}
+ html[data-cw-v4][data-cw-rail-collapsed] body #top-settings-holder#top-settings-holder dialog.cw-v4-editor[open]{visibility:visible!important}
  html[data-cw-v4][data-cw-rail-collapsed] body #sheld>.cw-v4-chat-head{left:0!important;padding-left:100px!important}
  html[data-cw-v4][data-cw-rail-collapsed] body>.cw-rail-mini{position:fixed;left:10px;top:10px;z-index:3100;display:flex;gap:2px}
  html[data-cw-v4] body>.cw-rail-mini>button{width:32px;height:32px;display:grid;place-items:center;padding:0;border:0;border-radius:8px;background:none;color:var(--cw-v4-text);cursor:pointer}

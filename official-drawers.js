@@ -1,20 +1,20 @@
-import { watchTokens, tokenText } from './token-count.js?v=2.0.165';
-import { createMorePages } from './settings-more-pages.js?v=2.0.165';
-import { createV2dPages } from './settings-v2d.js?v=2.0.165';
-import { createPresetManagerPage } from './official-preset-manager.js?v=2.0.165';
-import { createInterfaceRefinements } from './official-interface-refinements.js?v=2.0.165';
-import { normalizeSettingsSections } from './settings-sections.js?v=2.0.165';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.166';
+import { createMorePages } from './settings-more-pages.js?v=2.0.166';
+import { createV2dPages } from './settings-v2d.js?v=2.0.166';
+import { createPresetManagerPage } from './official-preset-manager.js?v=2.0.166';
+import { createInterfaceRefinements } from './official-interface-refinements.js?v=2.0.166';
+import { normalizeSettingsSections } from './settings-sections.js?v=2.0.166';
 /* Semantic live layouts, ported from design-v4 (redo.js / wi.js).
  * Only original DOM nodes are moved; lists/forms keep their IDs and native
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings, retainRangeCounter } from './official-extension-settings.js?v=2.0.165';
-import { createPresetList } from './official-preset-list.js?v=2.0.165';
-import { createWorldPage } from './official-world.js?v=2.0.165';
-import { createPresetEdit } from './official-preset-edit.js?v=2.0.165';
-import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.165';
-import { createExtensionPanel } from './official-extension-panel.js?v=2.0.165';
+import { createExtensionSettings, retainRangeCounter } from './official-extension-settings.js?v=2.0.166';
+import { createPresetList } from './official-preset-list.js?v=2.0.166';
+import { createWorldPage } from './official-world.js?v=2.0.166';
+import { createPresetEdit } from './official-preset-edit.js?v=2.0.166';
+import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.166';
+import { createExtensionPanel } from './official-extension-panel.js?v=2.0.166';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);
@@ -58,6 +58,36 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
     exportSession={popup,native,anchor,stop(){observer.disconnect();doc.removeEventListener('pointerdown',outside,true);doc.removeEventListener('scroll',scroll,true);win.removeEventListener('resize',dismiss);viewport?.removeEventListener('resize',dismiss);viewport?.removeEventListener('scroll',dismiss);}};
   }
   function state(root){let s=states.get(root);if(!s){s={moves:[],created:[],root};states.set(root,s);}return s;}
+  function prepareRestore(s){
+    s.cleanup?.();
+    s.cleanups?.forEach(f=>f());
+    s.gates?.forEach(stop=>stop());
+    delete s.root.dataset.cwV4Sources;
+    if(s.rest)for(const node of [...s.rest.childNodes])s.root.append(node);
+  }
+  function restoreMoves(panels){
+    const moves=panels.flatMap(s=>s.moves).sort((a,b)=>(b[2]||0)-(a[2]||0));
+    for(const [node,mark] of moves)if(mark.parentNode)mark.replaceWith(node);
+  }
+  function finishRestore(s){
+    s.created.forEach(n=>n.remove());
+    s.buttons?.forEach(n=>n.classList.remove('cw-v4-as-btn','cw-v4-primary'));
+    s.mapped?.forEach(n=>n.classList.remove('cw-v4-mapped-setting','cw-v4-row','cw-v4-range'));
+    s.iconToggles?.forEach(n=>n.classList.remove('cw-v4-icon-toggle'));
+    s.root.classList.remove('cw-v4-reflow');
+    if(s.root.classList.contains('cw-v4-extension-item')){
+      s.root.classList.remove('cw-v4-extension-item');
+      delete s.root.dataset.cwV4Extension;
+    }
+  }
+  function restorePanel(root){
+    const s=states.get(root);
+    if(!s?.page)return;
+    prepareRestore(s);
+    restoreMoves([s]);
+    finishRestore(s);
+    states.delete(root);
+  }
   function sectionHost(host){
     if(!host.matches?.('.cw-v4-section'))return host;
     const card=host.querySelector(':scope>.cw-v4-card');if(!card)return host;
@@ -190,7 +220,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   }
 
   const presetManagerPage=createPresetManagerPage({win,t,make,button,icon,move,cleanup,created});
-  const refinements=createInterfaceRefinements({win,t,L,make,button,icon,get,begin,finish,section,row,move,cleanup,created,act,menu,tg,sel,num,txt,presetRow,showToggle,openEditor});
+  const refinements=createInterfaceRefinements({win,t,L,make,button,icon,get,begin,finish,restorePanel,section,row,move,cleanup,created,act,menu,tg,sel,num,txt,presetRow,showToggle,openEditor});
   /* ---------------- 世界书 ----------------
    * 2.0.341：整页重排见 official-world.js（首页 / 书页 / 条目页 / 激活设置 / 内容放大）。 */
   const presetEdit=createPresetEdit({win,t,make,button,icon,phoneWide:()=>phoneWide(),onReady:()=>presetList.refresh()});
@@ -1198,6 +1228,6 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
       for(const f of paints)f();
     },
     closeCharacterExport(){if(!exportSession)return false;const anchor=exportSession.anchor;stopCharacterExport(true);anchor.focus({preventScroll:true});return true;},
-    restore(){stopCharacterExport(true);exportStyle?.remove();exportStyle=null;presetManagerPage.destroy();refinements.destroy();extensionPanel.destroy();versionDisposed=true;doc.removeEventListener('click',cancelOwnVersionCheck,true);if(versionDelay)win.clearTimeout(versionDelay);finishVersionDelay?.();versionCard?.remove();for(const r of versionRows)r.querySelector(".cw-update-status")?.remove();versionRows.clear();presetList.destroy();presetEdit.destroy();promptScroll?.destroy();promptScroll=null;extensionSettings.restore();paints.length=0;ctxCache.at=0;const all=[...states.values()].reverse();for(const s of all){s.cleanup?.();s.cleanups?.forEach(f=>f());s.gates?.forEach(stop=>stop());delete s.root.dataset.cwV4Sources;if(s.rest){for(const n of [...s.rest.childNodes])s.root.append(n);}}for(const [node,mark] of all.flatMap(s=>s.moves).sort((a,b)=>(b[2]||0)-(a[2]||0)))if(mark.parentNode)mark.replaceWith(node);for(const s of all){s.created.forEach(n=>n.remove());s.buttons?.forEach(n=>n.classList.remove('cw-v4-as-btn','cw-v4-primary'));s.mapped?.forEach(n=>n.classList.remove('cw-v4-mapped-setting','cw-v4-row','cw-v4-range'));s.iconToggles?.forEach(n=>n.classList.remove('cw-v4-icon-toggle'));s.root.classList.remove('cw-v4-reflow');if(s.root.classList.contains('cw-v4-extension-item')){s.root.classList.remove('cw-v4-extension-item');delete s.root.dataset.cwV4Extension;}}states.clear();},
+    restore(){stopCharacterExport(true);exportStyle?.remove();exportStyle=null;presetManagerPage.destroy();refinements.destroy();extensionPanel.destroy();versionDisposed=true;doc.removeEventListener('click',cancelOwnVersionCheck,true);if(versionDelay)win.clearTimeout(versionDelay);finishVersionDelay?.();versionCard?.remove();for(const r of versionRows)r.querySelector(".cw-update-status")?.remove();versionRows.clear();presetList.destroy();presetEdit.destroy();promptScroll?.destroy();promptScroll=null;extensionSettings.restore();paints.length=0;ctxCache.at=0;const all=[...states.values()].reverse();all.forEach(prepareRestore);restoreMoves(all);all.forEach(finishRestore);states.clear();},
   };
 }

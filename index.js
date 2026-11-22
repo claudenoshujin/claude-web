@@ -1,10 +1,10 @@
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.165';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.165';
-import { parseRecentTime } from './recent-time.js?v=2.0.165';
-import { officialIcons as recentBadgeIcons } from './official-icons.js?v=2.0.165';
-import { installChatTools } from './chat-tools.js?v=2.0.165';
-import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.165';
-import { tr } from './official-i18n.js?v=2.0.165';
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.166';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.166';
+import { parseRecentTime } from './recent-time.js?v=2.0.166';
+import { officialIcons as recentBadgeIcons } from './official-icons.js?v=2.0.166';
+import { installChatTools } from './chat-tools.js?v=2.0.166';
+import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.166';
+import { tr } from './official-i18n.js?v=2.0.166';
 /* Claude Web 2.0 —— SillyTavern 扩展形态入口。
  *
  * 【2026-08-10 更正】这个文件现在就是源码，直接改它。
@@ -20,12 +20,12 @@ import { tr } from './official-i18n.js?v=2.0.165';
  *   localStorage['claude-web:layout']  = 'auto' | 'pc' | 'mobile'   默认 auto
  */
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.165";
-import { installOfficialLayout } from "./official-layout.js?v=2.0.165";
-import { installHalloween } from "./halloween.js?v=2.0.165";
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.165";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.165";
-import { createClawdPile } from "./clawd-pile.js?v=2.0.165";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.166";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.166";
+import { installHalloween } from "./halloween.js?v=2.0.166";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.166";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.166";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.166";
 
 const CLAUDE_EXTENSION_MODE = true;
 
@@ -417,7 +417,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.165-official-layout-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
+  id: '2.0.166-official-layout-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
     + '-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext-local-fonts',
   mode: 'full',
 };
@@ -442,10 +442,10 @@ const CLAUDE_STYLE_HREF = CLAUDE_STYLE_URL.href;
 
 const officialStyle = document.createElement('link');
 officialStyle.rel = 'stylesheet';
-officialStyle.href = new URL('styles/official-layout.css?v=2.0.165-local-fonts', import.meta.url).href;
+officialStyle.href = new URL('styles/official-layout.css?v=2.0.166-local-fonts', import.meta.url).href;
 const localFontStyle = document.createElement('link');
 localFontStyle.rel = 'stylesheet';
-localFontStyle.href = new URL('styles/local-fonts.css?v=2.0.165', import.meta.url).href;
+localFontStyle.href = new URL('styles/local-fonts.css?v=2.0.166', import.meta.url).href;
 let optionalFontStyle;
 let optionalFontTimeout;
 
@@ -477,7 +477,7 @@ function removeOptionalChineseFonts() {
   optionalFontStyle = undefined;
 }
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
-const refinementStyle=document.createElement('link');refinementStyle.rel='stylesheet';refinementStyle.href=new URL('styles/interface-refinements.css?v=2.0.165',import.meta.url).href;if(CLAUDE_ENABLED)document.head.append(refinementStyle);
+const refinementStyle=document.createElement('link');refinementStyle.rel='stylesheet';refinementStyle.href=new URL('styles/interface-refinements.css?v=2.0.166',import.meta.url).href;if(CLAUDE_ENABLED)document.head.append(refinementStyle);
 if (CLAUDE_ENABLED) {
   document.head.append(localFontStyle);
   if (CLAUDE_UI_STYLE === 'web') document.head.append(officialStyle);
@@ -8330,7 +8330,7 @@ if (CLAUDE_ENABLED) {
   function hostModuleRoot() {
     const mainScript = [...hostDocument.scripts].find(script => /(?:^|\/)script\.js(?:[?#].*)?$/.test(script.src));
     return {
-      main: mainScript?.src || new hostWindow.URL('script.js?v=2.0.165', hostDocument.baseURI).href,
+      main: mainScript?.src || new hostWindow.URL('script.js', hostDocument.baseURI).href,
       root: new hostWindow.URL('.', mainScript?.src || hostDocument.baseURI),
     };
   }
@@ -8339,7 +8339,7 @@ if (CLAUDE_ENABLED) {
     const urls = hostModuleRoot();
     /* 主模块必须保留页面实际使用的 ?v=... 等查询参数。
        去掉它再 import 会被浏览器当成另一份模块，可能把 SillyTavern 主程序重复执行一次。 */
-    if (relativePath === 'script.js?v=2.0.165') return urls.main;
+    if (relativePath === 'script.js') return urls.main;
     return new hostWindow.URL(relativePath, urls.root).href;
   }
 
@@ -8363,9 +8363,9 @@ if (CLAUDE_ENABLED) {
 
   function injectHostModuleLoader() {
     const urls = {
-      main: resolveHostModule('script.js?v=2.0.165'),
-      groups: resolveHostModule('scripts/group-chats.js?v=2.0.165'),
-      popup: resolveHostModule('scripts/popup.js?v=2.0.165'),
+      main: resolveHostModule('script.js'),
+      groups: resolveHostModule('scripts/group-chats.js'),
+      popup: resolveHostModule('scripts/popup.js'),
     };
     /* 模块说明符写成绝对地址：blob 兜底那条路的 baseURI 是 blob:，
        相对路径在那里解析不出来。 */
@@ -11289,7 +11289,7 @@ if (CLAUDE_ENABLED) {
 
     const token = {};
     autoCompleteResizeGuardToken = token;
-    const moduleUrl = resolveHostModule('scripts/autocomplete/AutoComplete.js?v=2.0.165');
+    const moduleUrl = resolveHostModule('scripts/autocomplete/AutoComplete.js');
 
     try {
       const previous = hostWindow[AUTOCOMPLETE_RESIZE_GUARD_KEY];

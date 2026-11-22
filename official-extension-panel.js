@@ -1,11 +1,11 @@
-import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.165';
-import { preferencesFor } from './preferences.js?v=2.0.165';
+import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.166';
+import { preferencesFor } from './preferences.js?v=2.0.166';
 
 // The catalog is presentation only. Plugin roots and their native handlers stay
 // in rm_extensions_block; the existing settings adapter owns field lifecycles.
 export function createExtensionPanel({win,t,make,button,icon,settings,openEditor}) {
   const doc=win.document,prefs=preferencesFor(win),key='claude-web:extensions-layout';
-  const style=make('link','');style.rel='stylesheet';style.href=new URL('styles/official-extension-panel.css?v=2.0.165',import.meta.url).href;doc.head.append(style);
+  const style=make('link','');style.rel='stylesheet';style.href=new URL('styles/official-extension-panel.css?v=2.0.166',import.meta.url).href;doc.head.append(style);
   const own='third-party/'+decodeURIComponent(new URL('.',import.meta.url).pathname.replace(/\/$/,'').split('/').pop());
   const aliases={tavern_helper:'third-party/JS-Slash-Runner',bai_bai_toolkit_container:'third-party/baibai-tools',assets_container:'assets',expressions_container:'expressions',sd_container:'stable-diffusion',tts_container:'tts',qr_container:'quick-reply',translation_container:'translate',caption_container:'caption',summarize_container:'memory',regex_container:'regex',vectors_container:'vectors'};
   const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
