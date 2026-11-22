@@ -1,4 +1,4 @@
-import { newFeature } from './new-features.js?v=2.0.166';
+import { newFeature } from './new-features.js?v=2.0.167';
 /* Offset controls keep the native font/theme controls authoritative. */
 export function createFontWeightControl({win,t,make,button}) {
   const doc=win.document,root=doc.documentElement,stops=[-100,-50,0,50,100,150,200],names=['更细','细','默认','稍粗','粗','更粗','最粗'];

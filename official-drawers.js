@@ -1,20 +1,20 @@
-import { watchTokens, tokenText } from './token-count.js?v=2.0.166';
-import { createMorePages } from './settings-more-pages.js?v=2.0.166';
-import { createV2dPages } from './settings-v2d.js?v=2.0.166';
-import { createPresetManagerPage } from './official-preset-manager.js?v=2.0.166';
-import { createInterfaceRefinements } from './official-interface-refinements.js?v=2.0.166';
-import { normalizeSettingsSections } from './settings-sections.js?v=2.0.166';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.167';
+import { createMorePages } from './settings-more-pages.js?v=2.0.167';
+import { createV2dPages } from './settings-v2d.js?v=2.0.167';
+import { createPresetManagerPage } from './official-preset-manager.js?v=2.0.167';
+import { createInterfaceRefinements } from './official-interface-refinements.js?v=2.0.167';
+import { normalizeSettingsSections } from './settings-sections.js?v=2.0.167';
 /* Semantic live layouts, ported from design-v4 (redo.js / wi.js).
  * Only original DOM nodes are moved; lists/forms keep their IDs and native
  * handlers. Comment markers allow a full return to the native layout.
  * Labels are the design's own Chinese strings; L() looks up the design's
  * English table for other UI languages. */
-import { createExtensionSettings, retainRangeCounter } from './official-extension-settings.js?v=2.0.166';
-import { createPresetList } from './official-preset-list.js?v=2.0.166';
-import { createWorldPage } from './official-world.js?v=2.0.166';
-import { createPresetEdit } from './official-preset-edit.js?v=2.0.166';
-import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.166';
-import { createExtensionPanel } from './official-extension-panel.js?v=2.0.166';
+import { createExtensionSettings, retainRangeCounter } from './official-extension-settings.js?v=2.0.167';
+import { createPresetList } from './official-preset-list.js?v=2.0.167';
+import { createWorldPage } from './official-world.js?v=2.0.167';
+import { createPresetEdit } from './official-preset-edit.js?v=2.0.167';
+import { createPromptScroll } from './official-prompt-scroll.js?v=2.0.167';
+import { createExtensionPanel } from './official-extension-panel.js?v=2.0.167';
 export function actionLabel(node,t){
   const byId={world_backfill_memos:['补全标题','Fill titles'],world_apply_current_sorting:['应用排序','Apply sorting'],world_refresh:['刷新','Refresh'],OpenAllWIEntries:['展开全部','Expand all'],CloseAllWIEntries:['收起全部','Collapse all'],world_popup_name_button:['改名','Rename'],world_duplicate:['复制','Duplicate'],world_popup_delete:['删除','Delete'],bulkEditButton:['批量编辑','Bulk edit'],charListGridToggle:['切换网格视图','Toggle grid view'],rm_button_group_chats:['新建群聊','New group'],external_import_button:['从外部导入','Import externally'],character_import_button:['导入角色','Import character'],world_import_button:['导入','Import'],world_popup_export:['导出','Export'],bg_add_folder_button:['新建文件夹','New folder'],bg_selection_mode_button:['选择背景','Select backgrounds'],bg_group_add_to_folder_button:['移入文件夹','Move to folder'],open_s_preset_menu:['预设工具','Preset tools'],view_connection_profile:['查看配置','View profile'],reload_connection_profile:['重新载入','Reload profile'],personas_backup:['备份','Back up'],personas_restore:['恢复备份','Restore backup'],persona_grid_toggle:['切换网格视图','Toggle grid view']};
   if(byId[node.id])return t(...byId[node.id]);

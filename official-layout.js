@@ -1,16 +1,16 @@
-import { createBackgroundFilters } from './background-filters.js?v=2.0.166';
-import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.166';
-import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.166';
-import { watchTokens, tokenText } from './token-count.js?v=2.0.166';
-import { createSettingsScale } from './settings-scale.js?v=2.0.166';
-import { createFontWeightControl } from './font-weight.js?v=2.0.166';
-import { preferencesFor } from './preferences.js?v=2.0.166';
-import { officialIcons } from './official-icons.js?v=2.0.166';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.166';
-import { retainRangeCounter } from './official-extension-settings.js?v=2.0.166';
-import { tr } from './official-i18n.js?v=2.0.166';
-import { normalizeSettingsSections } from './settings-sections.js?v=2.0.166';
-import { installDisplayState } from './display-state.js?v=2.0.166';
+import { createBackgroundFilters } from './background-filters.js?v=2.0.167';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.167';
+import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.167';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.167';
+import { createSettingsScale } from './settings-scale.js?v=2.0.167';
+import { createFontWeightControl } from './font-weight.js?v=2.0.167';
+import { preferencesFor } from './preferences.js?v=2.0.167';
+import { officialIcons } from './official-icons.js?v=2.0.167';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.167';
+import { retainRangeCounter } from './official-extension-settings.js?v=2.0.167';
+import { tr } from './official-i18n.js?v=2.0.167';
+import { normalizeSettingsSections } from './settings-sections.js?v=2.0.167';
+import { installDisplayState } from './display-state.js?v=2.0.167';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -619,17 +619,24 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
      列表是 popover（最上层）；下拉在模态的编辑弹窗里时，列表挂在那个弹窗里面（挂在外面会被模态弄成不能点）。
      键盘：Enter / 空格 / Alt+↓ 打开，↑↓ 移动，Enter 选，Esc 只关列表（不关设置）。点外面、滚动、改窗口大小都会关。手机不用这个。 */
   let selMenu = null, selFor = null, selActive = -1, selItems = [];
+  let selRect = null, selOptionsObserver = null;
   // 2.0.257 手机也接管（Lulu：手机上的原生下拉列表不好看），CSS ㉞ 画成从底部弹出的列表。
   const selTarget = el => el instanceof win.HTMLSelectElement && !el.multiple && !el.disabled
     && !el.classList.contains('select2-hidden-accessible') && !el.classList.contains('cw-v4-has-seg') && !!el.closest('.cw-v4-panel,dialog.cw-v4-editor');
   function closeSelMenu(refocus) {
     if (!selMenu) return;
     const s = selFor, m = selMenu;
-    selMenu = null; selFor = null; selItems = []; selActive = -1;
+    selMenu = null; selFor = null; selItems = []; selActive = -1; selRect = null;
+    selOptionsObserver?.disconnect(); selOptionsObserver = null;
     try { if (m.matches(':popover-open')) m.hidePopover(); } catch {}
     m.remove();
     s?.removeAttribute('data-cw-open');
     if (refocus && s?.isConnected) s.focus({preventScroll: true});
+  }
+  function closeMovedSelMenu() {
+    if (!selFor || !selRect) return;
+    const rect = selFor.getBoundingClientRect();
+    if (['left', 'top', 'width', 'height'].some(key => Math.abs(rect[key] - selRect[key]) > 2)) closeSelMenu();
   }
   function markSel(i) {
     if (i < 0 || i >= selItems.length) return;
@@ -674,7 +681,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 2.0.241：列表挂在 body 上，不在 .openDrawer 里；酒馆 script.js 的 html touchstart/mousedown 会把它当成「点了抽屉外面」，
     // 选一项就把整个设置关掉。按下事件在列表这里截住，不再冒泡到 html（选项靠 click 生效，不受影响）。
     for (const t of ['mousedown', 'touchstart']) m.addEventListener(t, e => e.stopPropagation(), {passive: true});
-    const opts = [...sel.options].filter(o => !o.hidden && o.style.display !== 'none');
+    const readOptions = () => [...sel.options].filter(o => !o.hidden && o.style.display !== 'none');
+    let opts = readOptions();
     let search = null;
     // 手机：顶上一行灰字写这个下拉是干什么的（行标题），底下一个「取消」；背景压暗，点暗处也关。
     if (mobile()) {
@@ -682,11 +690,10 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       if (title && title.length <= 30) m.append(make('div', 'cw-v4-selmenu-title', title));
       m.addEventListener('click', e => { if (e.target === m) closeSelMenu(); });
     }
-    if (opts.length > 10) { search = make('input', 'cw-v4-selmenu-search'); search.type = 'text'; search.placeholder = L('搜索'); search.setAttribute('aria-label', L('搜索')); m.append(search); }
     m.append(list);
     if (mobile()) { const c = button(t('取消', 'Cancel'), e => { e.stopPropagation(); closeSelMenu(); }, 'cw-v4-selmenu-cancel'); m.append(c); }
     const build = q => {
-      list.replaceChildren(); selItems = []; let group = null;
+      list.replaceChildren(); selItems = []; selActive = -1; let group = null;
       for (const o of opts) {
         const label = (o.getAttribute('label') || o.textContent || '').trim() || o.value;
         if (q && !label.toLocaleLowerCase().includes(q)) continue;
@@ -708,20 +715,39 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     (sel.closest('dialog[open]') || doc.body).append(m);
     try { m.showPopover(); } catch {}
     selMenu = m; selFor = sel; sel.setAttribute('data-cw-open', '');
+    const markCurrent = () => {
+      const selected = selItems.findIndex(it => it.el.classList.contains('cw-sel'));
+      markSel(selected >= 0 ? selected : selItems.findIndex(it => !it.disabled));
+    };
+    const rebuild = () => { build(search?.value.trim().toLocaleLowerCase() || ''); markCurrent(); };
+    const addSearch = () => {
+      if (search || opts.length <= 10) return;
+      search = make('input', 'cw-v4-selmenu-search');
+      search.type = 'text'; search.placeholder = L('搜索'); search.setAttribute('aria-label', L('搜索'));
+      search.addEventListener('input', rebuild);
+      search.addEventListener('focus', () => { search.dataset.cwFocusAt = String(Date.now()); });
+      list.before(search);
+    };
+    addSearch();
     // 位置：右边和下拉对齐，宽度至少和下拉一样（再不小于 220），下面不够就翻上去。
     const r = sel.getBoundingClientRect(), vw = win.innerWidth, vh = win.innerHeight;
+    selRect = r;
     m.style.minWidth = Math.max(220, Math.round(r.width)) + 'px';
     const below = vh - r.bottom - 12, above = r.top - 12, down = below >= 240 || below >= above;
     m.style.maxHeight = Math.max(120, Math.min(400, (down ? below : above) - 6)) + 'px';
     const b = m.getBoundingClientRect();
     m.style.left = Math.round(Math.min(vw - b.width - 8, Math.max(8, r.right - b.width))) + 'px';
     m.style.top = Math.round(down ? r.bottom + 6 : r.top - 6 - b.height) + 'px';
-    const cur = selItems.findIndex(it => it.el.classList.contains('cw-sel'));
-    markSel(cur >= 0 ? cur : selItems.findIndex(it => !it.disabled));
-    if (search) {
-      search.addEventListener('input', () => { build(search.value.trim().toLocaleLowerCase()); const c = selItems.findIndex(it => it.el.classList.contains('cw-sel')); markSel(c >= 0 ? c : selItems.findIndex(it => !it.disabled)); });
-      search.addEventListener('focus', () => { search.dataset.cwFocusAt = String(Date.now()); });
-      if (!mobile()) search.focus({preventScroll: true});
+    markCurrent();
+    if (!mobile()) {
+      search?.focus({preventScroll: true});
+      selOptionsObserver = new win.MutationObserver(() => {
+        opts = readOptions();
+        addSearch();
+        rebuild();
+      });
+      selOptionsObserver.observe(sel, {childList: true, subtree: true, characterData: true, attributes: true,
+        attributeFilter: ['disabled', 'hidden', 'label', 'selected', 'style', 'value', 'data-cw-dot']});
     }
   }
   const segSel = new Map();
@@ -1562,7 +1588,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 2.0.229 下拉列表（openSelMenu）：按下下拉时拦下原生列表；点外面 / 滚动 / 改窗口大小关掉；键盘在下面那个 Escape 处理之前先接。
     on(doc, 'mousedown', e => {
       const t = e.target;
-      if (selMenu && selMenu.contains(t)) return;
+      if (selMenu && (selMenu.contains(t) || (!mobile() && !e.isTrusted))) return;
       if (t instanceof win.HTMLSelectElement && selTarget(t)) {
         e.preventDefault();
         if (selFor === t) { closeSelMenu(true); return; }
@@ -1574,8 +1600,9 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 那次滚动的 target 是 document，不在列表里。手机上搜索框有焦点、或刚聚焦 600ms 内，文档级的滚动不算；列表外的元素真滚了照旧关。
     on(doc, 'scroll', e => {
       if (!selMenu || selMenu.contains(e.target)) return;
+      if (!mobile()) { closeMovedSelMenu(); return; }
       const t = e.target, docLevel = t === doc || t === doc.documentElement || t === doc.body || t === doc.scrollingElement;
-      if (docLevel && mobile()) {
+      if (docLevel) {
         const s = selMenu.querySelector('.cw-v4-selmenu-search');
         if (s && (doc.activeElement === s || Date.now() - (+s.dataset.cwFocusAt || 0) < 600)) return;
       }
@@ -1589,7 +1616,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       const t = e.target;
       if (t instanceof win.Element && !t.closest('#top-settings-holder')) e.stopPropagation();
     }, {passive: true});
-    on(win, 'resize', () => { if (!mobile()) closeSelMenu(); });
+    on(win, 'resize', () => { if (!mobile()) closeMovedSelMenu(); });
     // 2.0.257 手机：轻点下拉（没滑动）时在 touchend 截住，原生列表不出来，开我们的底部列表。滑动照常滚页面。
     let touchSel = null, touchY = 0;
     on(doc, 'touchstart', e => { const t = e.target; touchSel = t instanceof win.HTMLSelectElement && selTarget(t) ? t : null; touchY = e.touches[0]?.clientY || 0; }, {capture: true, passive: true});

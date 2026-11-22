@@ -1,4 +1,4 @@
-import { newFeature } from './new-features.js?v=2.0.166';
+import { newFeature } from './new-features.js?v=2.0.167';
 /* Whole-preset management. Rendering reads the native select only; mutations use ST. */
 export function createPresetManagerPage({win,t,make,button,icon,move,cleanup,created}) {
   const doc=win.document,discovery=newFeature({win,make,t},'preset-manager');let ui=null;
