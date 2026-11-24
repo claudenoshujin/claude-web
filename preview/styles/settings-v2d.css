@@ -387,6 +387,10 @@ html[data-cw-settings-unified] .cw2-pref .cw2-cgrid toolcool-color-picker{width:
  html[data-cw-settings-unified] .cw2-pref .cw-v4-card>.cw-v4-row:has(>.cw-v4-row-controls>.cw-v4-icononly[data-cw-label]+.cw-v4-icononly[data-cw-label]){flex-direction:column!important;align-items:stretch!important;gap:8px!important;padding-top:11px!important;padding-bottom:12px!important}
  html[data-cw-settings-unified] .cw2-pref .cw-v4-card>.cw-v4-row:has(>.cw-v4-row-controls>.cw-v4-icononly[data-cw-label]+.cw-v4-icononly[data-cw-label])>.cw-v4-row-controls{width:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important}
  html[data-cw-settings-unified] .cw2-pref .cw-v4-card>.cw-v4-row:has(>.cw-v4-row-controls>.cw-v4-icononly[data-cw-label]+.cw-v4-icononly[data-cw-label])>.cw-v4-row-controls>*{flex:1 0 28%!important;justify-content:center!important;height:34px!important}
+ /* 主题文件：一行三个的按钮是按短名量的宽度：手机也写短名、藏图标（同电脑和设计稿）。
+    不然旧版手机规则会写原生提示「更新主题文件」17px 加图标，比按钮宽，互相压住 */
+ html[data-cw-settings-unified] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw2-pref .cw-v4-textbtns .cw-v4-icononly[data-cw-label]::after{content:attr(data-cw-label)!important;font-size:14px!important;line-height:1!important}
+ html[data-cw-settings-unified] body #top-settings-holder#top-settings-holder .cw-v4-panel .cw2-pref .cw-v4-textbtns .cw-v4-icononly[data-cw-label]>.cw-v4-icon{display:none!important}
 }
 
 /* ── 第 5 节 扩展（.cw-ext-panel.cw2-ext） ── */
