@@ -4,6 +4,7 @@ export const EN = {
   '已保存，刷新页面后生效。请先保存正在编辑的内容。':'Saved. Reload to apply. Save your current edits first.', '刷新页面':'Reload page',
   '界面样式':'Interface style', '新版（当前）':'New (current)', '旧版':'Old',
   '前瞻版':'Preview', '试用下一版的界面和修复。打开后一律使用新版界面，关掉后回到原来的设置。':'Try the next version\'s interface and fixes. The preview always uses the new interface; turning it off restores your previous settings.', '前瞻版只有新版界面。':'The preview only has the new interface.',
+  '前瞻版这次没能加载，暂时用的是正式版，原因见「卸载与清理」安全面板。可以刷新重试，或关掉开关。':'The preview could not load this time, so the regular version is running. The safety panel shows why. Reload to retry, or turn the switch off.', '刷新重试':'Reload to retry',
   // 侧栏、设置导航
   '预设':'Presets', 'API连接':'API Connection', 'API 连接':'API Connection', '格式化':'Formatting', '世界书':'World Info', '偏好设置':'Preferences',
   '背景':'Backgrounds', '扩展':'Extensions', '角色卡':'Characters', '酒馆':'Tavern', '用户角色':'Personas', '外观':'Appearance', '界面':'Interface',

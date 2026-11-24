@@ -34,6 +34,8 @@ async function startPreview() {
     safety = await (await import('./preview/emergency.js?v=' + VERSION)).installSafety();
   } catch (error) {
     delete globalThis.__cwPreview;
+    // 设置里的开关据此说明「这次没能加载」，不再提示「刷新后生效」。
+    globalThis.__cwPreviewFailed = true;
     console.error('[Claude Web] 前瞻版加载失败', error);
     previewFallback = '前瞻版没能加载（' + (error?.message || error) + '），本次已用正式版启动。可以在 Claude Web 设置里关闭「前瞻版」。';
     return false;

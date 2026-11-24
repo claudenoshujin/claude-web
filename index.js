@@ -8331,10 +8331,12 @@ if (CLAUDE_ENABLED) {
       panel.querySelector('#claude-web-preview-row span').textContent = tr(zh, '前瞻版');
       panel.querySelector('#claude-web-preview-help').textContent = tr(zh, '试用下一版的界面和修复。打开后一律使用新版界面，关掉后回到原来的设置。');
       const saved = preferencesFor(window).isSaved('claude-web:preview');
-      previewPending.hidden = saved && previewBox.checked === previewRunning;
-      previewPending.querySelector('span').textContent = saved ? tr(zh, '已保存，刷新页面后生效。请先保存正在编辑的内容。') : RELOAD_STORAGE_HINT;
-      previewPending.querySelector('button').textContent = tr(zh, '刷新页面');
-      previewPending.querySelector('button').disabled = !saved;
+      // 开关开着、前瞻却没能加载（本页退回了正式版）：照实说，不提示「刷新后生效」。
+      const failed = !!globalThis.__cwPreviewFailed && previewBox.checked && !previewRunning;
+      previewPending.hidden = !failed && saved && previewBox.checked === previewRunning;
+      previewPending.querySelector('span').textContent = failed ? tr(zh, '前瞻版这次没能加载，暂时用的是正式版，原因见「卸载与清理」安全面板。可以刷新重试，或关掉开关。') : saved ? tr(zh, '已保存，刷新页面后生效。请先保存正在编辑的内容。') : RELOAD_STORAGE_HINT;
+      previewPending.querySelector('button').textContent = tr(zh, failed ? '刷新重试' : '刷新页面');
+      previewPending.querySelector('button').disabled = !saved && !failed;
     };
     previewBox.checked = previewRunning || read('preview', ['on', 'off'], 'off') === 'on';
     previewBox.addEventListener('change', () => { write('preview', previewBox.checked ? 'on' : 'off'); syncPreview(); });
