@@ -12142,9 +12142,11 @@ if (CLAUDE_ENABLED) {
                   <div id="claude-web-ui-style-pending" class="claude-web-help" hidden><span></span> <button id="claude-web-ui-style-reload" type="button" class="menu_button"></button></div>
                 </div>
 
-                <label class="checkbox_label claude-web-check claude-web-field" id="claude-web-preview-row"><input id="claude-web-preview" type="checkbox"><span></span></label>
-                <div id="claude-web-preview-help" class="claude-web-help"></div>
-                <div id="claude-web-preview-pending" class="claude-web-help" hidden><span></span> <button id="claude-web-preview-reload" type="button" class="menu_button"></button></div>
+                <div class="claude-web-field" id="claude-web-preview-field">
+                  <label class="checkbox_label claude-web-check" id="claude-web-preview-row"><input id="claude-web-preview" type="checkbox"><span></span></label>
+                  <div id="claude-web-preview-help" class="claude-web-help"></div>
+                  <div id="claude-web-preview-pending" class="claude-web-help" hidden><span></span> <button id="claude-web-preview-reload" type="button" class="menu_button"></button></div>
+                </div>
 
                 <div class="claude-web-field claude-web-auto-theme">
                   <label for="claude-web-theme-auto"><b>主题切换</b></label>
@@ -13000,6 +13002,7 @@ if (CLAUDE_ENABLED) {
     const previewPending = panel.querySelector('#claude-web-preview-pending');
     const previewRunning = !!globalThis.__cwPreview;
     const syncPreview = () => {
+      if (!previewBox.isConnected) return;
       const zh = (document.querySelector('#ui_language_select')?.value || window.localStorage.getItem('language') || navigator.language || 'en').startsWith('zh');
       panel.querySelector('#claude-web-preview-row span').textContent = tr(zh, '前瞻版');
       panel.querySelector('#claude-web-preview-help').textContent = tr(zh, '试用下一版的界面和修复。打开后一律使用新版界面，关掉后回到原来的设置。');
@@ -13021,8 +13024,8 @@ if (CLAUDE_ENABLED) {
     panel.querySelector('#claude-web-preview-reload').addEventListener('click', () => window.location.reload());
     syncPreview();
     document.addEventListener('change', e => { if (e.target.id === 'ui_language_select') syncPreview(); });
-    // 测试仓单独安装时没有正式版可切，这一行不显示。
-    if (!previewRunning) for (const id of ['claude-web-preview-row', 'claude-web-preview-help', 'claude-web-preview-pending']) panel.querySelector('#' + id).hidden = true;
+    // 测试仓单独安装时没有正式版可切，整栏去掉（外观一节会把子元素重设为可见，hidden 留不住）。
+    if (!previewRunning) panel.querySelector('#claude-web-preview-field').remove();
     const motionBox = panel.querySelector('#claude-web-motion');
     const decorationsBox = panel.querySelector('#claude-web-decorations');
     motionBox.checked = read('motion', ['on', 'off'], 'on') !== 'off';
