@@ -1,7 +1,7 @@
 /* 层顺序：cw-settings-v2d 排在 spec 前面，!important 时压过 spec / round3 / unified（见 settings-v2d.css 开头）。 */
 @layer cw-settings-visibility,cw-settings-v2d;
-@import url('./settings-unified.css?v=2.0.169');
-@import url('./settings-v2d.css?v=2.0.169');
+@import url('./settings-unified.css?v=2.0.170');
+@import url('./settings-v2d.css?v=2.0.170');
 /* Mobile: keep a fixed element in a message from making the root touch-scrollable. */
 html[data-cw-v4][data-claude-layout="mobile"]{overflow-y:hidden!important}
 /* Keep message fixed elements anchored to the viewport, not a scrollable root. */
@@ -3904,3 +3904,7 @@ html[data-cw-v4] body #chat#chat .mes_text .cw-ruby-scroll:focus-visible{outline
 html[data-cw-v4] body :is(#bg1,#bg_custom,#bg_animation)>img.cw-background-filter{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:cover!important;border:0!important;border-radius:0!important;pointer-events:none!important}
 .cw-background-filter-controls{margin-top:14px;padding-top:12px;border-top:1px solid var(--cw-v4-line,#8883)}
 .cw-background-filter-controls label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0}.cw-background-filter-controls input[type=range]{flex:1;min-width:70px}.cw-background-filter-controls output{min-width:34px;text-align:right}.cw-background-filter-controls select{width:100%}.cw-background-filter-controls [hidden]{display:none!important}
+/* 11-24 玉子手机（st-yuzi-phone）底部可视化：固定在底部的导航条、「对齐聊天」的面板，以及随聊天滚动时的导航，
+   都收进看得见的那一栏。--cw-col-left / --cw-col-width 由 official-layout.js 按输入框量出来，写在它们的容器上。 */
+html[data-cw-v4] body>.yuzi-bottom-root[style*="--cw-col-width"]>:is(.yuzi-bottom-dock[data-position="fixed"],.yuzi-bottom-panel[data-region="chat"]){left:var(--cw-col-left)!important;width:var(--cw-col-width)!important}
+html[data-cw-v4] body #chat>.yuzi-bottom-anchor[style*="--cw-col-width"]{max-width:var(--cw-col-width)!important;margin-left:auto!important;margin-right:auto!important}
