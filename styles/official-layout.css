@@ -3136,6 +3136,12 @@ html[data-cw-v4] .cw-menu .cw-menu-back{color:var(--v4-muted)!important}
   
   html[data-cw-v4] body #send_form>#qr--bar,html[data-cw-v4] body #send_form #qr--bar{position:absolute!important;left:0!important;right:0!important;bottom:calc(100% + 8px)!important;top:auto!important;margin:0!important;justify-content:center!important;background:none!important;border:0!important;box-shadow:none!important;z-index:3!important}
   html[data-cw-v4] .cw-menu .cw-menu-back{padding-left:12px!important}
+  /* 11-26（花小碎鴨：快捷回复整条盖住最后一条回复的 ✎ 那排，点不到，关掉 QR 才好）：手机上这条栏也脱离了文档流，
+     却没让位置，叠在聊天底部；整条又接点击，空白处也挡。和电脑（㉘）一样：输入区按 official-layout.js 量的 --cw-qr-h 往上让，
+     栏本身不接点击，只有按钮接。7px 是 day/night-mobile.css 原来给 #form_sheld 的上内边距。 */
+  html[data-cw-v4] body:not(.clawd-welcome) #form_sheld#form_sheld{padding-top:calc(7px + var(--cw-qr-h,0px))!important}
+  html[data-cw-v4] body #send_form>#qr--bar{pointer-events:none!important}
+  html[data-cw-v4] body #send_form>#qr--bar :is(.qr--button,#qr--popoutTrigger,.menu_button,.interactable,button,a[href],input,select,[role="button"]){pointer-events:auto}
 }
 
 
@@ -3707,9 +3713,9 @@ html[data-cw-v4][data-cw-ios-viewport] body #form_sheld#form_sheld{top:calc(var(
 html[data-cw-v4][data-cw-ios-viewport] body #chat#chat{height:calc(var(--cl-mobile-viewport-height) - var(--cl-mobile-top) - var(--cl-mobile-composer-height,132px))!important;min-height:0!important;max-height:calc(var(--cl-mobile-viewport-height) - var(--cl-mobile-top) - var(--cl-mobile-composer-height,132px))!important}
 
 /* 146: chat actions escape short cards without moving native action controls. */
-html[data-cw-v4] body :is(#top-settings-holder#top-settings-holder#top-settings-holder#top-settings-holder,dialog.popup.popup.popup.popup) .cwx-page.cwx-page.cwx-chats .cwx-more-list[data-cwx-chat-menu]{position:fixed!important;inset:auto!important;right:auto!important;margin:0!important;border:0!important;box-sizing:border-box!important;max-width:calc(100vw - 16px)!important;max-height:calc(100dvh - 16px)!important;overflow-y:auto!important}
-html[data-cw-v4] body :is(#top-settings-holder#top-settings-holder#top-settings-holder#top-settings-holder,dialog.popup.popup.popup.popup) .cwx-page.cwx-page.cwx-chats .cwx-more-list[popover]:not(:popover-open){display:none!important}
-html[data-cw-v4] body :is(#top-settings-holder#top-settings-holder#top-settings-holder#top-settings-holder,dialog.popup.popup.popup.popup) .cwx-page.cwx-page.cwx-chats .cwx-card:has(.cwx-more-menu[open]>.cwx-more-list[data-cwx-chat-menu]:not([popover])){overflow:visible!important;position:relative!important;z-index:21!important}
+html[data-cw-v4] body :is(#top-settings-holder#top-settings-holder#top-settings-holder#top-settings-holder,dialog.popup.popup.popup.popup) .cwx-page.cwx-page:is(.cwx-chats,.cwx-qr) .cwx-more-list[data-cwx-chat-menu]{position:fixed!important;inset:auto!important;right:auto!important;margin:0!important;border:0!important;box-sizing:border-box!important;max-width:calc(100vw - 16px)!important;max-height:calc(100dvh - 16px)!important;overflow-y:auto!important}
+html[data-cw-v4] body :is(#top-settings-holder#top-settings-holder#top-settings-holder#top-settings-holder,dialog.popup.popup.popup.popup) .cwx-page.cwx-page:is(.cwx-chats,.cwx-qr) .cwx-more-list[popover]:not(:popover-open){display:none!important}
+html[data-cw-v4] body :is(#top-settings-holder#top-settings-holder#top-settings-holder#top-settings-holder,dialog.popup.popup.popup.popup) .cwx-page.cwx-page:is(.cwx-chats,.cwx-qr) .cwx-card:has(.cwx-more-menu[open]>.cwx-more-list[data-cwx-chat-menu]:not([popover])){overflow:visible!important;position:relative!important;z-index:21!important}
 /* Crop templates exist in every native Popup: require the explicitly visible crop area.
    Mobile only; establish available height before Cropper measures its parent. */
 html[data-cw-v4][data-claude-layout="mobile"] body :is(dialog,#cw-spec).popup.popup.popup.popup.popup.popup.popup.popup:has(.popup-crop-wrap[style*="display: block"]){height:calc(var(--cl-mobile-viewport-height,100dvh) - 48px)!important;max-height:calc(var(--cl-mobile-viewport-height,100dvh) - 48px)!important}
@@ -3825,3 +3831,10 @@ html[data-cw-v4][data-claude-layout="mobile"] body:not(.clawd-welcome) #chat[dat
 @media(max-width:700px){
   html[data-cw-v4][data-claude-layout="mobile"] body:not([data-clawd-menu]) #top-settings-holder#top-settings-holder{height:54px!important;min-height:0!important;padding-top:0!important;padding-bottom:0!important;overflow:visible!important}
 }
+/* 11-24 玉子手机（st-yuzi-phone）底部可视化：固定在底部的导航条、「对齐聊天」的面板，以及随聊天滚动时的导航，
+   都收进看得见的那一栏。--cw-col-left / --cw-col-width 由 official-layout.js 按输入框量出来，写在它们的容器上。 */
+html[data-cw-v4] body>.yuzi-bottom-root[style*="--cw-col-width"]>:is(.yuzi-bottom-dock[data-position="fixed"],.yuzi-bottom-panel[data-region="chat"]){left:var(--cw-col-left)!important;width:var(--cw-col-width)!important}
+html[data-cw-v4] body #chat>.yuzi-bottom-anchor[style*="--cw-col-width"]{max-width:var(--cw-col-width)!important;margin-left:auto!important;margin-right:auto!important}
+/* 11-26 玉子手机表格面板：CW 电脑布局里 #top-bar 是整窗高的侧栏，插件把面板高度算成 0、或整块裁掉。
+   official-layout.js 按插件的规则、以 CW 标题栏下沿为上沿重算，写成 root 上的 --cw-yuzi-*，这里盖过插件写在面板上的几何。 */
+html[data-cw-v4] body>.yuzi-bottom-root[style*="--cw-yuzi-top"]>.yuzi-bottom-panel:is([data-region="chat"],[data-region="viewport"]){top:var(--cw-yuzi-top)!important;height:var(--cw-yuzi-h)!important;transform:none!important;clip-path:var(--cw-yuzi-clip)!important}
