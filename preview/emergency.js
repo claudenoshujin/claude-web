@@ -2,7 +2,7 @@
 const RESTORE_KEY = 'claude-integrated-theme-restore:v2';
 const FILE_NAME = 'claude-web-safety-state-v1.json';
 const FILE_URL = '/user/files/' + FILE_NAME;
-const VERSION = '2.0.171';
+const VERSION = '2.0.172';
 // 前瞻版开关（2.0.168 起）：同一个扩展里，根目录是正式版，preview/ 是前瞻版。
 // preview/ 里放的是这同一个文件，靠所在位置区分；分流只在根目录这份里做。
 const PREVIEW_KEY = 'claude-web:preview';

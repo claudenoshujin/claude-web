@@ -1,5 +1,5 @@
-import { observeHalloweenCopies } from './halloween-copy.js?v=2.0.171';
-import { preferencesFor } from './preferences.js?v=2.0.171';
+import { observeHalloweenCopies } from './halloween-copy.js?v=2.0.172';
+import { preferencesFor } from './preferences.js?v=2.0.172';
 
 // Lightweight lifecycle. Artwork, rig and animation code are fetched only on enable.
 export function installHalloween({win, getContext, setRig, refresh, getClawdState}) {
@@ -52,7 +52,7 @@ export function installHalloween({win, getContext, setRig, refresh, getClawdStat
     stopCopies??=observeHalloweenCopies(win,getContext);
     if(pending)return pending;
     const ticket=++serial;
-    pending=import('./halloween-scene.js?v=2.0.171').then(module=>{
+    pending=import('./halloween-scene.js?v=2.0.172').then(module=>{
       if(disposed||serial!==ticket||!wanted())return;
       // Start only after all dependencies loaded; failed setup is fully reversible.
       root.dataset.cwHalloween='on';
