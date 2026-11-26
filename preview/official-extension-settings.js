@@ -726,6 +726,8 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
         s.undo.push(()=>{vis.removeEventListener('change',paint);item.classList.remove('cwx-qr-off');});list.append(x);}
       for(const [label,b,red] of [['编辑这个集合',edit],['移除',del,true]])if(b){const x=button(L(label),e=>{e.stopPropagation();m.open=false;b.click();},'cwx-more-item'+(red?' cwx-red':''));list.append(x);}
       item.append(m);s.created.push(m);
+      // 11-26（花小碎鴨：「正在用的集合」点 ⋯ 弹出的小窗被卡在卡片里看不见）：和聊天列表的 ⋯ 一样，菜单提到顶层显示。
+      enhanceChatMenu(s,m,list,sm);
     }
   }
   /* 正则：每条一行「把手 · 名字 · 开关」，点名字进编辑。酒馆的 disable_regex 勾上是停用，开关反着画（cwx-invert）。 */

@@ -55,6 +55,8 @@ export function createSettingsScale({win, mobile, t}) {
   function place(n, g) { const s = n.style; s.left = g.left + 'px'; s.top = g.top + 'px'; s.width = g.w * g.s + 'px'; s.height = g.h * g.s + 'px'; }
   // 边缘：独立的 fixed 层（不在窗口里，不跟着缩），只有左右两条和下面两个角接收指针。
   const edges = doc.createElement('div'); edges.className = 'cw-sz-edges'; edges.hidden = true;
+  // 11-26 「悬浮窗收纳」会把四角的拖拽柄当悬浮球收走；打上它认得的浮层标记，整块跳过。
+  edges.setAttribute('data-popper-placement', 'bottom');
   const ghost = doc.createElement('div'); ghost.className = 'cw-sz-ghost'; ghost.hidden = true;
   const tip = t('拖动缩放设置窗口 · 双击恢复 90%', 'Drag to scale the settings window · Double-click to reset to 90%');
   for (const side of ['w', 'e', 'sw', 'se']) {

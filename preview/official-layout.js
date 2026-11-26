@@ -1,16 +1,16 @@
-import { createBackgroundFilters } from './background-filters.js?v=2.0.170';
-import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.170';
-import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.170';
-import { watchTokens, tokenText } from './token-count.js?v=2.0.170';
-import { createSettingsScale } from './settings-scale.js?v=2.0.170';
-import { createFontWeightControl } from './font-weight.js?v=2.0.170';
-import { preferencesFor } from './preferences.js?v=2.0.170';
-import { officialIcons } from './official-icons.js?v=2.0.170';
-import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.170';
-import { retainRangeCounter } from './official-extension-settings.js?v=2.0.170';
-import { tr } from './official-i18n.js?v=2.0.170';
-import { normalizeSettingsSections } from './settings-sections.js?v=2.0.170';
-import { installDisplayState } from './display-state.js?v=2.0.170';
+import { createBackgroundFilters } from './background-filters.js?v=2.0.171';
+import { createTTPanelRuntime } from './official-tt-panel-runtime.js?v=2.0.171';
+import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.171';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.171';
+import { createSettingsScale } from './settings-scale.js?v=2.0.171';
+import { createFontWeightControl } from './font-weight.js?v=2.0.171';
+import { preferencesFor } from './preferences.js?v=2.0.171';
+import { officialIcons } from './official-icons.js?v=2.0.171';
+import { createDrawerLayouts, actionLabel } from './official-drawers.js?v=2.0.171';
+import { retainRangeCounter } from './official-extension-settings.js?v=2.0.171';
+import { tr } from './official-i18n.js?v=2.0.171';
+import { normalizeSettingsSections } from './settings-sections.js?v=2.0.171';
+import { installDisplayState } from './display-state.js?v=2.0.171';
 /* Live adaptation of design-v4. Native drawers stay beneath their toggles:
  * ST resolves toggle.parent().find('.drawer-content'), and plugins delegate to
  * their original containers. Never import the preview's snapshots or fake data.
@@ -454,6 +454,8 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
   }
   function buildShell() {
     shell = make('div', 'cw-v4-shell'); shell.id = 'cw-v4-settings'; shell.hidden = true;
+    // 11-26 外壳是不接点击的定位层，「悬浮窗收纳」找不到框住 × 的面板，会把 × 当悬浮球收走；打上它认得的标记整块跳过（见 openSelMenu）。
+    shell.setAttribute('data-popper-placement', 'bottom');
     on(shell, 'mousedown', e => e.stopPropagation());
     on(shell, 'touchstart', e => e.stopPropagation(), {passive:true});
     shell.setAttribute('role', 'dialog'); shell.setAttribute('aria-label', t('偏好设置', 'Preferences'));
@@ -678,6 +680,10 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     closeSelMenu();
     const m = make('div', 'cw-v4-selmenu'), list = make('div', 'cw-v4-selmenu-list');
     m.setAttribute('popover', 'manual'); list.setAttribute('role', 'listbox');
+    // 11-26 data-popper-placement 是 Popper 一类浮动菜单的通用标记：「悬浮窗收纳」之类的酒馆助手脚本靠它（和 role=listbox/menu）
+    // 认出「点了才弹出的菜单」不去收。外层这个容器没有 role（里面有搜索框，不能整个当 listbox；role=dialog 又会被 CW 当成
+    // 外部弹窗让位），不打标记的话，收纳脚本把它记成悬浮窗以后，每次打开下拉不到一秒就被它裁掉——API 下拉「自己缩回去」。
+    m.setAttribute('data-popper-placement', 'bottom-end');
     // 2.0.241：列表挂在 body 上，不在 .openDrawer 里；酒馆 script.js 的 html touchstart/mousedown 会把它当成「点了抽屉外面」，
     // 选一项就把整个设置关掉。按下事件在列表这里截住，不再冒泡到 html（选项靠 click 生效，不受影响）。
     for (const t of ['mousedown', 'touchstart']) m.addEventListener(t, e => e.stopPropagation(), {passive: true});
@@ -738,6 +744,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     const b = m.getBoundingClientRect();
     m.style.left = Math.round(Math.min(vw - b.width - 8, Math.max(8, r.right - b.width))) + 'px';
     m.style.top = Math.round(down ? r.bottom + 6 : r.top - 6 - b.height) + 'px';
+    if (!down) m.setAttribute('data-popper-placement', 'top-end');
     markCurrent();
     if (!mobile()) {
       search?.focus({preventScroll: true});
@@ -1598,6 +1605,86 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
       });
       scheduleYuzi();
     }
+    // 11-26 玉子手机的表格面板点开看不到：插件把 #top-bar 的底边当成面板最高能到哪。CW 电脑布局里 #top-bar 是左边
+    // 整窗高的侧栏，底边就是窗口底，面板高度就算成 0，或者被 clip-path 整块裁掉（手机上 #top-bar 是顶栏，插件算得对）。
+    // 面板开着、而且插件用的上沿比聊天区真正露出来的顶（CW 标题栏下沿）低时，CW 按插件同样的规则重算：高度和朝上/朝下
+    // 在打开、换表、插件重排、窗口变化时定；「随聊天滚动」时面板只跟着导航挪，并按聊天区上下沿裁切，和插件一样。
+    // 结果写成 root 上的 --cw-yuzi-top / --cw-yuzi-h / --cw-yuzi-clip，CSS 用 !important 盖过插件写在面板上的几何。
+    {
+      const VARS = ['--cw-yuzi-top', '--cw-yuzi-h', '--cw-yuzi-clip'];
+      let frame = 0, decideNext = true, plan = null, lastScroll = NaN, watched = null;
+      // 调高度（11-26 Codex 验收：拖完松手，面板停在旧高度）：插件拖动时只改它内存里的高度，设置里的新值要到松手后约
+      // 300ms 才出现；这期间它按自己那套几何重排，面板样式一点不变，CW 收不到信号。所以拖动时 CW 照插件的算法自己算
+      // （按下时的高度 + 竖向位移 / 窗口高 × 100，限 25–85 取整），实时跟着变；松手、键盘 ↑↓ 之后先沿用这个值，
+      // 等设置里真的写进去（最多 1.5 秒）再改回读设置。
+      let drag = null, heldPct = null, heldUntil = 0;
+      const settingPct = () => Number(win.SillyTavern?.getContext?.()?.extensionSettings?.YuziPhone?.bottomVisualization?.height) || 60;
+      const clampPct = v => Math.max(25, Math.min(85, Math.round(v)));
+      const currentPct = () => {
+        const saved = settingPct();
+        if (heldPct != null && (saved === heldPct || win.performance.now() > heldUntil)) heldPct = null;
+        return heldPct ?? saved;
+      };
+      const clear = rootEl => { plan = null; if (rootEl) for (const k of VARS) rootEl.style.removeProperty(k); };
+      const syncYuziPanel = () => {
+        frame = 0;
+        const decide = decideNext; decideNext = false;
+        const rootEl = doc.querySelector('body>.yuzi-bottom-root');
+        const panel = rootEl?.querySelector(':scope>.yuzi-bottom-panel');
+        const dock = rootEl && doc.querySelector('.yuzi-bottom-dock');
+        if (!panel || panel.hidden || !dock || !chat || rootEl.dataset.position === 'edge' || !['chat', 'viewport'].includes(panel.dataset.region)) { clear(rootEl); return; }
+        const vv = win.visualViewport, vTop = vv?.offsetTop || 0, vBottom = vTop + (vv?.height || win.innerHeight);
+        const chatRect = chat.getBoundingClientRect();
+        const head = doc.querySelector('#sheld>.cw-v4-chat-head')?.getBoundingClientRect();
+        const min = Math.max(vTop, chatRect.top, head?.height ? head.bottom : 0);
+        if (Math.max(vTop, doc.getElementById('top-bar')?.getBoundingClientRect().bottom || 0) <= min + 1) { clear(rootEl); return; }
+        const base = Math.min(vBottom, doc.getElementById('form_sheld')?.getBoundingClientRect().top || chatRect.bottom, chatRect.bottom);
+        const d = dock.getBoundingClientRect(), flow = rootEl.dataset.position === 'flow';
+        if (decide || !plan) {
+          const requested = win.innerHeight * clampPct(currentPct()) / 100;
+          const above = Math.max(0, d.top - min - 8), below = Math.max(0, base - d.bottom - 8);
+          const downward = flow && above < Math.min(requested, 160) && below > above;
+          plan = { downward, height: Math.min(requested, downward ? below : above) };
+        }
+        lastScroll = chat.scrollTop;
+        const y = plan.downward ? d.bottom + 8 : d.top - plan.height - 8;
+        const values = [Math.round(y) + 'px', Math.round(plan.height) + 'px', `inset(${Math.round(Math.max(0, min - y))}px 0 ${Math.round(Math.max(0, y + plan.height - base))}px 0)`];
+        VARS.forEach((k, i) => { if (rootEl.style.getPropertyValue(k) !== values[i]) rootEl.style.setProperty(k, values[i]); });
+      };
+      const scheduleYuziPanel = decide => { if (decide) decideNext = true; if (!frame && !destroyed) frame = win.requestAnimationFrame(syncYuziPanel); };
+      // 插件的 followScroll 在聊天滚动时改面板的 transform/clip-path：这种只挪；打开/关闭、换区域、插件重排就重定高度。
+      const panelMo = new win.MutationObserver(records => scheduleYuziPanel(records.some(r => r.attributeName !== 'style') || !chat || chat.scrollTop === lastScroll));
+      const watchYuziPanel = () => {
+        const panel = doc.querySelector('body>.yuzi-bottom-root>.yuzi-bottom-panel');
+        if (panel === watched) return;
+        panelMo.disconnect(); watched = panel;
+        if (panel) {
+          panelMo.observe(panel, {attributes:true, attributeFilter:['hidden', 'style', 'data-region']});
+          // Yuzi leaves its resizing state only after saving the height.
+          panelMo.observe(panel.parentElement, {attributes:true, attributeFilter:['class']});
+          scheduleYuziPanel(true);
+        }
+      };
+      observe(doc.body, watchYuziPanel, {childList:true});
+      if (chat) on(chat, 'scroll', () => { if (plan) scheduleYuziPanel(false); }, {passive:true});
+      const resizeHandle = event => event.target?.closest?.('.yuzi-bottom-panel [data-action="resize"]');
+      const hold = (pct, until) => { if (pct !== heldPct || until !== heldUntil) { heldPct = pct; heldUntil = until; scheduleYuziPanel(true); } };
+      on(doc, 'pointerdown', event => { if (event.button === 0 && resizeHandle(event)) drag = { y: event.clientY, pct: currentPct() }; }, true);
+      on(doc, 'pointermove', event => {
+        // 插件按住 350ms 才进入调高度（root 加 is-resizing），之前的移动不算。
+        if (drag && doc.querySelector('body>.yuzi-bottom-root.is-resizing')) hold(clampPct(drag.pct + (drag.y - event.clientY) / win.innerHeight * 100), Infinity);
+      }, {capture:true, passive:true});
+      const endDrag = () => { if (!drag) return; drag = null; if (heldPct != null) hold(heldPct, win.performance.now() + 1500); };
+      on(doc, 'pointerup', endDrag, true);
+      on(doc, 'pointercancel', endDrag, true);
+      on(doc, 'keydown', event => {
+        if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && resizeHandle(event)) hold(clampPct(currentPct() + (event.key === 'ArrowUp' ? 5 : -5)), win.performance.now() + 1500);
+      }, true);
+      on(win, 'resize', () => scheduleYuziPanel(true));
+      if (win.visualViewport) on(win.visualViewport, 'resize', () => scheduleYuziPanel(true));
+      disposers.push(() => { panelMo.disconnect(); if (frame) win.cancelAnimationFrame(frame); clear(doc.querySelector('body>.yuzi-bottom-root')); });
+      watchYuziPanel();
+    }
     // Typing only changes the filled state. syncChat() walks every assistant message and
     // reads layout, so it stays on the chat observer / schedule() path instead of every keystroke.
     on(doc,'input', e => { if (['chat_width_slider','chat_width_slider_counter'].includes(e.target.id)) deferChatWidth(); if (e.target.id === 'send_textarea') setBodyClass('cw-v4-filled', Boolean(e.target.value.trim())); else if (e.target.type === 'range' && e.target.closest?.('.cw-v4-panel,.cw-v4-editor')) fill(e.target); });
@@ -1685,7 +1772,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     // 下拉、⋯ 菜单、提示词编辑页、酒馆自己的弹窗开着时不接，让它们自己处理。
     on(win,'keydown', e => {
       if (e.key !== 'Escape' || e.defaultPrevented || mobile() || !current || e.target.matches?.('.cwr-persona-name')) return;
-      if (doc.querySelector('.select2-container--open,.cw-v4-more[open],.cwx-chats .cwx-more-menu[open],#completion_prompt_manager_popup.openDrawer,dialog[open]:not(.cw-v4-editor)')) return;
+      if (doc.querySelector('.select2-container--open,.cw-v4-more[open],.cwx-more-menu[open]>.cwx-more-list[data-cwx-chat-menu],#completion_prompt_manager_popup.openDrawer,dialog[open]:not(.cw-v4-editor)')) return;
       const top = [...dialogs].filter(d => d.open).at(-1);
       if(top?.classList.contains("cw-v4-wi-expanded"))return;
       e.preventDefault(); e.stopImmediatePropagation();
@@ -2759,7 +2846,7 @@ export function installOfficialLayout(win = window, { defaultChatWidth = 55 } = 
     d.addEventListener('close', onClose, {once: true});
   }
   function onSheetEscape(e) {
-    if (externalModalOpen || e.key !== 'Escape' || e.defaultPrevented || doc.querySelector('dialog:modal,.select2-container--open,.cwx-chats .cwx-more-menu[open]')) return;
+    if (externalModalOpen || e.key !== 'Escape' || e.defaultPrevented || doc.querySelector('dialog:modal,.select2-container--open,.cwx-more-menu[open]>.cwx-more-list[data-cwx-chat-menu]')) return;
     const top = openSheetLayers().reverse().find(el => el.matches?.('dialog[data-cw-lifted][open]'));
     if (!top) return;
     e.preventDefault(); e.stopImmediatePropagation();

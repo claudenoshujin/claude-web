@@ -1,11 +1,11 @@
-import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.170';
-import { preferencesFor } from './preferences.js?v=2.0.170';
+import { dropAfter, clearDropLine, showDropLine, guardSortDrag } from './settings-drop-target.js?v=2.0.171';
+import { preferencesFor } from './preferences.js?v=2.0.171';
 
 // The catalog is presentation only. Plugin roots and their native handlers stay
 // in rm_extensions_block; the existing settings adapter owns field lifecycles.
 export function createExtensionPanel({win,t,make,button,icon,settings,openEditor}) {
   const doc=win.document,prefs=preferencesFor(win),key='claude-web:extensions-layout';
-  const style=make('link','');style.rel='stylesheet';style.href=new URL('styles/official-extension-panel.css?v=2.0.170',import.meta.url).href;doc.head.append(style);
+  const style=make('link','');style.rel='stylesheet';style.href=new URL('styles/official-extension-panel.css?v=2.0.171',import.meta.url).href;doc.head.append(style);
   // 作为正式仓 preview/ 里的前瞻版运行时，扩展身份（文件夹名、manifest）以根目录为准。
   const own='third-party/'+decodeURIComponent(new URL(globalThis.__cwPreview?.root||new URL('.',import.meta.url)).pathname.replace(/\/$/,'').split('/').pop());
   const aliases={tavern_helper:'third-party/JS-Slash-Runner',bai_bai_toolkit_container:'third-party/baibai-tools',assets_container:'assets',expressions_container:'expressions',sd_container:'stable-diffusion',tts_container:'tts',qr_container:'quick-reply',translation_container:'translate',caption_container:'caption',summarize_container:'memory',regex_container:'regex',vectors_container:'vectors'};
@@ -325,7 +325,7 @@ export function createExtensionPanel({win,t,make,button,icon,settings,openEditor
   async function init(p){panel=p;host=await import(new URL('/scripts/extensions.js',win.location.href).href);api=await import(new URL('/script.js',win.location.href).href);if(disposed)return;
     for(const id of host.extensionNames){const manifest=host.getExtensionManifest?.(id)||{};entries.set(id,{id,label:id===own?'Claude Web':manifest.display_name||id.split('/').pop(),version:String(manifest.version||''),manifest,type:host.extensionTypes[id]||'local',roots:[]});}
     nativeNodes=[...panel.children].filter(n=>!n.matches('.cw-v4-page-title'));panel.querySelector(':scope>.cw-v4-page-title')?.remove();sources=make('div','cwex-sources');panel.append(sources);page=make('div','cw-ext-panel');panel.append(page);panel.classList.add('cw-ext-reordered');buildList();reconcile();on(win,'resize',()=>paintHead(page.dataset.view));
-    on(doc,'keydown',event=>{if(event.key==='Escape'&&!doc.querySelector('dialog[open]')&&(active||sorting||nativeOpen)&&!event.defaultPrevented){event.preventDefault();event.stopImmediatePropagation();back();}},true);
+    on(doc,'keydown',event=>{if(event.key==='Escape'&&!doc.querySelector('dialog[open],.cwx-more-menu[open]>.cwx-more-list[data-cwx-chat-menu]')&&(active||sorting||nativeOpen)&&!event.defaultPrevented){event.preventDefault();event.stopImmediatePropagation();back();}},true);
     const observer=new win.MutationObserver(records=>{if(records.some(r=>!page.contains(r.target)&&r.addedNodes.length))requestReconcile();});let reconcileFrame=0;function requestReconcile(){if(!reconcileFrame)reconcileFrame=win.requestAnimationFrame(()=>{reconcileFrame=0;reconcile();});}observer.observe(panel,{childList:true,subtree:true});listeners.push(()=>{observer.disconnect();win.cancelAnimationFrame(reconcileFrame);});
     on(doc,'click',event=>{if(event.target.closest?.('.cw-v4-close,.cw-v4-backdrop')||event.target.closest?.('.cw-v4-navitem')&&!event.target.closest('[data-panel=rm_extensions_block]'))back();},true);const panelObserver=new win.MutationObserver(()=>{if((active||sorting||nativeOpen)&&!panel.classList.contains('openDrawer'))back();});panelObserver.observe(panel,{attributes:true,attributeFilter:['class']});listeners.push(()=>panelObserver.disconnect());
   }

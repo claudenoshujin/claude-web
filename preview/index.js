@@ -1,10 +1,10 @@
-import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.170';
-import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.170';
-import { parseRecentTime } from './recent-time.js?v=2.0.170';
-import { officialIcons as recentBadgeIcons } from './official-icons.js?v=2.0.170';
-import { installChatTools } from './chat-tools.js?v=2.0.170';
-import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.170';
-import { tr } from './official-i18n.js?v=2.0.170';
+import { installIOSKeyboardScroll } from './ios-keyboard-scroll.js?v=2.0.171';
+import { installIOSComposerFocus } from './ios-composer-focus.js?v=2.0.171';
+import { parseRecentTime } from './recent-time.js?v=2.0.171';
+import { officialIcons as recentBadgeIcons } from './official-icons.js?v=2.0.171';
+import { installChatTools } from './chat-tools.js?v=2.0.171';
+import { preferencesFor, RELOAD_STORAGE_HINT } from './preferences.js?v=2.0.171';
+import { tr } from './official-i18n.js?v=2.0.171';
 /* Claude Web 2.0 —— SillyTavern 扩展形态入口。
  *
  * 【2026-08-10 更正】这个文件现在就是源码，直接改它。
@@ -20,12 +20,12 @@ import { tr } from './official-i18n.js?v=2.0.170';
  *   localStorage['claude-web:layout']  = 'auto' | 'pc' | 'mobile'   默认 auto
  */
 
-import { installStreamFollow } from "./stream-follow.js?v=2.0.170";
-import { installOfficialLayout } from "./official-layout.js?v=2.0.170";
-import { installHalloween } from "./halloween.js?v=2.0.170";
-import { buildClawdRig } from "./clawd-rig.js?v=2.0.170";
-import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.170";
-import { createClawdPile } from "./clawd-pile.js?v=2.0.170";
+import { installStreamFollow } from "./stream-follow.js?v=2.0.171";
+import { installOfficialLayout } from "./official-layout.js?v=2.0.171";
+import { installHalloween } from "./halloween.js?v=2.0.171";
+import { buildClawdRig } from "./clawd-rig.js?v=2.0.171";
+import { installClawdRhythm } from "./clawd-rhythm.js?v=2.0.171";
+import { createClawdPile } from "./clawd-pile.js?v=2.0.171";
 
 const CLAUDE_EXTENSION_MODE = true;
 
@@ -418,7 +418,7 @@ const CLAUDE_KEYBOARD_BUILD = {
      只改 CSS 内容、不改这个字符串，用户端（尤其 TauriTavern 这类会长期
      缓存磁盘资源的原生壳）拉到的还是旧样式表，看起来像"更新了但没修复"。
      以后只要改了 styles/*.css，这里必须跟着换一个新值。 */
-  id: '2.0.170-official-layout-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
+  id: '2.0.171-official-layout-' + (CLAUDE_COMPAT_MODE ? 'compat' : 'full')
     + '-' + CLAUDE_THEME_VARIANT + '-' + CLAUDE_LAYOUT + '-ext-local-fonts',
   mode: 'full',
 };
@@ -443,10 +443,10 @@ const CLAUDE_STYLE_HREF = CLAUDE_STYLE_URL.href;
 
 const officialStyle = document.createElement('link');
 officialStyle.rel = 'stylesheet';
-officialStyle.href = new URL('styles/official-layout.css?v=2.0.170-local-fonts', import.meta.url).href;
+officialStyle.href = new URL('styles/official-layout.css?v=2.0.171-local-fonts', import.meta.url).href;
 const localFontStyle = document.createElement('link');
 localFontStyle.rel = 'stylesheet';
-localFontStyle.href = new URL('styles/local-fonts.css?v=2.0.170', import.meta.url).href;
+localFontStyle.href = new URL('styles/local-fonts.css?v=2.0.171', import.meta.url).href;
 let optionalFontStyle;
 let optionalFontTimeout;
 
@@ -478,7 +478,7 @@ function removeOptionalChineseFonts() {
   optionalFontStyle = undefined;
 }
 document.documentElement.dataset.claudeEnabled = CLAUDE_ENABLED ? 'on' : 'off';
-const refinementStyle=document.createElement('link');refinementStyle.rel='stylesheet';refinementStyle.href=new URL('styles/interface-refinements.css?v=2.0.170',import.meta.url).href;if(CLAUDE_ENABLED)document.head.append(refinementStyle);
+const refinementStyle=document.createElement('link');refinementStyle.rel='stylesheet';refinementStyle.href=new URL('styles/interface-refinements.css?v=2.0.171',import.meta.url).href;if(CLAUDE_ENABLED)document.head.append(refinementStyle);
 if (CLAUDE_ENABLED) {
   document.head.append(localFontStyle);
   if (CLAUDE_UI_STYLE === 'web') document.head.append(officialStyle);
@@ -1987,6 +1987,7 @@ if (CLAUDE_ENABLED) {
       '.claude-user-message-actions',
       '.claude-swipe-left-proxy',
       '.claude-swipe-right-proxy',
+      '.cw-cl-swipes',
       '.claude-reroll-button',
       '.clawd-signoff-button',
     ].join(',')).forEach(element => element.remove());
@@ -2245,6 +2246,7 @@ if (CLAUDE_ENABLED) {
   const LEFT_SWIPE_PROXY_CLASS = 'claude-swipe-left-proxy';
   const SWIPE_PROXY_CLASS = 'claude-swipe-right-proxy';
   const REROLL_CLASS = 'claude-reroll-button';
+  const CLASSIC_BAR_SWIPES_CLASS = 'cw-cl-swipes';
   let generationStartSeq = 0;
   const PRESET_REASONING_CLASS = 'claude-has-preset-reasoning';
   const SWIPE_VIEW_CLASS = 'claude-swipe-in-viewport';
@@ -3726,6 +3728,49 @@ if (CLAUDE_ENABLED) {
       /* 设置里关掉「回复两侧的左右切换箭头」：只是不显示，按钮还在，操作栏的 ‹ › 仍靠它们切换。 */
       html[data-cw-v4][data-claude-side-swipe="off"] body button.${LEFT_SWIPE_PROXY_CLASS},
       html[data-cw-v4][data-claude-side-swipe="off"] body button.${SWIPE_PROXY_CLASS} { display: none !important; }
+
+      /* 11-26 旧版也生效：两侧箭头不显示，改由操作栏最前面的 ‹ n/m › 切换（syncClassicBarSwipes）。
+         手机上「禁用时也显示」那条规则更重（.clawd-mobile-layout … :disabled），这里用 #chat#chat 和 :is(*,:disabled) 压过去。 */
+      html[data-claude-ui="classic"][data-claude-side-swipe="off"] body #chat#chat > .mes > button:is(.${LEFT_SWIPE_PROXY_CLASS},.${SWIPE_PROXY_CLASS}):is(*,:disabled) { display: none !important; }
+      .${CLASSIC_BAR_SWIPES_CLASS} { display: none !important; }
+      html[data-claude-ui="classic"][data-claude-side-swipe="off"] body:not(.${GENERATING_CLASS}) #chat > .mes[is_user="false"] .mes_buttons > .${CLASSIC_BAR_SWIPES_CLASS} {
+        display: flex !important;
+        align-items: center;
+        flex: none;
+        order: -1;
+        height: 26px;
+        margin: 0 6px 0 0;
+      }
+      .${CLASSIC_BAR_SWIPES_CLASS} > button {
+        appearance: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 26px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: var(--cw-radius-8, 8px);
+        background: transparent;
+        color: var(--cw-text-muted);
+        opacity: .58;
+        cursor: pointer;
+        font: 900 11px/1 "Font Awesome 6 Free";
+        transition: opacity 130ms ease, background 130ms ease;
+      }
+      .${CLASSIC_BAR_SWIPES_CLASS} > button:hover { opacity: 1; background: var(--cw-surface-hover); }
+      .${CLASSIC_BAR_SWIPES_CLASS} > button:disabled { opacity: .22; cursor: default; background: transparent; }
+      .${CLASSIC_BAR_SWIPES_CLASS} > button:first-child::before { content: "\\f053"; }
+      .${CLASSIC_BAR_SWIPES_CLASS} > button:last-child::before { content: "\\f054"; }
+      .${CLASSIC_BAR_SWIPES_CLASS} > span {
+        min-width: 28px;
+        text-align: center;
+        font: 500 11.5px/1 var(--cl-sans, system-ui);
+        color: var(--cw-text-muted);
+        opacity: .75;
+        font-variant-numeric: tabular-nums;
+      }
 
       button.${LEFT_SWIPE_PROXY_CLASS}::before,
       button.${SWIPE_PROXY_CLASS}::before {
@@ -9380,6 +9425,8 @@ if (CLAUDE_ENABLED) {
 
     const root = hostDocument.createElement('div');
     root.className = 'clawd-mobile-chrome';
+    // 11-26 「悬浮窗收纳」会把 ≡、新对话这些小按钮当悬浮球收走（手机上 ≡ 是打开侧栏的唯一入口）；打上它认得的浮层标记，整块跳过。
+    root.setAttribute('data-popper-placement', 'bottom');
     const menu = hostDocument.createElement('button');
     menu.type = 'button';
     menu.className = 'clawd-mobile-menu-button';
@@ -10386,10 +10433,54 @@ if (CLAUDE_ENABLED) {
     return button;
   }
 
+  /* 11-26 旧版界面（神秘滑铲男：手机上回复两侧的切换箭头太大、关不掉）：旧版操作栏原来只有 ⋯ ✎ ↻，两侧箭头是唯一的
+     切换入口，所以「回复两侧的左右切换箭头」开关以前只在新版生效。现在旧版在最新回复的操作栏最前面放一组 ‹ n/m ›，
+     开关关掉时才显示（CSS），点了转给两侧按钮（它们还在，只是不显示）；开关开着时和以前一样。
+     新版的操作栏有 official-layout.js 建的 .cw-v4-swipes，这里不建。 */
+  function syncClassicBarSwipes(message, leftProxy, rightProxy, data) {
+    const bar = message.querySelector('.mes_buttons');
+    let group = bar?.querySelector(`:scope > .${CLASSIC_BAR_SWIPES_CLASS}`);
+    if (!bar || hostDocument.documentElement.dataset.claudeUi !== 'classic') {
+      group?.remove();
+      return;
+    }
+    if (!group) {
+      group = hostDocument.createElement('div');
+      group.className = CLASSIC_BAR_SWIPES_CLASS;
+      for (const [direction, label] of [['left', '上一条回复'], ['right', '下一条回复（到末端重新生成）']]) {
+        const arrow = hostDocument.createElement('button');
+        arrow.type = 'button';
+        arrow.className = `${CLASSIC_BAR_SWIPES_CLASS}-${direction}`;
+        arrow.setAttribute('aria-label', label);
+        arrow.title = label;
+        arrow.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          message.querySelector(`:scope > .${direction === 'left' ? LEFT_SWIPE_PROXY_CLASS : SWIPE_PROXY_CLASS}`)?.click();
+        });
+        group.append(arrow);
+        if (direction === 'left') group.append(hostDocument.createElement('span'));
+      }
+      bar.prepend(group);
+    }
+    const total = Array.isArray(data?.swipes) ? data.swipes.length : 0;
+    const text = total
+      ? `${Math.min(total, Math.max(1, Number(data.swipe_id ?? 0) + 1))}/${total}`
+      : (message.querySelector('.swipes-counter')?.textContent || '1/1').replace(/[\u200b\s]/g, '');
+    const count = group.querySelector(':scope > span');
+    if (count.textContent !== text) count.textContent = text;
+    const [left, right] = group.querySelectorAll(':scope > button');
+    if (left.disabled !== leftProxy.disabled) left.disabled = leftProxy.disabled;
+    if (right.disabled !== rightProxy.disabled) right.disabled = rightProxy.disabled;
+  }
+
   function refreshSwipeProxies(messages, typingActive) {
     const liveMessages = new Set(messages);
     hostDocument.querySelectorAll(`.${LEFT_SWIPE_PROXY_CLASS}, .${SWIPE_PROXY_CLASS}`).forEach(button => {
       if (!liveMessages.has(button.parentElement)) button.remove();
+    });
+    hostDocument.querySelectorAll(`.${CLASSIC_BAR_SWIPES_CLASS}`).forEach(group => {
+      if (!liveMessages.has(group.closest('#chat > .mes'))) group.remove();
     });
     for (const message of [...observedSwipeMessages]) {
       if (liveMessages.has(message) && message.isConnected) continue;
@@ -10408,6 +10499,7 @@ if (CLAUDE_ENABLED) {
       if ((!leftSource && !rightSource && !alwaysShow) || !swipeable) {
         leftProxy?.remove();
         rightProxy?.remove();
+        message.querySelector(`.mes_buttons > .${CLASSIC_BAR_SWIPES_CLASS}`)?.remove();
         swipeObserver?.unobserve(message);
         observedSwipeMessages.delete(message);
         visibleSwipeMessages.delete(message);
@@ -10430,6 +10522,7 @@ if (CLAUDE_ENABLED) {
         || (!rightSource && !hasGenericSwipeApi && typeof swipeApi?.right !== 'function');
       nextLeftProxy.setAttribute('aria-disabled', String(nextLeftProxy.disabled));
       nextRightProxy.setAttribute('aria-disabled', String(nextRightProxy.disabled));
+      syncClassicBarSwipes(message, nextLeftProxy, nextRightProxy, data);
       if (!observedSwipeMessages.has(message)) {
         observedSwipeMessages.add(message);
         if (swipeObserver) swipeObserver.observe(message);
@@ -10503,6 +10596,7 @@ if (CLAUDE_ENABLED) {
     `button.${BUTTON_CLASS}`,
     `button.${LEFT_SWIPE_PROXY_CLASS}`,
     `button.${SWIPE_PROXY_CLASS}`,
+    `.${CLASSIC_BAR_SWIPES_CLASS}`,
     `button.${REROLL_CLASS}`,
     `.${USER_ACTIONS_CLASS}`,
     '.clawd-typing-hit',
@@ -11662,7 +11756,7 @@ if (CLAUDE_ENABLED) {
     [...welcomeAvatarOriginals.keys()].forEach(restoreWelcomeAvatar);
     hostDocument.querySelectorAll(`.${WELCOME_PROMPT_CLASS}`).forEach(message => message.classList.remove(WELCOME_PROMPT_CLASS));
     hostDocument
-      .querySelectorAll(`.${BUTTON_CLASS}, .${LEFT_SWIPE_PROXY_CLASS}, .${SWIPE_PROXY_CLASS}, .${REROLL_CLASS}, .${USER_ACTIONS_CLASS}, .${PROMPT_DRAG_HANDLE_CLASS}, .clawd-typing-hit, .clawd-typing-exit-ghost`)
+      .querySelectorAll(`.${BUTTON_CLASS}, .${LEFT_SWIPE_PROXY_CLASS}, .${SWIPE_PROXY_CLASS}, .${CLASSIC_BAR_SWIPES_CLASS}, .${REROLL_CLASS}, .${USER_ACTIONS_CLASS}, .${PROMPT_DRAG_HANDLE_CLASS}, .clawd-typing-hit, .clawd-typing-exit-ghost`)
       .forEach(element => element.remove());
     hostDocument.querySelectorAll('#chat .typing_indicator').forEach(indicator => {
       indicator.classList.remove('clawd-typing-enter', 'clawd-typing-ready', 'clawd-typing-native-suppressed', 'clawd-typing-click', 'clawd-typing-press', 'clawd-cheer', 'clawd-wobble-sway', 'clawd-wobble-tilt');

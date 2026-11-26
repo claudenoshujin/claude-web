@@ -1,5 +1,5 @@
-import { preferencesFor } from './preferences.js?v=2.0.170';
-import { CHAT_TOOLS_CSS } from './chat-tools-style.js?v=2.0.170';
+import { preferencesFor } from './preferences.js?v=2.0.171';
+import { CHAT_TOOLS_CSS } from './chat-tools-style.js?v=2.0.171';
 
 const bare = f => String(f ?? '').replace(/\.jsonl$/i, '');
 export const chatRecordKey = r => JSON.stringify([r.group ? 'group' : 'character', String(r.group || r.avatar || ''), bare(r.file_name ?? r.file)]);
@@ -60,6 +60,8 @@ function installReadyChatTools({win, doc, getContext, enabled, follow, onFavorit
   const fontRow=make('div','cw-b34-font-row');fontRow.innerHTML=icon('font');fontRow.append(make('span','','字号'));const steps=make('div','cw-b34-step');const minus=button('−',()=>changeFont(-.05)),reset=button('100%',()=>changeFont(null)),plus=button('＋',()=>changeFont(.05));minus.setAttribute('aria-label','缩小字号');plus.setAttribute('aria-label','放大字号');reset.title='恢复默认字号';steps.append(minus,reset,plus);fontRow.append(steps);
   menu.append(fontRow);
   const toolbar=make('div','cw-b34-toolbar cw-b34-owned');toolbar.setAttribute('role','group');toolbar.setAttribute('aria-label','聊天工具');
+  // 11-26 「悬浮窗收纳」会把右上角这排当悬浮球收走；打上它认得的浮层标记，整块跳过。
+  toolbar.setAttribute('data-popper-placement','bottom');
   const fontButton=button('Aa',()=>toggleMenu(fontButton),'cw-b34-font-button');fontButton.title='调整字号';fontButton.setAttribute('aria-label','调整字号');fontButton.setAttribute('aria-expanded','false');
   const paperButton=button('',()=>showPanel(panel.hidden),'cw-b34-paper-button');paperButton.innerHTML=icon('paper');paperButton.title='收藏句子';paperButton.setAttribute('aria-label','收藏句子');paperButton.setAttribute('aria-expanded','false');toolbar.append(fontButton,paperButton);
   const panel=make('section','cw-b34-panel cw-b34-owned');panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','收藏句子');
