@@ -1156,7 +1156,7 @@ export function createDrawerLayouts({win,t,L,make,button,icon,openEditor,closeSe
   const moduleBase=new URL('.',import.meta.url);
   const ownLoader=[...doc.scripts].find(n=>n.src&&/\/loader-[^/]+\.js/.test(new URL(n.src).pathname)&&new URL('.',n.src).href===moduleBase.href);
   // 作为正式仓 preview/ 里的前瞻版运行时，扩展身份（文件夹名、manifest）以根目录为准。
-  const versionBase=new URL('.',globalThis.__cwPreview?.root||ownLoader?.src||import.meta.url);
+  const versionBase=new URL('.',ownLoader?.src||import.meta.url);
   const versionFolder=decodeURIComponent(versionBase.pathname.replace(/\/$/,'').split('/').pop());
   const versionHeaders=()=>win.SillyTavern?.getContext?.()?.getRequestHeaders?.()||{'Content-Type':'application/json'};
   const versionPost=(endpoint)=>win.fetch('/api/extensions/'+endpoint,{method:'POST',headers:versionHeaders(),body:JSON.stringify(versionIdentity)});

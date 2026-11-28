@@ -7,7 +7,7 @@ export function createExtensionPanel({win,t,make,button,icon,settings,openEditor
   const doc=win.document,prefs=preferencesFor(win),key='claude-web:extensions-layout';
   const style=make('link','');style.rel='stylesheet';style.href=new URL('styles/official-extension-panel.css?v=2.0.173',import.meta.url).href;doc.head.append(style);
   // 作为正式仓 preview/ 里的前瞻版运行时，扩展身份（文件夹名、manifest）以根目录为准。
-  const own='third-party/'+decodeURIComponent(new URL(globalThis.__cwPreview?.root||new URL('.',import.meta.url)).pathname.replace(/\/$/,'').split('/').pop());
+  const own='third-party/'+decodeURIComponent(new URL(new URL('.',import.meta.url)).pathname.replace(/\/$/,'').split('/').pop());
   const aliases={tavern_helper:'third-party/JS-Slash-Runner',bai_bai_toolkit_container:'third-party/baibai-tools',assets_container:'assets',expressions_container:'expressions',sd_container:'stable-diffusion',tts_container:'tts',qr_container:'quick-reply',translation_container:'translate',caption_container:'caption',summarize_container:'memory',regex_container:'regex',vectors_container:'vectors'};
   const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
   let panel,page,sources,list,detail,editor,mobileHead,host,api,initializing,visited=false,disposed=false,active=null,returnRoot=null,frame=0;
