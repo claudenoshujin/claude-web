@@ -136,8 +136,9 @@ function claudeReadSetting(key, allowed, fallback) {
   } catch {}
   try {
     const url = new URL(location.href);
-    if (url.searchParams.has("claudemode")) {
+    if (url.searchParams.has("claudemode") || url.searchParams.has("claudepreview")) {
       url.searchParams.delete("claudemode");
+      url.searchParams.delete("claudepreview");
       history.replaceState(history.state, "", url);
     }
   } catch {}
