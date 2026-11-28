@@ -12,7 +12,7 @@ const DIP_PX = 3, DIP_MS = 100, DIP_MIN = 50, GAP_MS = 40, BURST_DIP = 60, BURST
 const QUIET_MS = 600, HOLD_MS = 800, HYS = .75;
 const RATE = [.6, 1, 1.6], CPS_UP = [12, 32];
 
-export function installClawdRhythm({ doc, win, button, enabled, reducedMotion }) {
+export function installClawdRhythm({ doc, win, button, enabled, reducedMotion, suspended = () => false }) {
   let raf = 0, destroyed = false, clip = '', clipAt = 0, form = null;
   // —— 打字：一次输入蹲一下，不按上屏字数排队 ——
   let prevValue = '', compStart = null, lastKeyAt = -1e9, lastDipKey = 0;
@@ -20,15 +20,17 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
   // —— 生成：出字速度 ——
   let lastText = 0, sampleAt = 0, rateTier = 0, tierAt = 0, lastCharAt = -1e9;
   const charTimes = [];
+  let currentRig = null, animationList = [], upperParts = [], eyes = null;
+  let appliedRate = null, pinned = false, appliedX = 0, appliedY = 0;
 
   const box = () => doc.getElementById('send_textarea');
   const rig = () => button()?.querySelector(':scope > .clawd-rig') || null;
   const parts = r => UPPER.map(p => r?.querySelector('.clr-p-' + p)).filter(Boolean);
-  const clipAnims = r => (r?.getAnimations?.({ subtree: true }) || []).filter(a => typeof a.animationName === 'string' && a.animationName.includes('-' + clip + '-'));
+  const readClipAnimations = r => (r?.getAnimations?.({ subtree: true }) || []).filter(a => typeof a.animationName === 'string' && a.animationName.includes('-' + clip + '-'));
   const active = () => !destroyed && enabled() && !reducedMotion() && doc.documentElement.dataset.claudeMotion !== 'off';
 
   function dip() {
-    if (!active()) return;
+    if (!active() || suspended()) return;
     const now = win.performance.now(), interval = lastDipKey ? now - lastDipKey : 1e9; lastDipKey = now;
     dipQueue = Math.min(QUEUE_MAX, dipQueue + 1);
     const burst = dipQueue > 1;
@@ -55,18 +57,28 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
   // 发送 / 程序清空输入框不会发 input，开始打字前对齐一次长度
   const onFocus = e => { if (e.target === box()) { prevValue = e.target.value; compStart = null; } };
 
-  function reset(r) {
-    for (const n of parts(r)) n.style.removeProperty('translate');
-    dipQueue = 0; dipDown = false;
+  function releaseClip() {
+    if (pinned) for (const animation of animationList) animation.play();
+    if (appliedRate !== null && appliedRate !== 1) {
+      for (const animation of animationList) animation.playbackRate = 1;
+    }
+    for (const part of upperParts) part.style.removeProperty('translate');
+    pinned = false; appliedRate = null; appliedX = 0; appliedY = 0;
+    dipQueue = 0; dipDown = false; dipUntil = 0;
   }
   function onClip() {
     const next = button()?.dataset.clawdClip || '';
-    if (next === clip) return;
-    // 打第一个字时 CW 才把动画切到 compose：这一下已经排上了，切进来时留着
+    const nextRig = rig();
+    if (next === clip && nextRig === currentRig) return;
     const keep = /^compose(-m)?$/.test(next) ? dipQueue : 0;
-    reset(rig()); dipQueue = keep;
-    clip = next; clipAt = win.performance.now();
-    if (WRITE.test(clip)) { lastText = -1; rateTier = 0; tierAt = clipAt; charTimes.length = 0; lastCharAt = -1e9; }
+    releaseClip(); dipQueue = keep;
+    clip = next; clipAt = win.performance.now(); currentRig = nextRig;
+    const compose = /^compose(-m)?$/.test(clip);
+    const writing = WRITE.test(clip);
+    animationList = compose || writing ? readClipAnimations(currentRig) : [];
+    upperParts = compose ? parts(currentRig) : [];
+    eyes = compose ? currentRig?.querySelector('.clr-p-eyes') : null;
+    if (writing) { lastText = -1; sampleAt = 0; rateTier = 0; tierAt = clipAt; charTimes.length = 0; lastCharAt = -1e9; }
     wake();
   }
   // 大 Clawd 按钮会重建；输入框也可能被别的扩展换掉。把观察挂在 #send_form 上，按需重挂。
@@ -94,21 +106,30 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
   function frame(now) {
     raf = 0;
     if (destroyed) return;
-    const r = rig(), on = active();
+    const on = active();
     if (clip === 'compose' || clip === 'compose-m') {
-      const anims = clipAnims(r);
-      if (on) { for (const a of anims) if (a.playState !== 'paused') { a.pause(); a.currentTime = PIN_MS; } }
-      else for (const a of anims) if (a.playState === 'paused') a.play();
-      if (!on) dipQueue = 0;
+      const pin = on && !suspended();
+      if (pin !== pinned) {
+        for (const animation of animationList) {
+          if (pin) { animation.pause(); animation.currentTime = PIN_MS; }
+          else animation.play();
+        }
+        pinned = pin;
+      }
+      if (!pin) { dipQueue = 0; dipDown = false; }
       if (dipDown && now >= dipUntil) { dipDown = false; dipUntil = now + dipGap; }
       if (!dipDown && dipQueue > 0 && now >= dipUntil) { dipQueue--; dipDown = true; dipUntil = now + dipDur; }
       const typing = now - lastKeyAt < QUIET_MS, cycle = (now - clipAt) % 3200;
-      const scan = on && !typing && !dipDown && cycle > 2400 && cycle < 2700;
-      const sx = clip.endsWith('-m') ? -DIP_PX : DIP_PX;
-      for (const n of parts(r)) {
-        const x = scan && n.classList.contains('clr-p-eyes') ? sx : 0, y = dipDown ? DIP_PX : 0;
-        const v = x || y ? `${x}px ${y}px` : '';
-        if (n.style.translate !== v) v ? n.style.setProperty('translate', v) : n.style.removeProperty('translate');
+      const scan = pin && !typing && !dipDown && cycle > 2400 && cycle < 2700;
+      const x = scan ? (clip.endsWith('-m') ? -DIP_PX : DIP_PX) : 0;
+      const y = dipDown ? DIP_PX : 0;
+      if (x !== appliedX || y !== appliedY) {
+        for (const part of upperParts) {
+          const dx = part === eyes ? x : 0;
+          if (dx || y) part.style.setProperty('translate', `${dx}px ${y}px`);
+          else part.style.removeProperty('translate');
+        }
+        appliedX = x; appliedY = y;
       }
       raf = win.requestAnimationFrame(frame);
       return;
@@ -128,7 +149,10 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
       const quiet = now - lastCharAt > QUIET_MS;
       const t = quiet ? 0 : decideTier(charTimes.length, now);
       const rate = on ? RATE[t] : 1;
-      for (const a of clipAnims(r)) if (a.playbackRate !== rate) a.playbackRate = rate;
+      if (!suspended() && rate !== appliedRate) {
+        for (const animation of animationList) animation.playbackRate = rate;
+        appliedRate = rate;
+      }
       raf = win.requestAnimationFrame(frame);
     }
   }
@@ -140,6 +164,7 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
 
   return {
     freezeCompose() {
+      if (!/^compose(-m)?$/.test(clip)) return;
       if (raf) win.cancelAnimationFrame(raf); raf = 0;
       dipQueue = 0;
       // Preserve current translate until the synchronous clip switch; do not return to idle.
@@ -151,8 +176,8 @@ export function installClawdRhythm({ doc, win, button, enabled, reducedMotion })
       destroyed = true; mo.disconnect();
       if (raf) win.cancelAnimationFrame(raf); raf = 0;
       for (const [type, fn] of listeners) doc.removeEventListener(type, fn, true);
-      const r = rig(); reset(r);
-      for (const a of clipAnims(r)) { if (a.playState === 'paused') a.play(); a.playbackRate = 1; }
+      releaseClip();
+      animationList = []; upperParts = []; currentRig = eyes = null;
     },
   };
 }

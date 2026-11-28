@@ -40,7 +40,8 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
   let closeChatMenu = null;
   function enhanceChatMenu(s, menu, list, summary) {
     list.dataset.cwxChatMenu = '';
-    const popover = typeof list.showPopover === 'function';
+    const canPopover = typeof list.showPopover === 'function';
+    let popover = canPopover;
     if (popover) list.setAttribute('popover', 'manual');
     let stop = null;
     const close = () => {
@@ -53,6 +54,10 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
       if (!menu.open || !menu.isConnected) { close(); return; }
       if (closeChatMenu === close) return;
       closeChatMenu?.(); closeChatMenu = close;
+      // Inside a native modal (e.g. the Chromium 138 sheet fallback) a descendant popover is painted
+      // under the dialog content there; use the in-dialog positioning instead.
+      popover = canPopover && !list.closest('dialog:modal');
+      if (popover) { list.setAttribute('popover', 'manual'); list.style.removeProperty('position'); } else list.removeAttribute('popover');
       if (popover) list.showPopover();
       const a = summary.getBoundingClientRect(), b = list.getBoundingClientRect();
       const width = win.innerWidth, height = win.innerHeight;
@@ -71,8 +76,14 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
       const outside = e => { if (!menu.contains(e.target)) close(); };
       const key = e => { if (e.key === 'Escape') { close(); summary.focus({preventScroll:true}); e.preventDefault(); e.stopImmediatePropagation(); } };
       const scroll = e => { if (!list.contains(e.target)) close(); };
-      const watch = new win.MutationObserver(() => { if (!menu.isConnected) close(); });
+      const watch = new win.MutationObserver(() => {
+        if (!menu.isConnected) { close(); return; }
+        // The owner sheet may fall back to a native modal after the menu opened; reopen in that mode.
+        if (popover && list.closest('dialog:modal')) { close(); menu.open = true; }
+      });
       watch.observe(doc.body, {childList:true, subtree:true});
+      const owner = list.closest('dialog');
+      if (owner) watch.observe(owner, {attributes:true, attributeFilter:['data-cw-lifted','popover','open']});
       doc.addEventListener('pointerdown', outside, true);
       doc.addEventListener('keydown', key, true);
       doc.addEventListener('scroll', scroll, true);
@@ -90,8 +101,8 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
   }
   function move(s,n,host,before){
     if(!n||n===host||n.contains(host))return;
-    const companion=n.matches?.('select.select2-hidden-accessible')&&n.nextElementSibling?.matches('.select2-container')?n.nextElementSibling:null;
     for(const counter of n.matches?.('input[data-for]')?[n]:n.querySelectorAll?.('input[data-for]')||[]){const undoRange=retainRangeCounter(counter);if(undoRange)s.undo.push(undoRange);}
+    const companion=n.matches?.('select.select2-hidden-accessible')&&n.nextElementSibling?.matches('.select2-container')?n.nextElementSibling:null;
     const mark=doc.createComment('cwx-return');n.before(mark);s.moves.push([n,mark]);
     before?host.insertBefore(n,before):host.append(n);if(companion)move(s,companion,host);
   }
@@ -416,7 +427,7 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
       restTitle:'总结设置'},
     extras:{match:root=>root.matches?.('.extensions_url_block')||!!root.querySelector('#extensions_url'),
       content:root=>root,label:{extensions_url:'地址',extensions_api_key:'密钥',extensions_autoconnect:'自动连接',extensions_connect:'连接'}},
-    qr:{match:has('#qr--isEnabled'),cls:'cwx-qr',content:root=>root,
+    qr:{match:has('#qr--isEnabled'),cls:'cwx-qr',
       label:{'qr--isEnabled':'启用快速回复','qr--isCombined':'合并快速回复','qr--showPopoutButton':'电脑上显示弹出式按钮','qr--set':'集合','qr--disableSend':'禁用发送（插入输入框）','qr--placeBeforeInput':'放在输入框前面','qr--injectInput':'自动注入用户输入','qr--onlyBorderColor':'颜色只用在边框上',
         'qr--global-setListAdd':'添加全局集合','qr--chat-setListAdd':'添加聊天集合','qr--character-setListAdd':'添加角色集合','qr--set-new':'新建集合','qr--set-rename':'改名','qr--set-import':'导入','qr--set-export':'导出','qr--set-duplicate':'复制','qr--set-delete':'删除这个集合','qr--set-add':'新建按钮','qr--set-paste':'从剪贴板粘贴','qr--set-importQr':'从文件导入','qr--colorClear':'清除颜色','qr--color':'颜色'},
       desc:{'qr--injectInput':'关掉时用 {{input}} 手动插入'},safe:['#qr--colorClear'],raw:['.qr--setList','#qr--set-qrList'],
@@ -731,18 +742,18 @@ export function createExtensionSettings({win,t,L,make,button,icon,openEditor}) {
     for(const k of ['vectors','tts','expressions','translate','caption','memory','qr','regex','extras'])if(PLANS[k].match(root))return PLANS[k];
     return PLANS.generic;
   }
-  function open(root,title){
+  function open(root,title,options={}){
+    const present=options.openEditor||openEditor;
     // 自己画整套界面的扩展（酒馆助手这种）原样放进白卡片。
-    // QR助手 5.9+ 自带「主设置 / 白名单 / 按钮图标」分页和点选列表，拆成通用行以后分页变成一行标题、白名单页是空的（B04）。
     // 酒馆自带、我们有专门排法的（正则……）不算：柏宝箱会往 #regex_container 里挂一个藏着的 Vue 根（data-v-app），
     // 再把仿原生的行渲染进 #saved_regex_scripts；按「自画界面」原样放，藏着的勾选框全被画成大开关（2.0.314）。
     const plan=planFor(root,title);
-    if(root.id==='claude-web-settings'||root.querySelector('#claude-web-settings')||(plan===PLANS.generic&&(root.matches('[data-v-app],[script_id]')||root.__vue_app__||root.querySelector('[data-v-app],.qr-settings-tab-bar')))||/酒馆助手|Tavern Helper|st-chatu8/i.test(title)){openEditor(root,title);return;}
+    if(options.preserve||root.id==='claude-web-settings'||root.querySelector('#claude-web-settings')||(plan===PLANS.generic&&(root.matches('[data-v-app],[script_id]')||root.__vue_app__||root.querySelector('[data-v-app],.qr-settings-tab-bar')))||/酒馆助手|Tavern Helper|st-chatu8/i.test(title)){present(root,title);return;}
     const s=session(root,plan);
-    try{build(s);}catch(e){console.error('[Claude Web] extension settings',e);teardown(s);sessions.delete(s);openEditor(root,title);return;}
+    try{build(s);}catch(e){console.error('[Claude Web] extension settings',e);teardown(s);sessions.delete(s);present(root,title);return;}
     watchRoot(s);
     watch.observe(doc.body,{childList:true,subtree:true});
-    openEditor(root,title,'',{onClose:()=>close(s)});
+    present(root,title,'',{onClose:()=>close(s)});
   }
   return {open,restore(){watch.disconnect();panelWatch.disconnect();bodyWatch.disconnect();for(const [panel,s] of hosted){s.page?.closest('dialog.cw-v4-editor')?._cwShut?.();panel.classList.remove('cwx-panel-hosted');}hosted.clear();for(const s of [...sessions])close(s);popups.clear();}};
 }

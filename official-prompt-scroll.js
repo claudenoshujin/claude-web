@@ -1,7 +1,7 @@
 // PromptManager replaces its list asynchronously. Its native scroll owner is
 // no longer an ancestor in CW, so keep a visible row anchored in the CW pane.
 export function createPromptScroll({win,enabled}) {
-  const doc=win.document, rowSelector='.completion_prompt_manager_prompt[data-pm-identifier]';
+  const doc=win.document, rowSelector='.completion_prompt_manager_prompt[data-pm-identifier]:not([data-preset-favorite-mirror="true"]):not(.bai-bai-preset-favorite-prompt)';
   let panel=null, manager=null, observer=null, resize=null, snapshot=null, pending=null;
   let frame=0, captureFrame=0, stopped=false, blockedList=null, blockedFirst=null;
   let actionSnapshot=false;
@@ -11,8 +11,27 @@ export function createPromptScroll({win,enabled}) {
     const c=win.SillyTavern?.getContext?.();
     return JSON.stringify([doc.getElementById('settings_preset_openai')?.value,c?.characterId,c?.groupId,c?.chatId]);
   };
-  const popupOpen=()=>doc.getElementById('completion_prompt_manager_popup')?.classList.contains('openDrawer');
+  // A desktop dock leaves the native drawer logically open, while the list stays interactive.
+  const popupOpen=()=>!panel?.querySelector('.cwp-dock-editing')&&doc.getElementById('completion_prompt_manager_popup')?.classList.contains('openDrawer');
+  const promptPage=()=>panel?.dataset.cwPresetTab==='prompts';
+  // The owner is fixed while a tab is shown; reading computed overflow on every
+  // scroll frame forced a full style recalc (96 prompts: ~70% of scroll time).
+  let ownerCache=null;
+  // Layout switches (phone <-> desktop) can change which pane scrolls.
+  const dropOwner=()=>{ownerCache=null;};win.addEventListener('resize',dropOwner);disposers.push(()=>win.removeEventListener('resize',dropOwner));
   function scrollOwner() {
+    const page=promptPage(),current=list();
+    if(ownerCache&&ownerCache.page===page&&ownerCache.list===current&&ownerCache.node?.isConnected&&(ownerCache.node.contains(manager)||manager?.contains(ownerCache.node)))return ownerCache.node;
+    const node=findOwner();ownerCache=node?{node,page,list:current}:null;return node;
+  }
+  function findOwner() {
+    const current=list();
+    if(promptPage()&&panel?.querySelector('.cwp-dock')&&!panel.classList.contains('cwp-phone')){
+      const column=current?.closest('.range-block');
+      if(column)return column;
+    }
+    if(promptPage()&&panel?.classList.contains('cwp-phone'))return panel;
+    if(promptPage()&&current&&/auto|scroll/.test(win.getComputedStyle(current).overflowY))return current;
     for(let n=manager?.parentElement;n;n=n.parentElement){
       if(/auto|scroll/.test(win.getComputedStyle(n).overflowY)&&n.scrollHeight>n.clientHeight+1)return n;
     }
@@ -31,7 +50,7 @@ export function createPromptScroll({win,enabled}) {
     if(block){blockedList=list();blockedFirst=blockedList?.querySelector(rowSelector);}
   }
   function capture(preferred=null) {
-    if(stopped||!enabled()||!panel?.isConnected||!manager?.isConnected||pending||popupOpen())return;
+    if(stopped||!enabled()||!promptPage()||!panel?.isConnected||!manager?.isConnected||pending||popupOpen())return;
     if(actionSnapshot&&!preferred)return;
     const current=list();if(!current||current===blockedList)return;
     const rows=current.querySelectorAll(rowSelector);if(!rows.length)return;
@@ -50,7 +69,7 @@ export function createPromptScroll({win,enabled}) {
     }
     const r=row?.getBoundingClientRect();
     const visible=r&&r.top<rect.bottom&&r.bottom>top;
-    snapshot={list:current,first:rows[0],last:rows[rows.length-1],scroller,key:context(),top:scroller.scrollTop,identifier:visible?row.dataset.pmIdentifier:null,offset:visible?(r.top-top)/scale:0};
+    snapshot={list:current,first:rows[0],last:rows[rows.length-1],scroller,ownerInManager:manager.contains(scroller),key:context(),top:scroller.scrollTop,identifier:visible?row.dataset.pmIdentifier:null,offset:visible?(r.top-top)/scale:0};
   }
   function captureSoon(){
     if(!captureFrame)captureFrame=win.requestAnimationFrame(()=>{captureFrame=0;capture();});
@@ -58,9 +77,19 @@ export function createPromptScroll({win,enabled}) {
   function queueRestore(){if(!frame&&pending)frame=win.requestAnimationFrame(()=>{frame=0;apply();});}
   function apply() {
     if(!pending)return;
-    if(!enabled()||!panel?.isConnected||!manager?.isConnected||pending.key!==context()||!pending.scroller.isConnected){cancel();return;}
+    if(!enabled()||!promptPage()||!panel?.isConnected||!manager?.isConnected||pending.key!==context()){cancel();return;}
     const current=list(),rows=current?.querySelectorAll(rowSelector);
     if(!rows?.length){if(win.performance.now()<pending.expires)queueRestore();else cancel();return;}
+    if(pending.ownerInManager&&!pending.scroller.contains(current)){
+      const next=findOwner();
+      if(!next){cancel();return;}
+      restoreOverflow();
+      pending.scroller=next;
+      pending.anchorStyle=next.style.getPropertyValue('overflow-anchor');
+      pending.anchorPriority=next.style.getPropertyPriority('overflow-anchor');
+      next.style.setProperty('overflow-anchor','none');
+    }
+    if(!pending.scroller.isConnected){cancel();return;}
     const p=pending,rect=p.scroller.getBoundingClientRect(),scale=rect.height/p.scroller.offsetHeight||1;
     const row=p.identifier&&current.querySelector('[data-pm-identifier="'+win.CSS.escape(p.identifier)+'"]');
     const delta=row?(row.getBoundingClientRect().top-rect.top-p.scroller.clientTop*scale)/scale-p.offset:0;
@@ -73,7 +102,7 @@ export function createPromptScroll({win,enabled}) {
     queueRestore();
   }
   function mutated(records) {
-    if(!enabled()||!panel?.isConnected){cancel();return;}
+    if(!enabled()||!promptPage()||!panel?.isConnected){cancel();return;}
     const current=list();
     if(blockedList&&(current!==blockedList||current?.querySelector(rowSelector)!==blockedFirst)){blockedList=blockedFirst=null;}
     if(snapshot&&!pending&&snapshot.key===context()&&snapshot.list!==blockedList){
@@ -86,6 +115,13 @@ export function createPromptScroll({win,enabled}) {
       }
     }
     if(pending){
+      // ST can replace the whole scroll owner. Seed its position as soon as the
+      // new rows arrive, before the next paint. The frame pass corrects the
+      // anchor after CW finishes adapting the native rows.
+      if(pending.ownerInManager&&current?.querySelector(rowSelector)&&!pending.scroller.contains(current)){
+        const next=findOwner();
+        if(next)next.scrollTop=pending.top;
+      }
       // CW moves native controls and adds labels inside rows. Those changes
       // are not another native list render and must not prolong settling.
       if(records.some(r=>r.type==='childList'&&(r.target===current||r.target===manager)))pending.changedAt=win.performance.now();
@@ -109,13 +145,17 @@ export function createPromptScroll({win,enabled}) {
     // The panel observer queues CW's sync before this observer queues restore.
     // Restore only in rAF, after CW has adapted the new native rows.
   }
-  function disconnect(){cancel();observer?.disconnect();resize?.disconnect();observer=resize=null;panel=manager=null;blockedList=blockedFirst=null;}
+  function disconnect(){ownerCache=null;cancel();observer?.disconnect();resize?.disconnect();observer=resize=null;panel=manager=null;blockedList=blockedFirst=null;}
   const listen=(target,type,fn,options)=>{target.addEventListener(type,fn,options);disposers.push(()=>target.removeEventListener(type,fn,options));};
   listen(doc,'contentvisibilityautostatechange',e=>{
     if(pending&&manager?.contains(e.target)){pending.changedAt=win.performance.now();pending.stable=0;queueRestore();}
   },true);
-  listen(doc,'scroll',e=>{if(e.target===(snapshot?.scroller||pending?.scroller))captureSoon();},{capture:true,passive:true});
+  // Re-anchor after the user stops scrolling, not on every scroll frame: capture()
+  // reads row geometry, and mid-scroll that forced a full style/layout pass per frame.
+  let settle=0;disposers.push(()=>win.clearTimeout(settle));
+  listen(doc,'scroll',e=>{if(e.target!==(snapshot?.scroller||pending?.scroller))return;if(pending){captureSoon();return;}win.clearTimeout(settle);settle=win.setTimeout(captureSoon,120);},{capture:true,passive:true});
   const intent=e=>{
+    if(e.target.closest?.('.cw-pm-tabs')){cancel();captureSoon();return;}
     const scroller=pending?.scroller||snapshot?.scroller||scrollOwner();
     if(e.type==='pointerdown'&&e.target===scroller){
       if(pending)cancel();

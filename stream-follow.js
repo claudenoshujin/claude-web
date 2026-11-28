@@ -16,7 +16,8 @@ export function installStreamFollow({ win, doc, getContext, enabled }) {
   const counts = { renderedBatches: 0, nativeRequests: 0, pauses: 0, resumes: 0, decorations: 0, gestureStarts: 0, upwardMoves: 0, detachedMoves: 0 };
   const subscriptions = [];
   const listeners = [];
-  import('../../../../script.js').then(module => {
+  // 按页面地址找酒馆本体，不按本文件位置数层级：前瞻版在正式仓 preview/ 里，多一层目录。
+  import(new win.URL('script.js', doc.baseURI).href).then(module => {
     if (!destroyed && typeof module.scrollChatToBottom === 'function') nativeBottom = module.scrollChatToBottom;
   }).catch(() => { following = false; });
 
@@ -162,7 +163,13 @@ export function installStreamFollow({ win, doc, getContext, enabled }) {
   updateVisibleRegion();
   return {
     pause,
-    resume() { if (destroyed) return; gesture=null; if (!following) counts.resumes++; following=!!isEnabled(); requestNativeBottom(); },
+    resume() {
+      if (destroyed) return;
+      gesture = null;
+      if (!following) counts.resumes += 1;
+      following = Boolean(isEnabled());
+      requestNativeBottom();
+    },
     afterDecoration() { counts.decorations += 1; requestNativeBottom(); },
     stats: () => ({ active, following, ready: !!nativeBottom, visibleHeight, gesture: gesture ? { pressing: gesture.pressing, moved: gesture.moved, direction: gesture.direction } : null, ...counts }),
     destroy() {

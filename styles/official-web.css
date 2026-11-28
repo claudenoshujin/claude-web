@@ -89,9 +89,6 @@ html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more:hover { background:
 html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more svg { transition: transform .15s ease; }
 html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-more[aria-expanded="true"] svg { transform: rotate(90deg); }
 /* 「更多」收着：背景、扩展这两行排到它下面，平时压成 0 高 */
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { order: 4 !important; }
-html[data-cw-web]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { height: 0 !important; min-height: 0 !important; }
-html[data-cw-web]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) > .drawer-toggle { display: none !important; }
 
 /* 最近：按日期分组，「最近」标题和它的放大镜不要了（搜索在顶上），排序图标挪到第一组标题右边 */
 html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .clawd-rail-recents { margin-top: 18px !important; }
@@ -114,10 +111,6 @@ html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-apps svg { width: 18px; 
 
 /* 右上角：只留幽灵；对话页换成 文件图标 +「分享」 */
 html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-desk-win > svg:not(.cw-ghost) { display: none !important; }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-share { position: fixed; top: 9px; right: 14px; z-index: 50; display: flex; align-items: center; gap: 10px; pointer-events: none; }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-share svg { width: 18px; height: 18px; color: var(--w-text); }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) .cw-web-share b { font-weight: 400; font-size: 14.5px; color: var(--w-text); border: 1px solid var(--w-sbd); border-radius: 9px; padding: 4px 11px; background: var(--w-btn); }
-html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) body.clawd-welcome > .cw-web-share { display: none; }
 
 /* 输入框：细边、大圆角；框下一行 左「项目 ⌄」/ 右角色和档位，对齐框的内边距 */
 html[data-cw-web]:not(#cw1):not(#cw2):not(#cw3) #send_form { background: var(--w-cbg) !important; border: 1px solid var(--w-cbd) !important; border-radius: 18px !important; box-shadow: var(--w-shadow) !important; overflow: visible !important; }
@@ -224,9 +217,6 @@ html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#c
 html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more .cw-web-label { font-size: 17px !important; color: var(--w-dim) !important; }
 html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more svg { width: 25px; height: 25px; flex: none; transition: transform .15s ease; }
 html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .cw-web-more[aria-expanded="true"] svg { transform: rotate(90deg); }
-html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { order: 4 !important; }
-html[data-cw-web-phone]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) { position: absolute !important; top: 0 !important; left: 0 !important; height: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-html[data-cw-web-phone]:not([data-cw-web-more="open"]):not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder > :is(#advanced-formatting-button, #user-settings-button, #backgrounds-button, #extensions-settings-button) > .drawer-toggle { display: none !important; }
 /* 最近：日期分组代替「最近」标题；行高 50、头像 30（官网），去掉行尾日期，⋯ 淡一点 */
 html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) body #top-settings-holder .clawd-rail-recents-label { display: none !important; }
 html[data-cw-web-phone]:not(#cw1):not(#cw2):not(#cw3):not(#cw4):not(#cw5):not(#cw6) .clawd-rail-recents .cw-web-date { padding: 0 15px !important; margin-top: 14px !important; height: 30px !important; font-size: 14px !important; }
@@ -271,19 +261,3 @@ html[data-cw-web-phone][data-cw-generating]:not(#x1):not(#x2):not(#x3):not(#x4):
 /* 2.0.327 手机夜间：输入框空着时那个音波键照官网 App——白底黑图标（原来是黑底白图标，夜里看着像个洞）。 */
 html[data-cw-web-phone][data-claude-integrated-theme="night"]:not(#x1):not(#x2):not(#x3):not(#x4):not(#x5):not(#x6):not(#x7) body:not(.claude-generation-active):not(.cw-v4-filled) #send_form #rightSendForm #send_but { background: var(--w-strong) !important; }
 html[data-cw-web-phone][data-claude-integrated-theme="night"]:not(#x1):not(#x2):not(#x3):not(#x4):not(#x5):not(#x6):not(#x7) body:not(.claude-generation-active):not(.cw-v4-filled) #send_form #rightSendForm #send_but::before { background: #141413 !important; }
-
-/* Approved repeated-avatar dot, Web mobile style only. */
-html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar{position:relative!important;background:none!important;box-shadow:none!important;border:0!important}
-html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar>img{visibility:hidden!important}
-html[data-cw-web-phone] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{content:""!important;position:absolute!important;left:50%!important;top:50%!important;width:9px!important;height:9px!important;transform:translate(-50%,-50%)!important;box-sizing:border-box!important;border:1.3px solid #aaa89f!important;border-radius:50%!important;background:none!important}
-html[data-cw-web-phone][data-claude-integrated-theme="night"] body #top-settings-holder .clawd-rail-recents .recentChat.cw-rec-rep>.avatar::after{border-color:#77756e!important}
-
-/* Composer follows native font scale; only iOS keeps a 16px floor. */
-html[data-cw-web] body:not(.clawd-welcome) #send_textarea{font-size:calc(15px * var(--fontScale,1))!important}
-html[data-cw-web] body.clawd-welcome #send_textarea{font-size:calc(16px * var(--fontScale,1))!important}
-html[data-cw-web-phone] body #send_textarea#send_textarea{font-size:calc(15px * var(--fontScale,1))!important}
-
-@supports (-webkit-touch-callout: none){
- html[data-cw-v4][data-claude-layout="mobile"] body #form_sheld #send_form #send_textarea#send_textarea,
- html[data-cw-web-phone] body #send_textarea#send_textarea{font-size:max(16px,calc(16px * var(--fontScale,1)))!important}
-}

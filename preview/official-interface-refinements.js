@@ -1,4 +1,4 @@
-import { watchTokens, tokenText } from './token-count.js?v=2.0.172';
+import { watchTokens, tokenText } from './token-count.js?v=2.0.173';
 /* The five formatting tabs and the live persona editor use original ST controls. */
 export function createInterfaceRefinements(h) {
   const {win,t,L,make,button,icon,get,begin,finish,restorePanel,section,row,move,cleanup,created,act,menu,tg,sel,num,txt,presetRow,showToggle,openEditor}=h;

@@ -1,8 +1,8 @@
-import { halloweenIcons as I, halloweenIconWeight as IW } from './halloween-icons.js?v=2.0.172';
-import { createHalloweenSprites } from './halloween-sprites.js?v=2.0.172';
-import { buildHalloweenRig } from './halloween-rig.js?v=2.0.172';
-import { halloweenCSS, iconRules } from './halloween-style.js?v=2.0.172';
-import { halloweenPileCells } from './halloween-pile.js?v=2.0.172';
+import { halloweenIcons as I, halloweenIconWeight as IW } from './halloween-icons.js?v=2.0.173';
+import { createHalloweenSprites } from './halloween-sprites.js?v=2.0.173';
+import { buildHalloweenRig } from './halloween-rig.js?v=2.0.173';
+import { halloweenCSS, iconRules } from './halloween-style.js?v=2.0.173';
+import { halloweenPileCells } from './halloween-pile.js?v=2.0.173';
 
 export function createHalloweenScene({win,getContext,ambient,getClawdState,prefs}) {
   const doc=win.document,root=doc.documentElement,art=createHalloweenSprites(doc);

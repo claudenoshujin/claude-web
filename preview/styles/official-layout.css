@@ -1,7 +1,7 @@
 /* 层顺序：cw-settings-v2d 排在 spec 前面，!important 时压过 spec / round3 / unified（见 settings-v2d.css 开头）。 */
 @layer cw-settings-visibility,cw-settings-v2d;
-@import url('./settings-unified.css?v=2.0.172');
-@import url('./settings-v2d.css?v=2.0.172');
+@import url('./settings-unified.css?v=2.0.173');
+@import url('./settings-v2d.css?v=2.0.173');
 /* Mobile: keep a fixed element in a message from making the root touch-scrollable. */
 html[data-cw-v4][data-claude-layout="mobile"]{overflow-y:hidden!important}
 /* Keep message fixed elements anchored to the viewport, not a scrollable root. */
@@ -3918,3 +3918,8 @@ html[data-cw-v4] body #chat>.yuzi-bottom-anchor[style*="--cw-col-width"]{max-wid
 /* 11-26 玉子手机表格面板：CW 电脑布局里 #top-bar 是整窗高的侧栏，插件把面板高度算成 0、或整块裁掉。
    official-layout.js 按插件的规则、以 CW 标题栏下沿为上沿重算，写成 root 上的 --cw-yuzi-*，这里盖过插件写在面板上的几何。 */
 html[data-cw-v4] body>.yuzi-bottom-root[style*="--cw-yuzi-top"]>.yuzi-bottom-panel:is([data-region="chat"],[data-region="viewport"]){top:var(--cw-yuzi-top)!important;height:var(--cw-yuzi-h)!important;transform:none!important;clip-path:var(--cw-yuzi-clip)!important}
+
+/* CW repositions the native edit controls. Hide BaiBai's extra copies in this editor. */
+html[data-cw-v4][data-claude-ui="web"] body #chat > .mes:has(#curEditTextarea) .bai-bai-toolkit-message-edit-bottom-actions {
+  display: none !important;
+}
